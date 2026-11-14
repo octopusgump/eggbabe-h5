@@ -1,29 +1,21 @@
 # eggbabe-H5
 
-玉兔（Yutu）换装小游戏 — 独立 H5 仓库，与 `eggbabe-miniprogram` 分离。
+玉兔（Yutu）**v2b WebGL mesh** 换装小游戏 — 独立 H5 仓库。
 
-**仓库**：<https://github.com/octopusgump/eggbabe-h5>
+**GitHub**：<https://github.com/octopusgump/eggbabe-h5>
 
-## 默认分支
+## 文档
 
-| 分支 | 用途 |
+| 文件 | 内容 |
 |------|------|
-| **`main`** | 换装 H5 规划、文档与后续 Vite+TS 工程（**推荐默认分支**） |
-| `yutu-house` | 玉兔小屋无桥版 HTML 交接包（历史默认分支，内容与 `main` 上的 `yutu-house/` 目录一致） |
+| [**PLAN.md**](PLAN.md) | v2b 基线、`yutu_mesh_demo.html`、方案 A（破壳换装走路小屋）、MVP（2+2+8）、Vite+TS、阶段 **P0–P5** |
+| [**CONTEXT.md**](CONTEXT.md) | `yutu_context_bundle_946c`、**`assets/v2b/`** 路径、与小程序仓库 **无耦合** |
 
-在 GitHub 仓库 **Settings → General → Default branch** 中请将默认分支设为 **`main`**。
+## 其它目录
 
-## 换装小游戏（主项目）
+- [`yutu-house/`](yutu-house/) — 既有玉兔小屋无桥 HTML demo（保留）；与换装 WebGL 工程并列。
 
-- 方案 A MVP：2 件上衣 + 2 件裙子（见 `PLAN.md`、`CONTEXT.md`）
-- 技术栈：Vite + TypeScript，纯 H5，不接小程序
-- 占位资源目录：`assets/`
-
-## 玉兔小屋 Demo（已有）
-
-浏览器打开 [`yutu-house/yutu_house_demo.html`](yutu-house/yutu_house_demo.html)。说明见 [`yutu-house/HANDOFF.md`](yutu-house/HANDOFF.md)。未接入小程序。
-
-## 本地开发（换装 MVP 脚手架落地后）
+## 开发（P3 脚手架落地后）
 
 ```bash
 npm install

@@ -1,48 +1,65 @@
-# 玉兔换装 H5 — 背景与上下文
+# 玉兔换装 H5 — 背景与上下文（v2b WebGL）
 
-## 为什么单独建 `eggbabe-h5`
+## 仓库
 
-- **蛋贝贝 / 玉兔**相关玩法需要在 H5 上快速试玩和演示，但小程序仓库发布链路重、与 PRD 耦合紧。
-- **玉兔小屋**已以无桥版 HTML 交接包形式存在（本仓库 `yutu-house/`），证明「独立 repo + 浏览器打开」可行。
-- **换装小游戏**是下一增量：同样放在独立仓库，避免误改小程序或 merge 到 eggbabe 主工程。
+- **GitHub**：<https://github.com/octopusgump/eggbabe-h5>
+- **分支**：换装工程在 **`main`**；`yutu-house/` 为已交接的小屋 HTML demo，**保留、不删除**。
 
-仓库地址：<https://github.com/octopusgump/eggbabe-h5>
+## 上下文包（canonical）
 
-## 与 `yutu-house` 的关系
+策划与 v2b 资产以压缩包为准：
 
-| 内容 | 路径 | 状态 |
+- **`yutu_context_bundle_946c.zip`**（下称 **946c bundle**）
+- 内含：剧情/方案 A 说明、**`yutu_mesh_demo.html`**（WebGL mesh 基线）、v2b 贴图与 mesh 相关文件、破壳/走路等资源索引
+
+**P0 动作**：在本地解压 946c bundle，按 bundle 内 README/清单将文件迁入本仓库，**不要** 只在 Cursor 沙箱里保留一份未推送的副本。
+
+## v2b 资产路径（本仓库约定）
+
+解压并对照 bundle 后，统一落到：
+
+```text
+assets/v2b/
+  mesh/           # 角色 mesh / glTF 等（以 bundle 实际结构为准）
+  textures/       # v2b 贴图、换装图集
+  audio/          # 可选音效
+  reference/      # 保留 yutu_mesh_demo.html 或链接说明，便于 P1 对照
+```
+
+当前 `assets/.gitkeep` 仅为占位；**真实 v2b 文件在 P0 从 946c 迁入后** 再提交（大文件视情况使用 Git LFS）。
+
+### 基线 Demo
+
+- **`yutu_mesh_demo.html`** — v2b WebGL **grid / mesh** 换装演示；`PLAN.md` P1 要求与之行为对齐后再 Vite 化。
+- **不是** Canvas 2D 叠图层方案。
+
+## 与 `yutu-house/` 的关系
+
+| 目录 | 内容 | 技术 |
 |------|------|------|
-| 玉兔小屋无桥 demo | `yutu-house/` | 已完成交接，单文件 `yutu_house_demo.html` |
-| 玉兔换装 MVP | 根目录 `src/` + `assets/`（待建） | 方案 A：2 上衣 + 2 裙子 |
+| `yutu-house/` | 无桥版玉兔小屋单文件 HTML | DOM + 内嵌 WebP，已交接完成 |
+| `src/` + `assets/v2b/` | 破壳换装走路小屋（方案 A） | **WebGL mesh**，Vite+TS |
 
-两子项目 **共享同一 Git 仓库**，目录隔离；换装开发 **不要求** 改动小屋 demo，除非产品明确要求联动。
+两棵子树 **目录隔离**；换装流程结尾可 **视觉对齐** 小屋，但 **默认不要求** 修改 `yutu-house/` 内文件。
 
-## 产品范围（方案 A）
+## 产品切片（方案 A）
 
-- 角色：玉兔（Yutu），与小程序世界观一致，但 **无登录、无云存档**。
-- 玩法：点选上衣 / 裙子，实时合成角色立绘。
-- 内容量：2 tops × 2 skirts = 4 套可见组合，用于 MVP 验收与美术流程试跑。
+- **破壳换装走路小屋** — 线性流程，**仅一次换装**（见 `PLAN.md` §3）
+- MVP：**2 上衣 + 2 裙子 + 8 配饰**，WebGL mesh 槽位切换
 
-## 技术约束
+## 与 eggbabe-miniprogram 的关系（硬约束）
 
-- **Vite + TypeScript**：与团队现代前端习惯一致，便于 Cursor Agent 增量开发。
-- **Standalone**：不依赖小程序 bridge、不引用微信 JSSDK（除非后续明确要分享页）。
-- **资源**：服装与身体分图层；`assets/` 纳入 Git 或 Git LFS（大文件时再加 LFS，当前仅占位）。
+- **零耦合**：不修改 `octopusgump/eggbabe-miniprogram`，不提交 PR 到该仓库，不设 submodule。
+- 不把本 H5 接入微信小程序；不同步用户存档、登录态或 PRD 内未确认的玩法。
+- 小程序侧 PRD/CONTEXT 仅供 **世界观与美术风格参考**，不是本仓库的实现依赖。
 
-## 分支策略
+## 分支说明
 
-- **`main`**：换装规划 + 后续工程 + 保留 `yutu-house/` 全量内容（当前 `main` 已包含小屋文件）。
-- **`yutu-house`**：历史分支，仅含小屋交接提交；与 `main` 上 `yutu-house/` 目录 **内容对齐**，新工作请以 `main` 为准。
+- **`main`**：v2b WebGL 换装规划 + 后续工程 + `yutu-house/` 全量内容。
+- **`yutu-house`**：历史默认分支名；应与 `main` 上 `yutu-house/` 目录内容一致时，以 **`main`** 为协作基准。
 
-若 GitHub 默认分支仍为 `yutu-house`，请在仓库设置中改为 **`main`**（见 `README.md`）。
+## 参考文档
 
-## 硬约束（从小屋交接延续）
-
-- 不修改 `octopusgump/eggbabe-miniprogram` 仓库
-- 不把 H5 demo 自动接入小程序
-- 不确定需求先与 Bohao 确认，再扩大范围
-
-## 参考
-
+- 实施计划：`PLAN.md`（v2b WebGL，含 P0–P5）
 - 小屋交接：`yutu-house/HANDOFF.md`、`yutu-house/PROMPT.md`
 - 建仓备忘：`docs/CREATE_REPO.md`
