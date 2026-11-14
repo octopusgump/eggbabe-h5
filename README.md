@@ -1,37 +1,32 @@
 # eggbabe-H5
 
-玉兔（Yutu）换装小游戏 — 独立 H5 仓库，与 `eggbabe-miniprogram` 分离。
+玉兔（Yutu）**v2b WebGL mesh** 换装小游戏 — 独立 H5 仓库。
 
-**仓库**：<https://github.com/octopusgump/eggbabe-h5>
+**GitHub**：<https://github.com/octopusgump/eggbabe-h5>
 
-## 默认分支
+## 文档
 
-| 分支 | 用途 |
+| 文件 | 内容 |
 |------|------|
-| **`main`** | 换装 H5 规划、文档与后续 Vite+TS 工程（**推荐默认分支**） |
-| `yutu-house` | 玉兔小屋无桥版 HTML 交接包（历史默认分支，内容与 `main` 上的 `yutu-house/` 目录一致） |
+| [**PLAN.md**](PLAN.md) | v2b 基线、`yutu_mesh_demo.html`、方案 A（破壳换装走路小屋）、MVP（2+2+8）、Vite+TS、阶段 **P0–P5** |
+| [**CONTEXT.md**](CONTEXT.md) | `yutu_context_bundle_946c`、**`assets/v2b/`** 路径、与小程序仓库 **无耦合** |
 
-在 GitHub 仓库 **Settings → General → Default branch** 中请将默认分支设为 **`main`**。
+## v2b 基线对照（P0）
 
-## 换装小游戏（主项目）
+浏览器打开 [`assets/v2b/yutu_mesh_demo.html`](assets/v2b/yutu_mesh_demo.html) 验收 WebGL 网格换装；资产对照见 [`docs/V2B_BUNDLE_MAP.md`](docs/V2B_BUNDLE_MAP.md)。
 
-- 方案 A MVP：2 件上衣 + 2 件裙子（见 `PLAN.md`、`CONTEXT.md`）
-- 技术栈：Vite + TypeScript，纯 H5，不接小程序
-- 占位资源目录：`assets/`
+## 其它目录
 
-## 玉兔小屋 Demo（已有）
+- [`yutu-house/`](yutu-house/) — 玉兔小屋无桥 HTML demo（双击 `yutu_house_demo.html`；说明见 [`HANDOFF.md`](yutu-house/HANDOFF.md)）。未接入小程序。
+- [`danbaobao-meadow/`](danbaobao-meadow/) — **蛋宝宝牧场**一期：Three.js 草场（11 羊、方圈四角口、拖羊/旋转/缩放）。
 
-浏览器打开 [`yutu-house/yutu_house_demo.html`](yutu-house/yutu_house_demo.html)。说明见 [`yutu-house/HANDOFF.md`](yutu-house/HANDOFF.md)。未接入小程序。
-
-## 蛋宝宝牧场（一期 H5）
-
-[`danbaobao-meadow/`](danbaobao-meadow/)：Three.js 草场观览（11 羊、方圈四角口、拖羊/旋转/缩放）。本地：
+## 蛋宝宝牧场 · 本地
 
 ```bash
 cd danbaobao-meadow && npm install && npm run dev
 ```
 
-## 本地开发（换装 MVP 脚手架落地后）
+## 开发（P3 脚手架落地后）
 
 ```bash
 npm install
