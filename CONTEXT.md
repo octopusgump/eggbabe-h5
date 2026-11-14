@@ -9,24 +9,25 @@
 
 策划与 v2b 资产以压缩包为准：
 
-- **`yutu_context_bundle_946c.zip`**（下称 **946c bundle**）
+- **`yutu_context_bundle_946c.zip`** / **`yutu_context_bundle.zip`**（同一套 v2b 资产，后缀因打包批次不同）
 - 内含：剧情/方案 A 说明、**`yutu_mesh_demo.html`**（WebGL mesh 基线）、v2b 贴图与 mesh 相关文件、破壳/走路等资源索引
 
-**P0 动作**：在本地解压 946c bundle，按 bundle 内 README/清单将文件迁入本仓库，**不要** 只在 Cursor 沙箱里保留一份未推送的副本。
+**P0（已完成）**：v2b 树已迁入 `assets/v2b/`；路径对照见 [`docs/V2B_BUNDLE_MAP.md`](docs/V2B_BUNDLE_MAP.md)。
 
 ## v2b 资产路径（本仓库约定）
 
-解压并对照 bundle 后，统一落到：
+当前 **946c / ae36 bundle** 实际结构（非空目录细拆）：
 
 ```text
 assets/v2b/
-  mesh/           # 角色 mesh / glTF 等（以 bundle 实际结构为准）
-  textures/       # v2b 贴图、换装图集
-  audio/          # 可选音效
-  reference/      # 保留 yutu_mesh_demo.html 或链接说明，便于 P1 对照
+  yutu_mesh_demo.html    # P1 对照金标准
+  work/
+    tex_*.png
+    template.html, build.py, inject_dress.py
+    dress/extract/       # 8 配饰 + meta.json + thumb_*
 ```
 
-当前 `assets/.gitkeep` 仅为占位；**真实 v2b 文件在 P0 从 946c 迁入后** 再提交（大文件视情况使用 Git LFS）。
+后续 Vite 工程从上述路径引用；mesh 在 demo 内为 WebGL grid，无单独 glTF 文件。
 
 ### 基线 Demo
 
@@ -45,7 +46,18 @@ assets/v2b/
 ## 产品切片（方案 A）
 
 - **破壳换装走路小屋** — 线性流程，**仅一次换装**（见 `PLAN.md` §3）
-- MVP：**2 上衣 + 2 裙子 + 8 配饰**，WebGL mesh 槽位切换
+- MVP：**2 上衣 + 2 裙子 + 8 配饰**，WebGL mesh 槽位切换（bundle 现仅有 **8 配饰**，上衣/裙子待补）
+
+### 配饰已知瑕疵（bundle 交接，修图优先级待拍板）
+
+- 条纹围巾：空洞与色块感
+- 皇冠：齿尖之间残留白底
+- 花环：内耳边缘白色毛刺
+- 毛线帽、草莓帽偏大；草帽偏小
+- 焦糖围巾：一角有小缺口
+- 闭眼睫毛：较 `refs/closed_eyes_darkcircles_ref.png` 略长
+
+视觉基线仍以 **`assets/v2b/yutu_mesh_demo.html`** 为准：奶油毛色、网格清晰、闭眼睫毛与眼下蓝灰痕。
 
 ## 与 eggbabe-miniprogram 的关系（硬约束）
 
@@ -61,5 +73,6 @@ assets/v2b/
 ## 参考文档
 
 - 实施计划：`PLAN.md`（v2b WebGL，含 P0–P5）
+- v2b 路径对照：`docs/V2B_BUNDLE_MAP.md`
 - 小屋交接：`yutu-house/HANDOFF.md`、`yutu-house/PROMPT.md`
 - 建仓备忘：`docs/CREATE_REPO.md`
