@@ -91,6 +91,13 @@ eggbabe-h5/
 - [ ] **硬性**：换装完成后禁用衣橱入口；无第二段换装
 - [ ] 走路与小屋至少达到可演示长度（动画可占位，流程必须可走通）
 
+### P2b — 锦鲤自由试衣 demo（并列，不进方案 A 剧情）
+
+- [ ] `assets/koi-v2b/koi_mesh_demo.html`：WebGL grid + 奶油底栏 **8 格**（2 靴色 + 6 keepsake）
+- [ ] 槽位：`boots` 互斥换色、`head` 互斥、`neck` / `dorsal` / `hand` 各一层；正面静息 + 轻 3/4 形变
+- [ ] `assets/dress_pets_demo.html` 顶栏小按钮 **玉兔 | 锦鲤** 切换 iframe
+- [ ] 美术：静息图 + `inject`/`extract` 管线；**v0 占位配饰可玩**，正式贴合图后续替换
+
 ### P5 — 验收与抛光
 
 - [ ] MVP 清单（2+2+8）全可切换；完成装后整条剧情无断点
