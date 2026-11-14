@@ -1,7 +1,7 @@
 import './style.css'
 import { VW, VH } from './meadow/constants'
 import { MeadowApp } from './meadow/MeadowApp'
-import { mountUI, setPaused } from './ui/overlay'
+import { mountUI } from './ui/overlay'
 
 function fitStage() {
   const el = document.getElementById('fit')
@@ -14,22 +14,7 @@ const canvas = document.getElementById('canvas') as HTMLCanvasElement | null
 if (!canvas) throw new Error('#canvas missing')
 
 const app = new MeadowApp(canvas)
-
-const ui = mountUI(
-  () => {
-    app.reset()
-    setPaused(ui, false)
-    const btn = document.getElementById('btn-pause')
-    if (btn) btn.textContent = '⏸'
-    const label = ui.liveEl.querySelector('span:last-child')
-    if (label) label.textContent = '草场进行中'
-  },
-  () => {
-    const next = !ui.liveEl.classList.contains('paused')
-    app.setPaused(next)
-    setPaused(ui, next)
-  },
-)
+mountUI()
 
 fitStage()
 addEventListener('resize', fitStage)
