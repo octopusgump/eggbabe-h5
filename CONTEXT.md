@@ -59,6 +59,15 @@ assets/v2b/
 
 视觉基线仍以 **`assets/v2b/yutu_mesh_demo.html`** 为准：奶油毛色、网格清晰、闭眼睫毛与眼下蓝灰痕。
 
+## 锦鲤 BOON KOI · 自由试衣（P2b）
+
+- **金标准对照**：`assets/koi-v2b/koi_mesh_demo.html`（与玉兔同一 WebGL grid + 底栏逻辑）
+- **参考图**：`assets/refs/koi_turnaround.png`（四视图；runtime 用正面裁切）
+- **切换入口**：`assets/dress_pets_demo.html`（仅 demo，不写剧情存档）
+- **8 格**：`boots_yellow` / `boots_mint` + `kasa` / `crown` / `bow` / `scarf` / `omamori` / `goldfish`（见 `assets/koi-v2b/work/dress/extract/meta.json`）
+- **重建**：`python3 assets/koi-v2b/work/prepare_koi_assets.py` → `python3 assets/koi-v2b/work/build_koi_demo.py`
+- **美术状态**：当前配饰为 **v0 程序化占位**，正式「画进静息图 + extract」成片待美术 pass 替换 `dress/extract/` 内 PNG
+
 ## 与 eggbabe-miniprogram 的关系（硬约束）
 
 - **零耦合**：不修改 `octopusgump/eggbabe-miniprogram`，不提交 PR 到该仓库，不设 submodule。
