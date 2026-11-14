@@ -2,9 +2,9 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { ISLAND_HALF } from './constants'
 
-const GRASS_TOP = 0x9ed66f
-const GRASS_SIDE = 0x7fb85a
-const TUFT = 0x3f7342
+const GRASS_TOP = 0xa0db6d
+const GRASS_SIDE = 0x7fbe58
+const TUFT = 0x3d6b3a
 
 function mulberry32(a: number) {
   return () => {
@@ -16,24 +16,31 @@ function mulberry32(a: number) {
   }
 }
 
+function isOnPathOrRiver(x: number, z: number) {
+  const river = x < -1.8 && z > -2 && z < 5
+  const path = x > 1.2 && z < 2.5
+  return river || path
+}
+
 function addGrassTufts(island: THREE.Group, rng: () => number) {
-  const count = 520
+  const count = 680
   const geo = new THREE.ConeGeometry(1, 1, 4)
   const mat = new THREE.MeshLambertMaterial({ color: TUFT, flatShading: true })
   const mesh = new THREE.InstancedMesh(geo, mat, count)
   mesh.castShadow = true
-  mesh.receiveShadow = false
 
   const dummy = new THREE.Object3D()
   let placed = 0
-  for (let i = 0; placed < count && i < count * 3; i++) {
-    const x = (rng() - 0.5) * ISLAND_HALF * 1.88
-    const z = (rng() - 0.5) * ISLAND_HALF * 1.88
-    if (Math.abs(x) > ISLAND_HALF * 0.94 || Math.abs(z) > ISLAND_HALF * 0.94)
+  for (let i = 0; placed < count && i < count * 4; i++) {
+    const x = (rng() - 0.5) * ISLAND_HALF * 1.9
+    const z = (rng() - 0.5) * ISLAND_HALF * 1.9
+    if (Math.abs(x) > ISLAND_HALF * 0.95 || Math.abs(z) > ISLAND_HALF * 0.95)
       continue
-    const h = 0.06 + rng() * 0.1
-    const w = 0.035 + rng() * 0.03
-    dummy.position.set(x, 0.03 + h * 0.5, z)
+    if (isOnPathOrRiver(x, z) && rng() > 0.35) continue
+
+    const h = 0.05 + rng() * 0.11
+    const w = 0.03 + rng() * 0.032
+    dummy.position.set(x, 0.04 + h * 0.5, z)
     dummy.rotation.y = rng() * Math.PI
     dummy.scale.set(w, h, w)
     dummy.updateMatrix()
@@ -47,23 +54,25 @@ function addGrassTufts(island: THREE.Group, rng: () => number) {
 
 function addRiver(island: THREE.Group) {
   const group = new THREE.Group()
-  group.rotation.y = -0.42
-  group.position.set(-3.8, 0.042, 0.8)
+  group.rotation.y = -0.48
+  group.position.set(-3.6, 0.045, 1.0)
 
   const water = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.6, ISLAND_HALF * 1.55),
-    new THREE.MeshLambertMaterial({ color: 0x45c4f0 }),
+    new THREE.PlaneGeometry(2.4, ISLAND_HALF * 1.5),
+    new THREE.MeshLambertMaterial({ color: 0x4fc3ef }),
   )
   water.rotation.x = -Math.PI / 2
   water.receiveShadow = true
   group.add(water)
 
-  const bankMat = new THREE.MeshLambertMaterial({ color: 0xb8ecff })
-  for (const side of [-1.3, 1.3]) {
-    const bank = new THREE.Mesh(new THREE.PlaneGeometry(0.22, ISLAND_HALF * 1.55), bankMat)
+  const bankMat = new THREE.MeshLambertMaterial({ color: 0xc8efff })
+  for (const side of [-1.18, 1.18]) {
+    const bank = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.18, ISLAND_HALF * 1.5),
+      bankMat,
+    )
     bank.rotation.x = -Math.PI / 2
-    bank.position.x = side
-    bank.position.y = 0.004
+    bank.position.set(side, 0.004, 0)
     group.add(bank)
   }
   island.add(group)
@@ -71,40 +80,39 @@ function addRiver(island: THREE.Group) {
 
 function addPath(island: THREE.Group) {
   const path = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.6, ISLAND_HALF * 1.62),
-    new THREE.MeshLambertMaterial({ color: 0xddc89a }),
+    new THREE.PlaneGeometry(2.5, ISLAND_HALF * 1.55),
+    new THREE.MeshLambertMaterial({ color: 0xdcc89a }),
   )
   path.rotation.x = -Math.PI / 2
-  path.rotation.z = 0.38
-  path.position.set(3.2, 0.038, -0.6)
+  path.rotation.z = 0.42
+  path.position.set(3.35, 0.04, -0.85)
   path.receiveShadow = true
   island.add(path)
 }
 
-/** Kimi-style rounded floating island with dense grass tufts. */
 export function createIsland(): THREE.Group {
   const island = new THREE.Group()
   const w = ISLAND_HALF * 2
   const d = ISLAND_HALF * 2
 
   const top = new THREE.Mesh(
-    new RoundedBoxGeometry(w, 0.48, d, 8, 0.45),
+    new RoundedBoxGeometry(w, 0.52, d, 10, 0.55),
     new THREE.MeshLambertMaterial({ color: GRASS_TOP }),
   )
-  top.position.y = -0.12
+  top.position.y = -0.1
   top.receiveShadow = true
   top.castShadow = true
   island.add(top)
 
   const skirt = new THREE.Mesh(
-    new RoundedBoxGeometry(w + 0.08, 0.32, d + 0.08, 6, 0.25),
+    new RoundedBoxGeometry(w + 0.1, 0.38, d + 0.1, 8, 0.35),
     new THREE.MeshLambertMaterial({ color: GRASS_SIDE }),
   )
-  skirt.position.y = -0.38
+  skirt.position.y = -0.42
   skirt.castShadow = true
   island.add(skirt)
 
-  const rnd = mulberry32(7)
+  const rnd = mulberry32(11)
   addGrassTufts(island, rnd)
   addRiver(island)
   addPath(island)

@@ -1,28 +1,35 @@
 import * as THREE from 'three'
-import { ISLAND_HALF, SHEEP_COUNT } from './constants'
+import { SHEEP_COUNT } from './constants'
 import { createIsland } from './island'
 import { createSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
-type SavedPose = { x: number; z: number; ry: number }
+/** Fixed isometric framing — Kimi screenshot 1. */
+const CAM_POS = new THREE.Vector3(12, 14.2, 12)
+const LOOK = new THREE.Vector3(0, 0.1, 0)
+const FRUSTUM = 9.4
 
-/** Fixed isometric camera — matches Kimi screenshot 1 framing. */
-const CAM_POS = new THREE.Vector3(11.5, 13.5, 11.5)
-const LOOK = new THREE.Vector3(0, 0.15, 0)
-const FRUSTUM = 9.2
+type Spawn = { x: number; z: number; ry: number; graze: boolean }
+
+const LAYOUT: Spawn[] = [
+  { x: -2.8, z: 2.2, ry: 2.1, graze: true },
+  { x: -1.2, z: 0.2, ry: 0.6, graze: true },
+  { x: 0.4, z: -0.8, ry: -0.4, graze: false },
+  { x: 1.6, z: 1.0, ry: 1.8, graze: true },
+  { x: -0.5, z: 2.4, ry: 2.8, graze: true },
+  { x: 0.3, z: -2.0, ry: -1.2, graze: false },
+  { x: 2.4, z: -0.5, ry: 0.9, graze: true },
+  { x: -2.2, z: -0.6, ry: -2.2, graze: true },
+  { x: 1.0, z: 2.2, ry: 2.4, graze: false },
+  { x: -0.2, z: -2.6, ry: -0.8, graze: true },
+  { x: 2.0, z: 0.8, ry: 1.1, graze: true },
+]
 
 export class MeadowApp {
   private renderer: THREE.WebGLRenderer
   private scene: THREE.Scene
   private camera: THREE.OrthographicCamera
   private sheep: SheepState[] = []
-  private initialPoses: SavedPose[] = []
-  private raycaster = new THREE.Raycaster()
-  private pointer = new THREE.Vector2()
-  private dragSheep: SheepState | null = null
-  private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-  private dragOffset = new THREE.Vector3()
-  private live = true
   private clock = new THREE.Clock()
   private canvas: HTMLCanvasElement
 
@@ -31,7 +38,7 @@ export class MeadowApp {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      alpha: true,
+      alpha: false,
     })
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = true
@@ -39,6 +46,7 @@ export class MeadowApp {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
 
     this.scene = new THREE.Scene()
+    this.scene.background = new THREE.Color(0xe8ede8)
 
     const aspect = 390 / 844
     this.camera = new THREE.OrthographicCamera(
@@ -52,116 +60,59 @@ export class MeadowApp {
     this.camera.position.copy(CAM_POS)
     this.camera.lookAt(LOOK)
 
-    const hemi = new THREE.HemisphereLight(0xeef6ff, 0x88b86a, 0.55)
+    const hemi = new THREE.HemisphereLight(0xf4f8ff, 0x7cb562, 0.5)
     this.scene.add(hemi)
 
-    const sun = new THREE.DirectionalLight(0xffffff, 1.15)
-    sun.position.set(-10, 18, 8)
+    const sun = new THREE.DirectionalLight(0xffffff, 1.22)
+    sun.position.set(-11, 20, 7)
     sun.castShadow = true
     sun.shadow.mapSize.set(2048, 2048)
-    sun.shadow.bias = -0.0002
+    sun.shadow.bias = -0.00015
+    sun.shadow.normalBias = 0.02
     sun.shadow.camera.near = 2
-    sun.shadow.camera.far = 40
-    const s = 14
+    sun.shadow.camera.far = 42
+    const s = 15
     sun.shadow.camera.left = -s
     sun.shadow.camera.right = s
     sun.shadow.camera.top = s
     sun.shadow.camera.bottom = -s
     this.scene.add(sun)
 
-    const fill = new THREE.DirectionalLight(0xdfe8ff, 0.25)
-    fill.position.set(6, 4, -8)
+    const fill = new THREE.DirectionalLight(0xe8f0ff, 0.22)
+    fill.position.set(8, 6, -10)
     this.scene.add(fill)
 
     this.scene.add(createIsland())
     this.scene.add(createTrees())
+    this.addGroundShadow()
 
     this.spawnSheep()
-    this.bindPointer()
     this.resize()
     window.addEventListener('resize', () => this.resize())
   }
 
+  private addGroundShadow() {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xb8cdb8,
+      transparent: true,
+      opacity: 0.35,
+    })
+    const shadow = new THREE.Mesh(new THREE.CircleGeometry(9.5, 48), mat)
+    shadow.rotation.x = -Math.PI / 2
+    shadow.position.set(1.2, -0.72, 2.4)
+    this.scene.add(shadow)
+  }
+
   private spawnSheep() {
-    const poses: [number, number][] = [
-      [-2.2, -1.8],
-      [-0.8, 0.5],
-      [0.6, -0.4],
-      [1.8, 1.2],
-      [-1.0, 2.0],
-      [0.2, -1.5],
-      [2.5, -0.8],
-      [-2.8, 0.3],
-      [1.0, 2.3],
-      [-0.3, -2.5],
-      [2.0, 0.6],
-    ]
     for (let i = 0; i < SHEEP_COUNT; i++) {
-      const state = createSheep()
-      const [x, z] = poses[i] ?? [
-        (Math.random() - 0.5) * ISLAND_HALF * 1.2,
-        (Math.random() - 0.5) * ISLAND_HALF * 1.2,
-      ]
-      const ry = Math.random() * Math.PI * 2
-      state.group.position.set(x, 0, z)
-      state.group.rotation.y = ry
+      const spec = LAYOUT[i]
+      const state = createSheep(spec.graze)
+      state.grazing = spec.graze
+      state.group.position.set(spec.x, 0, spec.z)
+      state.group.rotation.y = spec.ry
       this.sheep.push(state)
-      this.initialPoses.push({ x, z, ry })
       this.scene.add(state.group)
     }
-  }
-
-  private bindPointer() {
-    const el = this.canvas
-    const onDown = (e: PointerEvent) => {
-      if (e.button !== 0) return
-      this.setPointer(e)
-      const hit = this.pickSheep()
-      if (!hit) return
-      this.dragSheep = hit
-      const pt = new THREE.Vector3()
-      this.raycaster.ray.intersectPlane(this.dragPlane, pt)
-      this.dragOffset.copy(hit.group.position).sub(pt)
-      el.setPointerCapture(e.pointerId)
-      e.preventDefault()
-    }
-    const onMove = (e: PointerEvent) => {
-      if (!this.dragSheep) return
-      this.setPointer(e)
-      const pt = new THREE.Vector3()
-      if (!this.raycaster.ray.intersectPlane(this.dragPlane, pt)) return
-      pt.add(this.dragOffset)
-      pt.x = clamp(pt.x, -ISLAND_HALF + 1, ISLAND_HALF - 1)
-      pt.z = clamp(pt.z, -ISLAND_HALF + 1, ISLAND_HALF - 1)
-      this.dragSheep.group.position.x = pt.x
-      this.dragSheep.group.position.z = pt.z
-      this.dragSheep.velocity.set(0, 0)
-    }
-    const onUp = () => {
-      this.dragSheep = null
-    }
-    el.addEventListener('pointerdown', onDown)
-    el.addEventListener('pointermove', onMove)
-    el.addEventListener('pointerup', onUp)
-    el.addEventListener('pointercancel', onUp)
-  }
-
-  private setPointer(e: PointerEvent) {
-    const r = this.canvas.getBoundingClientRect()
-    this.pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1
-    this.pointer.y = -((e.clientY - r.top) / r.height) * 2 + 1
-    this.raycaster.setFromCamera(this.pointer, this.camera)
-  }
-
-  private pickSheep(): SheepState | null {
-    const meshes: THREE.Object3D[] = []
-    for (const s of this.sheep) meshes.push(...s.group.children)
-    const hits = this.raycaster.intersectObjects(meshes, false)
-    if (!hits.length) return null
-    let o: THREE.Object3D | null = hits[0].object
-    while (o && o.name !== 'sheep') o = o.parent
-    if (!o) return null
-    return this.sheep.find((s) => s.group === o) ?? null
   }
 
   resize() {
@@ -179,38 +130,19 @@ export class MeadowApp {
   }
 
   tick() {
-    const dt = Math.min(this.clock.getDelta(), 0.05)
-    if (this.live) this.wander(dt)
+    const t = this.clock.getElapsedTime()
+    this.updateGraze(t)
     this.renderer.render(this.scene, this.camera)
   }
 
-  private wander(dt: number) {
-    const bound = ISLAND_HALF - 1.1
+  private updateGraze(t: number) {
     for (const s of this.sheep) {
-      s.wanderTimer -= dt
-      if (s.wanderTimer <= 0) {
-        s.wanderTimer = 1.5 + Math.random() * 2.8
-        const a = Math.random() * Math.PI * 2
-        const speed = 0.12 + Math.random() * 0.22
-        s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
-      }
-      s.group.position.x += s.velocity.x * dt
-      s.group.position.z += s.velocity.y * dt
-      if (Math.abs(s.group.position.x) > bound) {
-        s.group.position.x = clamp(s.group.position.x, -bound, bound)
-        s.velocity.x *= -1
-      }
-      if (Math.abs(s.group.position.z) > bound) {
-        s.group.position.z = clamp(s.group.position.z, -bound, bound)
-        s.velocity.y *= -1
-      }
-      if (s.velocity.lengthSq() > 0.0001) {
-        s.group.rotation.y = Math.atan2(s.velocity.x, s.velocity.y)
+      const wave = Math.sin(t * 1.2 + s.phaseOffset) * 0.04
+      if (s.grazing) {
+        s.headPivot.rotation.x = -0.55 + wave
+      } else {
+        s.headPivot.rotation.x = -0.08 + wave * 0.5
       }
     }
   }
-}
-
-function clamp(v: number, lo: number, hi: number) {
-  return Math.max(lo, Math.min(hi, v))
 }

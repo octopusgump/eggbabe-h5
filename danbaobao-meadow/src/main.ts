@@ -1,7 +1,6 @@
 import './style.css'
 import { VW, VH } from './meadow/constants'
 import { MeadowApp } from './meadow/MeadowApp'
-import { mountUI } from './ui/overlay'
 
 function fitStage() {
   const el = document.getElementById('fit')
@@ -14,7 +13,6 @@ const canvas = document.getElementById('canvas') as HTMLCanvasElement | null
 if (!canvas) throw new Error('#canvas missing')
 
 const app = new MeadowApp(canvas)
-mountUI()
 
 fitStage()
 addEventListener('resize', fitStage)
