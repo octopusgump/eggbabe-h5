@@ -2,15 +2,19 @@
 
 Vite + TypeScript + Three.js，390×844 竖屏舞台，与玉兔小屋一致的 `#fit` 缩放。
 
-## 开发
+## 在线（默认）
+
+**https://octopusgump.github.io/eggbabe-h5/danbaobao-meadow/site/**
+
+（合并到 `main` 后由 GitHub Actions 自动 `npm run build` 并更新 `site/`。）
+
+## 开发（可选）
 
 ```bash
 cd danbaobao-meadow
 npm install
 npm run dev
 ```
-
-浏览器打开终端提示的本地地址即可。
 
 ## 一期能力
 

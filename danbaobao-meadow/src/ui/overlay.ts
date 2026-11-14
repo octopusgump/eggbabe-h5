@@ -34,7 +34,7 @@ export function mountUI(
           </div>
         </div>
       </div>
-      <a class="chip-link" href="../yutu-house/yutu_house_demo.html">回玉兔小屋</a>
+      <a class="chip-link" href="/eggbabe-h5/yutu-house/yutu_house_demo.html">回玉兔小屋</a>
     </div>
     <div class="notes">
       <div class="kicker">牧场手记 · 001</div>
