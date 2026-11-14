@@ -23,6 +23,14 @@
 
 浏览器打开 [`yutu-house/yutu_house_demo.html`](yutu-house/yutu_house_demo.html)。说明见 [`yutu-house/HANDOFF.md`](yutu-house/HANDOFF.md)。未接入小程序。
 
+## 蛋宝宝牧场（一期 H5）
+
+[`danbaobao-meadow/`](danbaobao-meadow/)：Three.js 草场观览（11 羊、方圈四角口、拖羊/旋转/缩放）。本地：
+
+```bash
+cd danbaobao-meadow && npm install && npm run dev
+```
+
 ## 本地开发（换装 MVP 脚手架落地后）
 
 ```bash
