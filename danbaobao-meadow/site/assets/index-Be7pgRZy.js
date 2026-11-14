@@ -4239,13 +4239,10 @@ void main() {
           </div>
         </div>
       </div>
-      <a class="chip-link" href="/eggbabe-h5/yutu-house/yutu_house_demo.html">回玉兔小屋</a>
     </div>
     <div class="notes">
       <div class="kicker">牧场手记 · 001</div>
-      <div class="quote">静一点，也很好。</div>
     </div>
-    <div class="hint">拖羊移位</div>
     <div class="counter">
       <div class="num" id="sheep-num">11</div>
       <div class="label">草场羊只</div>
