@@ -20,11 +20,9 @@
 - [`yutu-house/`](yutu-house/) — 玉兔小屋无桥 HTML demo（双击 `yutu_house_demo.html`；说明见 [`HANDOFF.md`](yutu-house/HANDOFF.md)）。未接入小程序。
 - [`danbaobao-meadow/`](danbaobao-meadow/) — **蛋宝宝牧场**一期：Three.js 草场（11 羊、方圈四角口、拖羊/旋转/缩放）。
 
-## 蛋宝宝牧场 · 本地
+## 蛋宝宝牧场 · 在线
 
-```bash
-cd danbaobao-meadow && npm install && npm run dev
-```
+**https://octopusgump.github.io/eggbabe-h5/danbaobao-meadow/site/**（短链：[danbaobao-meadow.html](danbaobao-meadow.html)）
 
 ## 开发（P3 脚手架落地后）
 
