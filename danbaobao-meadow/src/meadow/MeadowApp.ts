@@ -4,7 +4,7 @@ import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { createCornerPens, hitsFence, isInsideCornerPen, kickPen, resetPens, stepPens, type PenRig } from './pen'
-import { createRabbit, type RabbitState } from './rabbit'
+import { createRabbit, swayEars, type RabbitState } from './rabbit'
 import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
@@ -14,10 +14,11 @@ const LOOK = new THREE.Vector3(0, 0.15, 0)
 /** Vertical span. Portrait stage is narrow, so this is sized to fit the whole island. */
 const FRUSTUM = 28
 const RABBIT_BOUND = 6.35
-const RABBIT_SPEED = 2.7
+const RABBIT_SPEED = 3
 const RABBIT_HOME = new THREE.Vector3(0, 0, -4.4)
-const TOUCH = 0.72
+const TOUCH = 1.25
 const BUMP_COOLDOWN = 0.45
+const RABBIT_SCALE = 2.05
 
 const LAYOUT: [number, number][] = [
   [-3.4, 2.2],
@@ -47,11 +48,10 @@ export class MeadowApp {
   private readonly homeAzimuth: number
   private remaining = ROUND_SECONDS
   private over = false
-  private holding = false
-  private aim = new THREE.Vector3()
-  private raycaster = new THREE.Raycaster()
-  private pointer = new THREE.Vector2()
-  private ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+  private stickX = 0
+  private stickY = 0
+  private stickBase: HTMLElement | null
+  private stickKnob: HTMLElement | null
   private timeEl: HTMLElement | null
   private countEl: HTMLElement | null
   private resultEl: HTMLElement | null
@@ -65,6 +65,8 @@ export class MeadowApp {
     this.resultEl = document.getElementById('result')
     this.scoreEl = document.getElementById('score')
     this.starsEl = document.getElementById('stars')
+    this.stickBase = document.getElementById('stick')
+    this.stickKnob = document.getElementById('knob')
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -137,10 +139,10 @@ export class MeadowApp {
     this.spawnSheep()
     this.rabbit = createRabbit()
     this.rabbit.group.position.copy(RABBIT_HOME)
-    this.rabbit.group.scale.setScalar(1.2)
+    this.rabbit.group.scale.setScalar(RABBIT_SCALE)
     this.scene.add(this.rabbit.group)
 
-    this.bindPointer()
+    this.bindStick()
     this.resize()
     this.updateHud()
     window.addEventListener('resize', () => this.resize())
@@ -164,52 +166,75 @@ export class MeadowApp {
     }
   }
 
-  private bindPointer() {
-    const el = this.canvas
+  private bindStick() {
+    const base = this.stickBase
+    if (!base) return
     const down = (e: PointerEvent) => {
       if (this.over || e.button !== 0) return
-      this.holding = true
-      this.aimFrom(e)
-      el.setPointerCapture(e.pointerId)
+      base.setPointerCapture(e.pointerId)
+      this.placeStick(e)
     }
     const move = (e: PointerEvent) => {
-      if (!this.holding || this.over) return
-      this.aimFrom(e)
+      if (!base.hasPointerCapture(e.pointerId) || this.over) return
+      this.placeStick(e)
     }
-    const up = () => {
-      this.holding = false
+    const up = (e: PointerEvent) => {
+      if (base.hasPointerCapture(e.pointerId)) base.releasePointerCapture(e.pointerId)
+      this.stickX = 0
+      this.stickY = 0
+      this.placeKnob(0, 0)
     }
-    el.addEventListener('pointerdown', down)
-    el.addEventListener('pointermove', move)
-    el.addEventListener('pointerup', up)
-    el.addEventListener('pointercancel', up)
+    base.addEventListener('pointerdown', down)
+    base.addEventListener('pointermove', move)
+    base.addEventListener('pointerup', up)
+    base.addEventListener('pointercancel', up)
   }
 
-  private aimFrom(e: PointerEvent) {
-    const r = this.canvas.getBoundingClientRect()
-    this.pointer.x = ((e.clientX - r.left) / r.width) * 2 - 1
-    this.pointer.y = -((e.clientY - r.top) / r.height) * 2 + 1
-    this.raycaster.setFromCamera(this.pointer, this.camera)
-    const hit = new THREE.Vector3()
-    if (this.raycaster.ray.intersectPlane(this.ground, hit)) this.aim.copy(hit)
+  private placeStick(e: PointerEvent) {
+    const base = this.stickBase
+    if (!base) return
+    const rect = base.getBoundingClientRect()
+    const max = rect.width * 0.34
+    let dx = e.clientX - (rect.left + rect.width / 2)
+    let dy = e.clientY - (rect.top + rect.height / 2)
+    const mag = Math.hypot(dx, dy)
+    if (mag > max && mag > 0) {
+      dx = (dx / mag) * max
+      dy = (dy / mag) * max
+    }
+    this.stickX = max === 0 ? 0 : dx / max
+    this.stickY = max === 0 ? 0 : -dy / max
+    this.placeKnob((dx / rect.width) * base.clientWidth, (dy / rect.height) * base.clientHeight)
+  }
+
+  private placeKnob(x: number, y: number) {
+    if (!this.stickKnob) return
+    this.stickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
   }
 
   private stepRabbit(dt: number) {
     const pos = this.rabbit.group.position
-    if (!this.holding) {
+    const mag = Math.hypot(this.stickX, this.stickY)
+    if (mag < 0.15) {
       pos.y = 0
       return
     }
-    const dx = this.aim.x - pos.x
-    const dz = this.aim.z - pos.z
-    const dist = Math.hypot(dx, dz)
-    if (dist < 0.06) {
-      pos.y = 0
-      return
-    }
-    const step = Math.min(RABBIT_SPEED * dt, dist)
-    let nx = pos.x + (dx / dist) * step
-    let nz = pos.z + (dz / dist) * step
+    const e = this.camera.matrixWorld.elements
+    const rightX = e[0]
+    const rightZ = e[2]
+    const fwdX = -e[8]
+    const fwdZ = -e[10]
+    const rlen = Math.hypot(rightX, rightZ) || 1
+    const flen = Math.hypot(fwdX, fwdZ) || 1
+    const power = Math.min(1, (mag - 0.15) / 0.85)
+    let dx = (rightX / rlen) * (this.stickX / mag) + (fwdX / flen) * (this.stickY / mag)
+    let dz = (rightZ / rlen) * (this.stickX / mag) + (fwdZ / flen) * (this.stickY / mag)
+    const dlen = Math.hypot(dx, dz) || 1
+    dx /= dlen
+    dz /= dlen
+    const step = RABBIT_SPEED * power * dt
+    let nx = pos.x + dx * step
+    let nz = pos.z + dz * step
     nx = clamp(nx, -RABBIT_BOUND, RABBIT_BOUND)
     nz = clamp(nz, -RABBIT_BOUND, RABBIT_BOUND)
     const blocked = (x: number, z: number) =>
@@ -248,7 +273,9 @@ export class MeadowApp {
   restart() {
     this.remaining = ROUND_SECONDS
     this.over = false
-    this.holding = false
+    this.stickX = 0
+    this.stickY = 0
+    this.placeKnob(0, 0)
     this.rabbit.group.position.copy(RABBIT_HOME)
     this.rabbit.group.rotation.y = 0
     for (const s of this.sheep) resetSheep(s)
@@ -277,7 +304,9 @@ export class MeadowApp {
 
   private finish() {
     this.over = true
-    this.holding = false
+    this.stickX = 0
+    this.stickY = 0
+    this.placeKnob(0, 0)
     const n = this.pennedCount()
     if (this.scoreEl) this.scoreEl.textContent = `${n} / ${SHEEP_COUNT}`
     if (this.starsEl) this.starsEl.textContent = n === 0 ? '0 颗星' : `${'★'.repeat(n)}  ${n}`
@@ -298,6 +327,7 @@ export class MeadowApp {
     const t = this.clock.elapsedTime
     if (!this.over) {
       this.remaining = Math.max(0, this.remaining - dt)
+      swayEars(this.rabbit, t)
       this.stepRabbit(dt)
       const rx = this.rabbit.group.position.x
       const rz = this.rabbit.group.position.z
