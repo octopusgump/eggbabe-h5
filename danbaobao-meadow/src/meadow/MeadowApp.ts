@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { SHEEP_COUNT } from './constants'
 import { createIsland } from './island'
+import { createCornerPens } from './pen'
 import { createSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
@@ -104,6 +105,7 @@ export class MeadowApp {
     this.scene.add(sun)
 
     this.scene.add(createIsland())
+    this.scene.add(createCornerPens())
     this.scene.add(createTrees())
     this.spawnSheep()
     this.resize()

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { ISLAND_HALF } from './constants'
 import { clay } from './materials'
+import { isInsideCornerPen } from './pen'
 import { ribbonMesh } from './ribbon'
 
 const GRASS = 0xc5e99a
@@ -66,7 +67,7 @@ function addTufts(island: THREE.Group, rng: () => number) {
     const z = (rng() - 0.5) * ISLAND_HALF * 1.92
     if (Math.abs(x) > ISLAND_HALF * 0.96 || Math.abs(z) > ISLAND_HALF * 0.96)
       continue
-    if (onRibbon(x, z, PATH, 1.05)) continue
+    if (onRibbon(x, z, PATH, 1.05) || isInsideCornerPen(x, z)) continue
 
     const h = 0.1 + rng() * 0.16
     const w = 0.035 + rng() * 0.03

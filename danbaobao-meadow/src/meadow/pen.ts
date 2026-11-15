@@ -1,68 +1,75 @@
 import * as THREE from 'three'
-import { CORNER_GAP, PEN_SIZE } from './constants'
+import { clay } from './materials'
 
-const FENCE_COLOR = 0xc9a574
-const FENCE_H = 0.38
-const THICK = 0.12
+const ARM = 1.2
+const CORNERS: [number, number][] = [
+  [6.05, 6.05],
+  [-6.05, 6.05],
+  [6.05, -6.05],
+  [-6.05, -6.05],
+]
 
-function addFenceSegment(
-  root: THREE.Group,
-  x1: number,
-  z1: number,
-  x2: number,
-  z2: number,
-) {
+function rail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: number) {
   const dx = x2 - x1
   const dz = z2 - z1
   const len = Math.hypot(dx, dz)
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(len, FENCE_H, THICK),
-    new THREE.MeshLambertMaterial({ color: FENCE_COLOR }),
-  )
-  mesh.position.set((x1 + x2) / 2, FENCE_H / 2 + 0.02, (z1 + z2) / 2)
-  mesh.rotation.y = Math.atan2(dx, dz)
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.32, 0.1), clay(0xc4a06a))
+  mesh.position.set((x1 + x2) / 2, 0.18, (z1 + z2) / 2)
+  mesh.rotation.y = Math.atan2(-dz, dx)
   mesh.castShadow = true
-  mesh.receiveShadow = true
-  root.add(mesh)
+  parent.add(mesh)
 }
 
-/** Square pen: each side is one segment; corners stay open for gameplay (phase 2). */
-export function createPen(): THREE.Group {
-  const pen = new THREE.Group()
-  pen.name = 'pen'
-
-  const h = PEN_SIZE / 2
-  const inset = CORNER_GAP / 2 + 0.05
-
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(PEN_SIZE * 0.94, PEN_SIZE * 0.94),
-    new THREE.MeshLambertMaterial({ color: 0xa8c78a, side: THREE.DoubleSide }),
+function post(parent: THREE.Group, x: number, z: number) {
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.07, 0.08, 0.42, 8),
+    clay(0xb08a52),
   )
-  floor.rotation.x = -Math.PI / 2
-  floor.position.y = 0.028
-  floor.receiveShadow = true
-  pen.add(floor)
+  mesh.position.set(x, 0.21, z)
+  mesh.castShadow = true
+  parent.add(mesh)
+}
 
-  addFenceSegment(pen, -h + inset, -h, h - inset, -h)
-  addFenceSegment(pen, h, -h + inset, h, h - inset)
-  addFenceSegment(pen, h - inset, h, -h + inset, h)
-  addFenceSegment(pen, -h, h - inset, -h, -h + inset)
+/** One small pen in each corner of the square. The open side faces the meadow. */
+export function createCornerPens(): THREE.Group {
+  const root = new THREE.Group()
+  root.name = 'pens'
 
-  const postMat = new THREE.MeshLambertMaterial({ color: 0xb89560 })
-  for (const [x, z] of [
-    [-h, -h],
-    [h, -h],
-    [h, h],
-    [-h, h],
-  ]) {
-    const post = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.07, 0.08, FENCE_H + 0.05, 8),
-      postMat,
+  for (const [cx, cz] of CORNERS) {
+    const sx = Math.sign(cx)
+    const sz = Math.sign(cz)
+    const pen = new THREE.Group()
+
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(ARM * 0.92, ARM * 0.92),
+      clay(0xd5e7a4),
     )
-    post.position.set(x, FENCE_H / 2, z)
-    post.castShadow = true
-    pen.add(post)
+    floor.rotation.x = -Math.PI / 2
+    floor.position.set(cx - sx * ARM * 0.42, 0.03, cz - sz * ARM * 0.42)
+    floor.receiveShadow = true
+    pen.add(floor)
+
+    rail(pen, cx - sx * ARM, cz, cx, cz)
+    rail(pen, cx, cz - sz * ARM, cx, cz)
+    post(pen, cx, cz)
+    post(pen, cx - sx * ARM, cz)
+    post(pen, cx, cz - sz * ARM)
+
+    root.add(pen)
   }
 
-  return pen
+  return root
+}
+
+export function isInsideCornerPen(x: number, z: number) {
+  for (const [cx, cz] of CORNERS) {
+    const sx = Math.sign(cx)
+    const sz = Math.sign(cz)
+    const x0 = Math.min(cx, cx - sx * ARM)
+    const x1 = Math.max(cx, cx - sx * ARM)
+    const z0 = Math.min(cz, cz - sz * ARM)
+    const z1 = Math.max(cz, cz - sz * ARM)
+    if (x > x0 + 0.08 && x < x1 - 0.08 && z > z0 + 0.08 && z < z1 - 0.08) return true
+  }
+  return false
 }
