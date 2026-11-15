@@ -325,7 +325,7 @@ export class MeadowApp {
         }
         this.bumpRabbit(s, rx, rz)
       }
-      if (this.remaining <= 0) this.finish()
+      if (this.remaining <= 0 || this.pennedCount() === SHEEP_COUNT) this.finish()
       else this.updateHud()
     }
     stepPens(this.pens, dt)
