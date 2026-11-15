@@ -7,7 +7,7 @@ import { buzz, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
-import { createHerder, stepHerder as playHerder, type HerderState } from './herder'
+import { createHerder, resetHerder, stepHerder as playHerder, type HerderState } from './herder'
 import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
@@ -253,6 +253,7 @@ export class MeadowApp {
     this.releaseStick()
     this.herder.group.position.copy(HERDER_HOME)
     this.herder.group.rotation.y = 0
+    resetHerder(this.herder)
     for (const s of this.sheep) resetSheep(s)
     clearImpacts()
     resetPens(this.pens)
