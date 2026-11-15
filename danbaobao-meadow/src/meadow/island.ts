@@ -7,8 +7,9 @@ import { ribbonMesh } from './ribbon'
 
 const GRASS = 0xd7f3a4
 const SIDE = 0xb8e472
-const TUFT_A = 0x6cb44c
-const TUFT_B = 0x5aa43e
+/** Close pair. Both sit a step under the lawn, so the field stays one green. */
+const TUFT_A = 0x7ec45a
+const TUFT_B = 0x74b854
 
 function mulberry32(seed: number) {
   let a = seed
@@ -47,7 +48,8 @@ function onRibbon(x: number, z: number, pts: [number, number][], half: number) {
 }
 
 function addTufts(island: THREE.Group, rng: () => number) {
-  const count = 1100
+  const count = 420
+  const gap = 0.58
   const geo = new THREE.ConeGeometry(1, 1, 5)
   const make = (color: number, n: number) => {
     const mesh = new THREE.InstancedMesh(geo, clay(color), n)
@@ -56,26 +58,29 @@ function addTufts(island: THREE.Group, rng: () => number) {
     return mesh
   }
   const a = make(TUFT_A, count)
-  const b = make(TUFT_B, Math.floor(count * 0.45))
+  const b = make(TUFT_B, Math.floor(count * 0.28))
   const dummy = new THREE.Object3D()
+  const placed: [number, number][] = []
   let ia = 0
   let ib = 0
   const limitB = b.count
 
-  for (let i = 0; ia < count && i < count * 5; i++) {
+  for (let i = 0; ia + ib < count && i < count * 12; i++) {
     const x = (rng() - 0.5) * ISLAND_HALF * 1.92
     const z = (rng() - 0.5) * ISLAND_HALF * 1.92
     if (Math.abs(x) > ISLAND_HALF * 0.96 || Math.abs(z) > ISLAND_HALF * 0.96)
       continue
     if (onRibbon(x, z, PATH, 1.05) || isInsideCornerPen(x, z)) continue
+    if (placed.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < gap * gap)) continue
+    placed.push([x, z])
 
-    const h = 0.1 + rng() * 0.16
-    const w = 0.035 + rng() * 0.03
+    const h = 0.09 + rng() * 0.09
+    const w = 0.028 + rng() * 0.016
     dummy.position.set(x, h * 0.5 + 0.02, z)
-    dummy.rotation.set(0, rng() * Math.PI, (rng() - 0.5) * 0.25)
+    dummy.rotation.set(0, rng() * Math.PI, (rng() - 0.5) * 0.18)
     dummy.scale.set(w, h, w)
     dummy.updateMatrix()
-    if (rng() > 0.62 && ib < limitB) {
+    if (rng() > 0.78 && ib < limitB) {
       b.setMatrixAt(ib++, dummy.matrix)
     } else {
       a.setMatrixAt(ia++, dummy.matrix)

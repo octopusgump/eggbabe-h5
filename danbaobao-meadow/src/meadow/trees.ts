@@ -4,10 +4,8 @@ import { blobShadow, clay } from './materials'
 type TreeSpec = { x: number; z: number; scale?: number }
 
 const SPECS: TreeSpec[] = [
-  { x: -5.6, z: -2.4, scale: 1.15 },
   { x: -5.8, z: 3.6, scale: 1.05 },
   { x: -1.6, z: 5.8, scale: 0.92 },
-  { x: 2.6, z: 4.8, scale: 1.0 },
   { x: 5.6, z: 2.2, scale: 0.95 },
   { x: 5.2, z: -2.6, scale: 1.08 },
   { x: 1.4, z: -4.6, scale: 1.12 },
