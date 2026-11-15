@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
@@ -51,8 +52,7 @@ export class MeadowApp {
   private over = false
   private stickX = 0
   private stickY = 0
-  private stickBase: HTMLElement | null
-  private stickKnob: HTMLElement | null
+  private stick: ReturnType<typeof createStick> | null = null
   private timeEl: HTMLElement | null
   private countEl: HTMLElement | null
   private resultEl: HTMLElement | null
@@ -66,8 +66,6 @@ export class MeadowApp {
     this.resultEl = document.getElementById('result')
     this.scoreEl = document.getElementById('score')
     this.starsEl = document.getElementById('stars')
-    this.stickBase = document.getElementById('stick')
-    this.stickKnob = document.getElementById('knob')
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -144,6 +142,7 @@ export class MeadowApp {
     this.scene.add(this.rabbit.group)
 
     this.bindStick()
+    requestAnimationFrame(() => this.stick?.reposition())
     this.resize()
     this.updateHud()
     window.addEventListener('resize', () => this.resize())
@@ -168,49 +167,35 @@ export class MeadowApp {
   }
 
   private bindStick() {
-    const base = this.stickBase
-    if (!base) return
-    const down = (e: PointerEvent) => {
-      if (this.over || e.button !== 0) return
-      base.setPointerCapture(e.pointerId)
-      this.placeStick(e)
-    }
-    const move = (e: PointerEvent) => {
-      if (!base.hasPointerCapture(e.pointerId) || this.over) return
-      this.placeStick(e)
-    }
-    const up = (e: PointerEvent) => {
-      if (base.hasPointerCapture(e.pointerId)) base.releasePointerCapture(e.pointerId)
+    const zone = document.getElementById('stick')
+    if (!zone) return
+    const manager = createStick({
+      zone,
+      mode: 'static',
+      position: { left: '50%', top: '50%' },
+      size: 132,
+      threshold: 0.12,
+      restOpacity: 0.9,
+      color: {
+        front: 'rgba(255,255,255,0.96)',
+        back: 'rgba(255,255,255,0.34)',
+      },
+    })
+    this.stick = manager
+    manager.on('move', (evt) => {
+      if (this.over) return
+      this.stickX = evt.data.vector.x
+      this.stickY = evt.data.vector.y
+    })
+    manager.on('end', () => {
       this.stickX = 0
       this.stickY = 0
-      this.placeKnob(0, 0)
-    }
-    base.addEventListener('pointerdown', down)
-    base.addEventListener('pointermove', move)
-    base.addEventListener('pointerup', up)
-    base.addEventListener('pointercancel', up)
+    })
   }
 
-  private placeStick(e: PointerEvent) {
-    const base = this.stickBase
-    if (!base) return
-    const rect = base.getBoundingClientRect()
-    const max = rect.width * 0.34
-    let dx = e.clientX - (rect.left + rect.width / 2)
-    let dy = e.clientY - (rect.top + rect.height / 2)
-    const mag = Math.hypot(dx, dy)
-    if (mag > max && mag > 0) {
-      dx = (dx / mag) * max
-      dy = (dy / mag) * max
-    }
-    this.stickX = max === 0 ? 0 : dx / max
-    this.stickY = max === 0 ? 0 : -dy / max
-    this.placeKnob((dx / rect.width) * base.clientWidth, (dy / rect.height) * base.clientHeight)
-  }
-
-  private placeKnob(x: number, y: number) {
-    if (!this.stickKnob) return
-    this.stickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`
+  private releaseStick() {
+    this.stickX = 0
+    this.stickY = 0
   }
 
   private stepRabbit(dt: number) {
@@ -270,14 +255,13 @@ export class MeadowApp {
     this.camera.bottom = -FRUSTUM / 2
     this.camera.zoom = zoom
     this.camera.updateProjectionMatrix()
+    requestAnimationFrame(() => this.stick?.reposition())
   }
 
   restart() {
     this.remaining = ROUND_SECONDS
     this.over = false
-    this.stickX = 0
-    this.stickY = 0
-    this.placeKnob(0, 0)
+    this.releaseStick()
     this.rabbit.group.position.copy(RABBIT_HOME)
     this.rabbit.group.rotation.y = 0
     for (const s of this.sheep) resetSheep(s)
@@ -306,9 +290,7 @@ export class MeadowApp {
 
   private finish() {
     this.over = true
-    this.stickX = 0
-    this.stickY = 0
-    this.placeKnob(0, 0)
+    this.releaseStick()
     const n = this.pennedCount()
     if (this.scoreEl) this.scoreEl.textContent = `${n} / ${SHEEP_COUNT}`
     if (this.starsEl) this.starsEl.textContent = n === 0 ? '0 颗星' : `${'★'.repeat(n)}  ${n}`

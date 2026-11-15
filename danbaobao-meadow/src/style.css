@@ -88,26 +88,14 @@ body {
 
 #stick {
   position: absolute;
-  right: 28px;
-  bottom: 48px;
+  right: 22px;
+  bottom: 36px;
   z-index: 4;
-  width: 132px;
-  height: 132px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
-  border: 2px solid rgba(255, 255, 255, 0.72);
-  box-shadow: inset 0 0 0 14px rgba(255, 255, 255, 0.12);
-  touch-action: none;
+  width: 148px;
+  height: 148px;
 }
 
-#knob {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.94);
+#stick .front {
+  opacity: 0.96 !important;
   box-shadow: 0 4px 12px rgba(40, 60, 30, 0.18);
 }
