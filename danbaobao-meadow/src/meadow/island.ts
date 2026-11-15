@@ -20,16 +20,6 @@ function mulberry32(seed: number) {
   }
 }
 
-const RIVER: [number, number][] = [
-  [-7.2, 6.4],
-  [-5.6, 4.2],
-  [-4.5, 2.1],
-  [-3.7, -0.2],
-  [-4.4, -2.6],
-  [-5.8, -5.0],
-  [-7.4, -7.2],
-]
-
 const PATH: [number, number][] = [
   [0.4, 7.2],
   [2.2, 4.6],
@@ -76,7 +66,7 @@ function addTufts(island: THREE.Group, rng: () => number) {
     const z = (rng() - 0.5) * ISLAND_HALF * 1.92
     if (Math.abs(x) > ISLAND_HALF * 0.96 || Math.abs(z) > ISLAND_HALF * 0.96)
       continue
-    if (onRibbon(x, z, RIVER, 1.15) || onRibbon(x, z, PATH, 1.05)) continue
+    if (onRibbon(x, z, PATH, 1.05)) continue
 
     const h = 0.1 + rng() * 0.16
     const w = 0.035 + rng() * 0.03
@@ -119,8 +109,6 @@ export function createIsland(): THREE.Group {
   top.receiveShadow = true
   island.add(top)
 
-  island.add(ribbonMesh(RIVER, 2.35, 0xd7f3e8, 0.012))
-  island.add(ribbonMesh(RIVER, 1.7, 0x4eb8ea, 0.028))
   island.add(ribbonMesh(PATH, 1.9, 0xe6d4a8, 0.02))
 
   addTufts(island, mulberry32(19))
