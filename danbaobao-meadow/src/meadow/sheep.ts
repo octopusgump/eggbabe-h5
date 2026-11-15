@@ -1,10 +1,14 @@
 import * as THREE from 'three'
 import { blobShadow, clay } from './materials'
 
+export type SheepMode = 'wander' | 'graze'
+
 export type SheepState = {
   group: THREE.Group
   headPivot: THREE.Group
-  grazing: boolean
+  mode: SheepMode
+  velocity: THREE.Vector2
+  timer: number
   phaseOffset: number
 }
 
@@ -24,7 +28,7 @@ function puff(
   parent.add(m)
 }
 
-export function createSheep(grazing = false): SheepState {
+export function createSheep(): SheepState {
   const group = new THREE.Group()
   group.name = 'sheep'
 
@@ -79,12 +83,76 @@ export function createSheep(grazing = false): SheepState {
   shade.position.set(0.05, 0.02, 0.06)
   group.add(shade)
 
-  if (grazing) headPivot.rotation.x = -0.62
+  const mode: SheepMode = Math.random() > 0.4 ? 'wander' : 'graze'
+  const velocity = new THREE.Vector2()
+  if (mode === 'wander') {
+    const a = Math.random() * Math.PI * 2
+    const speed = 0.4 + Math.random() * 0.35
+    velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
+  } else {
+    headPivot.rotation.x = -0.62
+  }
 
   return {
     group,
     headPivot,
-    grazing,
+    mode,
+    velocity,
+    timer: 0.8 + Math.random() * 2.4,
     phaseOffset: Math.random() * Math.PI * 2,
   }
+}
+
+const BOUND = 6.2
+
+/** Walk a while, then pause to graze, then pick a new direction. */
+export function stepSheep(s: SheepState, dt: number, t: number) {
+  s.timer -= dt
+  if (s.timer <= 0) {
+    if (s.mode === 'wander') {
+      s.mode = 'graze'
+      s.velocity.set(0, 0)
+      s.timer = 1.2 + Math.random() * 2.4
+    } else {
+      s.mode = 'wander'
+      const a = Math.random() * Math.PI * 2
+      const speed = 0.38 + Math.random() * 0.4
+      s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
+      s.timer = 1.8 + Math.random() * 2.6
+    }
+  }
+
+  if (s.mode === 'wander') {
+    s.group.position.x += s.velocity.x * dt
+    s.group.position.z += s.velocity.y * dt
+    if (Math.abs(s.group.position.x) > BOUND) {
+      s.group.position.x = clamp(s.group.position.x, -BOUND, BOUND)
+      s.velocity.x *= -1
+    }
+    if (Math.abs(s.group.position.z) > BOUND) {
+      s.group.position.z = clamp(s.group.position.z, -BOUND, BOUND)
+      s.velocity.y *= -1
+    }
+    if (s.velocity.lengthSq() > 0.0001) {
+      const facing = Math.atan2(-s.velocity.y, s.velocity.x)
+      s.group.rotation.y = dampAngle(s.group.rotation.y, facing, dt)
+    }
+    s.group.position.y = Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
+    s.headPivot.rotation.x = -0.08
+    return
+  }
+
+  s.group.position.y = 0
+  s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
+}
+
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v))
+}
+
+function dampAngle(current: number, target: number, dt: number) {
+  let d = target - current
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return current + d * Math.min(1, dt * 6)
 }

@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { SHEEP_COUNT } from './constants'
 import { createIsland } from './island'
-import { createSheep, type SheepState } from './sheep'
+import { createSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
 /** Default isometric frame, close to the reference still. */
@@ -11,20 +11,18 @@ const LOOK = new THREE.Vector3(0, 0.15, 0)
 /** Vertical span. Portrait stage is narrow, so this is sized to fit the whole island. */
 const FRUSTUM = 28
 
-type Spawn = { x: number; z: number; ry: number; graze: boolean }
-
-const LAYOUT: Spawn[] = [
-  { x: -3.4, z: 2.2, ry: 0.5, graze: true },
-  { x: -1.6, z: 1.1, ry: -0.6, graze: true },
-  { x: 0.2, z: 1.8, ry: 2.1, graze: false },
-  { x: 1.8, z: 0.4, ry: 1.2, graze: true },
-  { x: -0.5, z: -0.4, ry: -1.4, graze: true },
-  { x: 0.9, z: -1.5, ry: 0.3, graze: true },
-  { x: 3.0, z: -2.0, ry: -0.4, graze: true },
-  { x: -2.8, z: -1.3, ry: 1.8, graze: false },
-  { x: -1.1, z: -2.5, ry: 2.5, graze: true },
-  { x: 2.4, z: 2.3, ry: -2.2, graze: true },
-  { x: 3.6, z: 0.2, ry: 0.8, graze: false },
+const LAYOUT: [number, number][] = [
+  [-3.4, 2.2],
+  [-1.6, 1.1],
+  [0.2, 1.8],
+  [1.8, 0.4],
+  [-0.5, -0.4],
+  [0.9, -1.5],
+  [3.0, -2.0],
+  [-2.8, -1.3],
+  [-1.1, -2.5],
+  [2.4, 2.3],
+  [3.6, 0.2],
 ]
 
 export class MeadowApp {
@@ -114,10 +112,14 @@ export class MeadowApp {
 
   private spawnSheep() {
     for (let i = 0; i < SHEEP_COUNT; i++) {
-      const spec = LAYOUT[i]
-      const state = createSheep(spec.graze)
-      state.group.position.set(spec.x, 0, spec.z)
-      state.group.rotation.y = spec.ry
+      const [x, z] = LAYOUT[i]
+      const state = createSheep()
+      state.group.position.set(x, 0, z)
+      if (state.velocity.lengthSq() > 0.0001) {
+        state.group.rotation.y = Math.atan2(-state.velocity.y, state.velocity.x)
+      } else {
+        state.group.rotation.y = Math.random() * Math.PI * 2
+      }
       state.group.scale.setScalar(1.15)
       this.sheep.push(state)
       this.scene.add(state.group)
@@ -140,16 +142,10 @@ export class MeadowApp {
   }
 
   tick() {
-    const t = this.clock.getElapsedTime()
-    this.updateGraze(t)
+    const dt = Math.min(this.clock.getDelta(), 0.05)
+    const t = this.clock.elapsedTime
+    for (const s of this.sheep) stepSheep(s, dt, t)
     this.controls.update()
     this.renderer.render(this.scene, this.camera)
-  }
-
-  private updateGraze(t: number) {
-    for (const s of this.sheep) {
-      const wave = Math.sin(t * 1.15 + s.phaseOffset) * 0.045
-      s.headPivot.rotation.x = (s.grazing ? -0.62 : -0.06) + wave
-    }
   }
 }
