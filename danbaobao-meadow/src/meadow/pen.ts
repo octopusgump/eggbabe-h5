@@ -1,13 +1,9 @@
 import * as THREE from 'three'
+import { PEN_ARM, PEN_CORNERS } from './bounds'
 import { clay } from './materials'
 
-const ARM = 2.2
-const CORNERS: [number, number][] = [
-  [7.55, 7.55],
-  [-7.55, 7.55],
-  [7.55, -7.55],
-  [-7.55, -7.55],
-]
+const ARM = PEN_ARM
+const CORNERS = PEN_CORNERS
 
 function rail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: number) {
   const dx = x2 - x1
@@ -128,30 +124,4 @@ export function clampToPen(index: number, x: number, z: number) {
   }
 }
 
-function rails() {
-  const segs: [number, number, number, number][] = []
-  for (const [cx, cz] of CORNERS) {
-    const sx = Math.sign(cx)
-    const sz = Math.sign(cz)
-    segs.push([cx - sx * ARM, cz, cx, cz])
-    segs.push([cx, cz - sz * ARM, cx, cz])
-  }
-  return segs
-}
-
-function distToSegment(px: number, pz: number, x1: number, z1: number, x2: number, z2: number) {
-  const dx = x2 - x1
-  const dz = z2 - z1
-  const len2 = dx * dx + dz * dz
-  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - x1) * dx + (pz - z1) * dz) / len2))
-  const qx = x1 + dx * t
-  const qz = z1 + dz * t
-  return Math.hypot(px - qx, pz - qz)
-}
-
-export function hitsFence(x: number, z: number, radius: number) {
-  for (const [x1, z1, x2, z2] of rails()) {
-    if (distToSegment(x, z, x1, z1, x2, z2) < radius) return true
-  }
-  return false
-}
+export { hitsFence } from './bounds'

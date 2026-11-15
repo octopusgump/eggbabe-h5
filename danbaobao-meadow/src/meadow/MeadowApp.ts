@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { placeRabbit } from './bounds'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { buzz, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
-import { createCornerPens, hitsFence, isInsideCornerPen, kickPen, resetPens, stepPens, type PenRig } from './pen'
+import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
 import { createRabbit, swayEars, type RabbitState } from './rabbit'
 import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
@@ -15,8 +16,6 @@ const CAM_POS = new THREE.Vector3(11.2, 13.4, 11.2)
 const LOOK = new THREE.Vector3(0, 0.15, 0)
 /** Vertical span. Portrait stage is narrow, so this is sized to fit the whole island. */
 const FRUSTUM = 28
-/** Keeps the rabbit on open grass, short of the corner pens. */
-const RABBIT_REACH = 5.4
 const RABBIT_SPEED = 3
 const RABBIT_HOME = new THREE.Vector3(0, 0, -4.4)
 const TOUCH = 1.25
@@ -221,21 +220,9 @@ export class MeadowApp {
     dx /= dlen
     dz /= dlen
     const step = RABBIT_SPEED * power * dt
-    const next = stayOnMeadow(pos.x + dx * step, pos.z + dz * step)
-    const alongX = stayOnMeadow(pos.x + dx * step, pos.z)
-    const alongZ = stayOnMeadow(pos.x, pos.z + dz * step)
-    const blocked = (p: { x: number; z: number }) =>
-      isInsideCornerPen(p.x, p.z) || hitsFence(p.x, p.z, 0.55)
-    if (!blocked(next)) {
-      pos.x = next.x
-      pos.z = next.z
-    } else if (!blocked(alongX)) {
-      pos.x = alongX.x
-      pos.z = alongX.z
-    } else if (!blocked(alongZ)) {
-      pos.x = alongZ.x
-      pos.z = alongZ.z
-    }
+    const next = placeRabbit(pos.x + dx * step, pos.z + dz * step)
+    pos.x = next.x
+    pos.z = next.z
     this.rabbit.group.rotation.y = dampAngle(
       this.rabbit.group.rotation.y,
       Math.atan2(-dz, dx),
@@ -339,15 +326,6 @@ export class MeadowApp {
     this.controls.update()
     this.renderer.render(this.scene, this.camera)
   }
-}
-
-function stayOnMeadow(x: number, z: number) {
-  const reach = Math.hypot(x, z)
-  if (reach > RABBIT_REACH) {
-    const k = RABBIT_REACH / reach
-    return { x: x * k, z: z * k }
-  }
-  return { x, z }
 }
 
 function clamp(v: number, lo: number, hi: number) {
