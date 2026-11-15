@@ -101,13 +101,51 @@ function penBox(cx: number, cz: number, inset: number) {
   return { x0, x1, z0, z1 }
 }
 
-export function penIndexAt(x: number, z: number) {
+export function penIndexAt(x: number, z: number, reach = 0) {
   for (let i = 0; i < CORNERS.length; i++) {
     const [cx, cz] = CORNERS[i]
-    const { x0, x1, z0, z1 } = penBox(cx, cz, 0.08)
+    let { x0, x1, z0, z1 } = penBox(cx, cz, 0.08)
+    const sx = Math.sign(cx)
+    const sz = Math.sign(cz)
+    if (sx > 0) x0 -= reach
+    else x1 += reach
+    if (sz > 0) z0 -= reach
+    else z1 += reach
     if (x > x0 && x < x1 && z > z0 && z < z1) return i
   }
   return -1
+}
+
+/** Pen mouth the sheep should drift toward while it runs from the herder. */
+export function herdTarget(x: number, z: number, awayX: number, awayZ: number) {
+  const alen = Math.hypot(awayX, awayZ) || 1
+  const ax = awayX / alen
+  const az = awayZ / alen
+  let bestScore = -Infinity
+  let mouthX = 0
+  let mouthZ = 0
+  let mouthDist = 1
+  for (const [cx, cz] of CORNERS) {
+    const sx = Math.sign(cx)
+    const sz = Math.sign(cz)
+    const mx = cx - sx * ARM * 0.62
+    const mz = cz - sz * ARM * 0.62
+    const dx = mx - x
+    const dz = mz - z
+    const dist = Math.hypot(dx, dz) || 1
+    const align = (dx / dist) * ax + (dz / dist) * az
+    const score = align * 1.6 - dist * 0.07
+    if (score > bestScore) {
+      bestScore = score
+      mouthX = mx
+      mouthZ = mz
+      mouthDist = dist
+    }
+  }
+  const near = Math.max(0, 1 - mouthDist / 6.5)
+  const aimed = bestScore > 0.12
+  const weight = Math.min(0.86, (aimed ? 0.4 : 0.16) + near * 0.42)
+  return { x: mouthX, z: mouthZ, weight }
 }
 
 export function isInsideCornerPen(x: number, z: number) {

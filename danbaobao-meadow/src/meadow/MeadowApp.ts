@@ -16,7 +16,7 @@ const CAM_POS = new THREE.Vector3(11.2, 13.4, 11.2)
 const LOOK = new THREE.Vector3(0, 0.15, 0)
 /** Vertical span. Portrait stage is narrow, so this is sized to fit the whole island. */
 const FRUSTUM = 28
-const HERDER_SPEED = 3
+const HERDER_SPEED = 3.7
 const HERDER_HOME = new THREE.Vector3(0, 0, -4.4)
 const TOUCH = 1.25
 const BUMP_COOLDOWN = 0.45
@@ -304,8 +304,11 @@ export class MeadowApp {
       this.stepHerder(dt)
       const hx = this.herder.group.position.x
       const hz = this.herder.group.position.z
+      const flock = this.sheep
+        .filter((s) => s.mode !== 'penned')
+        .map((s) => ({ x: s.group.position.x, z: s.group.position.z }))
       for (const s of this.sheep) {
-        const event = stepSheep(s, dt, t, hx, hz)
+        const event = stepSheep(s, dt, t, hx, hz, flock)
         if (event?.kind === 'fence') {
           spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
         } else if (event?.kind === 'penned') {
