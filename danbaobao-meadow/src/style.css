@@ -47,6 +47,37 @@ body {
   pointer-events: none;
 }
 
+#pops {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.pop-star {
+  position: absolute;
+  right: 16px;
+  top: 42px;
+  font: 700 22px/1 -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #d4a017;
+  animation: star-pop 720ms ease-out forwards;
+}
+
+@keyframes star-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.7);
+  }
+  22% {
+    opacity: 1;
+    transform: translateY(0) scale(1.12);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) scale(1);
+  }
+}
+
 #result {
   position: absolute;
   left: 50%;

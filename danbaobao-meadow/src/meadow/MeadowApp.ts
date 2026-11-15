@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
+import { buzz, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { createCornerPens, hitsFence, isInsideCornerPen, kickPen, resetPens, stepPens, type PenRig } from './pen'
@@ -182,6 +183,7 @@ export class MeadowApp {
       },
     })
     this.stick = manager
+    zone.addEventListener('pointerdown', () => unlockSound())
     manager.on('move', (evt) => {
       if (this.over) return
       this.stickX = evt.data.vector.x
@@ -322,6 +324,10 @@ export class MeadowApp {
         } else if (event?.kind === 'penned') {
           spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.8)
           kickPen(this.pens, event.penIndex)
+          const last = this.pennedCount() === SHEEP_COUNT
+          popStar()
+          playPenned(last)
+          buzz(last ? [16, 30, 28] : 18)
         }
         this.bumpRabbit(s, rx, rz)
       }

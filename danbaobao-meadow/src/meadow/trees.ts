@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 import { blobShadow, clay } from './materials'
 
-type TreeSpec = { x: number; z: number; pink?: boolean; scale?: number }
+type TreeSpec = { x: number; z: number; scale?: number }
 
 const SPECS: TreeSpec[] = [
-  { x: -5.6, z: -2.4, pink: true, scale: 1.15 },
+  { x: -5.6, z: -2.4, scale: 1.15 },
   { x: -5.8, z: 3.6, scale: 1.05 },
   { x: -1.6, z: 5.8, scale: 0.92 },
   { x: 2.6, z: 4.8, scale: 1.0 },
@@ -15,7 +15,6 @@ const SPECS: TreeSpec[] = [
 ]
 
 const GREEN = [0x7ed86c, 0x94e484, 0x6ccc58]
-const PINK = [0xd7a4d4, 0xe4b6df, 0xc890cc]
 
 function canopy(
   parent: THREE.Group,
@@ -51,7 +50,7 @@ function tree(spec: TreeSpec): THREE.Group {
   trunk.position.y = 0.28 * s
   trunk.castShadow = true
   g.add(trunk)
-  canopy(g, spec.pink ? PINK : GREEN, s)
+  canopy(g, GREEN, s)
 
   const shade = blobShadow(0.95 * s, 0.62 * s, 0.95)
   shade.position.set(0.28 * s, 0.03, 0.36 * s)
