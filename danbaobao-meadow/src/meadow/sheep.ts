@@ -141,13 +141,13 @@ export function resetSheep(s: SheepState) {
 const BOUND = 6.9
 const FEAR = 3.45
 
-/** Wander, graze, flee from the rabbit, or stay locked in a corner pen. */
+/** Wander, graze, flee from the herder, or stay locked in a corner pen. */
 export function stepSheep(
   s: SheepState,
   dt: number,
   t: number,
-  rabbitX: number,
-  rabbitZ: number,
+  herderX: number,
+  herderZ: number,
 ): SheepEvent | null {
   s.bumpCooldown = Math.max(0, s.bumpCooldown - dt)
   if (s.mode === 'penned' && s.penIndex >= 0) {
@@ -156,8 +156,8 @@ export function stepSheep(
     return null
   }
 
-  const dx = s.group.position.x - rabbitX
-  const dz = s.group.position.z - rabbitZ
+  const dx = s.group.position.x - herderX
+  const dz = s.group.position.z - herderZ
   const dist = Math.hypot(dx, dz)
   const afraid = dist < FEAR && dist > 0.001
 
