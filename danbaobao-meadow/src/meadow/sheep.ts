@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { blobShadow, clay } from './materials'
-import { hitsFence, penIndexAt } from './pen'
+import { herdTarget, hitsFence, penIndexAt } from './pen'
 
 export type SheepMode = 'wander' | 'graze' | 'flee' | 'penned'
 
@@ -15,6 +15,7 @@ export type SheepState = {
   homeX: number
   homeZ: number
   bumpCooldown: number
+  fleeCarry: number
 }
 
 export type SheepEvent = {
@@ -118,6 +119,7 @@ export function createSheep(): SheepState {
     homeX: 0,
     homeZ: 0,
     bumpCooldown: 0,
+    fleeCarry: 0,
   }
 }
 
@@ -133,13 +135,16 @@ export function resetSheep(s: SheepState) {
   }
   s.timer = 0.6 + Math.random() * 2
   s.bumpCooldown = 0
+  s.fleeCarry = 0
   s.group.visible = true
   s.group.position.set(s.homeX, 0, s.homeZ)
   s.headPivot.rotation.x = s.mode === 'graze' ? -0.62 : -0.08
 }
 
 const BOUND = 6.9
-const FEAR = 3.45
+const FEAR = 4.6
+const CAPTURE = 1.2
+const COHESION = 2.7
 
 /** Wander, graze, flee from the herder, or stay locked in a corner pen. */
 export function stepSheep(
@@ -148,8 +153,10 @@ export function stepSheep(
   t: number,
   herderX: number,
   herderZ: number,
+  flock: { x: number; z: number }[] = [],
 ): SheepEvent | null {
   s.bumpCooldown = Math.max(0, s.bumpCooldown - dt)
+  s.fleeCarry = Math.max(0, s.fleeCarry - dt)
   if (s.mode === 'penned' && s.penIndex >= 0) {
     s.group.visible = false
     s.velocity.set(0, 0)
@@ -163,11 +170,13 @@ export function stepSheep(
 
   if (afraid) {
     s.mode = 'flee'
-    const speed = 1.35 + (1 - dist / FEAR) * 0.5
-    s.velocity.set((dx / dist) * speed, (dz / dist) * speed)
+    s.fleeCarry = 1.05
+    s.velocity.copy(fleeVelocity(s, dx / dist, dz / dist, dist, flock, true))
+  } else if (s.mode === 'flee' && s.fleeCarry > 0 && dist > 0.001) {
+    s.velocity.copy(fleeVelocity(s, dx / dist, dz / dist, dist, flock, false))
   } else if (s.mode === 'flee') {
     s.mode = 'wander'
-    s.timer = 1.1 + Math.random() * 1.4
+    s.timer = 0.7 + Math.random() * 1.1
   }
 
   if (s.mode !== 'flee') {
@@ -187,7 +196,12 @@ export function stepSheep(
     }
   }
 
-  if (s.mode === 'graze') {
+  if (s.mode !== 'flee') {
+    const pull = mouthPull(s)
+    if (pull) s.velocity.copy(pull)
+  }
+
+  if (s.mode === 'graze' && s.velocity.lengthSq() < 0.0001) {
     s.group.position.y = 0
     s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
     return null
@@ -197,33 +211,34 @@ export function stepSheep(
   const prevZ = s.group.position.z
   let nx = clamp(prevX + s.velocity.x * dt, -BOUND, BOUND)
   let nz = clamp(prevZ + s.velocity.y * dt, -BOUND, BOUND)
+  const enteredEarly = penIndexAt(nx, nz, CAPTURE)
+  if (enteredEarly >= 0) {
+    return penned(s, nx, nz, enteredEarly)
+  }
   let fence: SheepEvent | null = null
   if (hitsFence(nx, nz, 0.26)) {
-    const vx = s.velocity.x
-    const vz = s.velocity.y
-    s.velocity.multiplyScalar(-1)
-    nx = prevX
-    nz = prevZ
-    fence = { kind: 'fence', x: prevX, z: prevZ, nx: -vx, nz: -vz, penIndex: -1 }
+    const goal = herdTarget(prevX, prevZ, s.velocity.x, s.velocity.y)
+    const slideX = prevX + (goal.x - prevX) * 0.18
+    const slideZ = prevZ + (goal.z - prevZ) * 0.18
+    const slipped = penIndexAt(slideX, slideZ, CAPTURE + 0.35)
+    if (slipped >= 0) return penned(s, slideX, slideZ, slipped)
+    if (!hitsFence(slideX, slideZ, 0.22)) {
+      nx = slideX
+      nz = slideZ
+    } else {
+      const vx = s.velocity.x
+      const vz = s.velocity.y
+      s.velocity.multiplyScalar(-1)
+      nx = prevX
+      nz = prevZ
+      fence = { kind: 'fence', x: prevX, z: prevZ, nx: -vx, nz: -vz, penIndex: -1 }
+    }
   }
   s.group.position.x = nx
   s.group.position.z = nz
 
-  const entered = penIndexAt(nx, nz)
-  if (entered >= 0) {
-    s.mode = 'penned'
-    s.penIndex = entered
-    s.group.visible = false
-    s.velocity.set(0, 0)
-    return {
-      kind: 'penned',
-      x: nx,
-      z: nz,
-      nx: -Math.sign(nx),
-      nz: -Math.sign(nz),
-      penIndex: entered,
-    }
-  }
+  const entered = penIndexAt(nx, nz, CAPTURE)
+  if (entered >= 0) return penned(s, nx, nz, entered)
 
   if (s.velocity.lengthSq() > 0.0001) {
     const facing = Math.atan2(-s.velocity.y, s.velocity.x)
@@ -232,6 +247,78 @@ export function stepSheep(
   s.group.position.y = Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
   s.headPivot.rotation.x = -0.08
   return fence
+}
+
+function fleeVelocity(
+  s: SheepState,
+  awayX: number,
+  awayZ: number,
+  dist: number,
+  flock: { x: number; z: number }[],
+  afraid: boolean,
+) {
+  let vx = awayX
+  let vz = awayZ
+  let cx = 0
+  let cz = 0
+  let n = 0
+  const sx = s.group.position.x
+  const sz = s.group.position.z
+  for (const other of flock) {
+    const ox = other.x - sx
+    const oz = other.z - sz
+    const od = Math.hypot(ox, oz)
+    if (od > 0.08 && od < COHESION) {
+      cx += other.x
+      cz += other.z
+      n++
+    }
+  }
+  if (n > 0) {
+    const tx = cx / n - sx
+    const tz = cz / n - sz
+    const td = Math.hypot(tx, tz) || 1
+    vx += (tx / td) * 0.34
+    vz += (tz / td) * 0.34
+  }
+  const goal = herdTarget(sx, sz, vx, vz)
+  const gx = goal.x - sx
+  const gz = goal.z - sz
+  const gd = Math.hypot(gx, gz) || 1
+  vx = vx * (1 - goal.weight) + (gx / gd) * goal.weight
+  vz = vz * (1 - goal.weight) + (gz / gd) * goal.weight
+  const len = Math.hypot(vx, vz) || 1
+  const closeness = afraid ? Math.max(0, 1 - dist / FEAR) : 0.4
+  const speed = afraid ? 1.15 + closeness * 0.4 : 1.12
+  return new THREE.Vector2((vx / len) * speed, (vz / len) * speed)
+}
+
+/** Finish the last steps into a pen once a shove has already brought the sheep close. */
+function mouthPull(s: SheepState) {
+  const sx = s.group.position.x
+  const sz = s.group.position.z
+  const goal = herdTarget(sx, sz, s.velocity.x, s.velocity.y)
+  const gx = goal.x - sx
+  const gz = goal.z - sz
+  const gd = Math.hypot(gx, gz)
+  if (gd > 3.2 || gd < 0.05) return null
+  return new THREE.Vector2((gx / gd) * 0.95, (gz / gd) * 0.95)
+}
+
+function penned(s: SheepState, x: number, z: number, index: number): SheepEvent {
+  s.mode = 'penned'
+  s.penIndex = index
+  s.group.visible = false
+  s.velocity.set(0, 0)
+  s.group.position.set(x, 0, z)
+  return {
+    kind: 'penned',
+    x,
+    z,
+    nx: -Math.sign(x),
+    nz: -Math.sign(z),
+    penIndex: index,
+  }
 }
 
 function clamp(v: number, lo: number, hi: number) {
