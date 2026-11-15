@@ -3,7 +3,7 @@ import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { placeHerder } from './bounds'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
-import { buzz, playPenned, popStar, unlockSound } from './feedback'
+import { buzz, playBaa, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
@@ -54,6 +54,7 @@ export class MeadowApp {
   private readonly homePolar: number
   private readonly homeAzimuth: number
   private remaining = ROUND_SECONDS
+  private baaWait = 2.4
   private over = false
   private stickX = 0
   private stickY = 0
@@ -263,6 +264,7 @@ export class MeadowApp {
     this.herder.group.rotation.y = 0
     resetHerder(this.herder)
     for (const s of this.sheep) resetSheep(s)
+    this.baaWait = 2.4
     clearImpacts()
     resetPens(this.pens)
     if (this.resultEl) this.resultEl.hidden = true
@@ -316,8 +318,13 @@ export class MeadowApp {
       const flock = this.sheep
         .filter((s) => s.mode !== 'penned')
         .map((s) => ({ x: s.group.position.x, z: s.group.position.z }))
+      this.baaWait -= dt
+      const wantIdle = flock.length > 0 && this.baaWait <= 0
+      let startled = false
       for (const s of this.sheep) {
+        const calm = s.mode !== 'flee' && s.mode !== 'penned'
         const event = stepSheep(s, dt, t, hx, hz, flock)
+        if (calm && s.mode === 'flee') startled = true
         if (event?.kind === 'fence') {
           spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
         } else if (event?.kind === 'penned') {
@@ -329,6 +336,13 @@ export class MeadowApp {
           buzz(last ? [16, 30, 28] : 18)
         }
         this.bumpHerder(s, hx, hz)
+      }
+      if (startled) {
+        playBaa('scare')
+        this.baaWait = Math.max(this.baaWait, 1.6)
+      } else if (wantIdle) {
+        playBaa('idle')
+        this.baaWait = 3.4 + Math.random() * 3.6
       }
       if (this.remaining <= 0 || this.pennedCount() === SHEEP_COUNT) this.finish()
       else this.updateHud()
