@@ -12,10 +12,14 @@ import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
 /** Default isometric frame, close to the reference still. */
-const CAM_POS = new THREE.Vector3(11.2, 13.4, 11.2)
+/**
+ * Three-quarter view from the south. The old diagonal camera turned the meadow
+ * into a diamond, and on a portrait screen the left and right pens fell off the edge.
+ * This angle keeps every pen floor inside the frame, with the near side still in view.
+ */
+const CAM_POS = new THREE.Vector3(3.2, 16.5, 16.5)
 const LOOK = new THREE.Vector3(0, 0.15, 0)
-/** Vertical span. Portrait stage is narrow, so this is sized to fit the whole island. */
-const FRUSTUM = 28
+const FRUSTUM = 46
 const HERDER_SPEED = 3.7
 const HERDER_HOME = new THREE.Vector3(0, 0, -4.4)
 const TOUCH = 1.25
