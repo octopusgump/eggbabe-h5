@@ -52,7 +52,7 @@ export class MeadowApp {
     this.renderer.toneMapping = THREE.NoToneMapping
 
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0xe8e6e1)
+    this.scene.background = new THREE.Color(0xe7ebe6)
 
     const aspect = 390 / 844
     this.camera = new THREE.OrthographicCamera(
@@ -104,15 +104,6 @@ export class MeadowApp {
     sun.shadow.camera.top = span
     sun.shadow.camera.bottom = -span
     this.scene.add(sun)
-
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(48, 48),
-      new THREE.MeshLambertMaterial({ color: 0xe8e6e1 }),
-    )
-    ground.rotation.x = -Math.PI / 2
-    ground.position.y = -0.95
-    ground.receiveShadow = true
-    this.scene.add(ground)
 
     this.scene.add(createIsland())
     this.scene.add(createTrees())

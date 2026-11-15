@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 import { ISLAND_HALF } from './constants'
-import { blobShadow, clay } from './materials'
+import { clay } from './materials'
 import { ribbonMesh } from './ribbon'
 
 const GRASS = 0xc5e99a
@@ -118,10 +118,6 @@ export function createIsland(): THREE.Group {
   top.position.y = -0.08
   top.receiveShadow = true
   island.add(top)
-
-  const drop = blobShadow(9.2, 7.4, 0.85)
-  drop.position.set(0.85, -0.78, 1.15)
-  island.add(drop)
 
   island.add(ribbonMesh(RIVER, 2.35, 0xd7f3e8, 0.012))
   island.add(ribbonMesh(RIVER, 1.7, 0x4eb8ea, 0.028))

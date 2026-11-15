@@ -3,7 +3,7 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #e6ebe4;
+  background: #e7ebe6;
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -22,7 +22,7 @@ body {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #e8ede8;
+  background: #e7ebe6;
   touch-action: none;
 }
 
