@@ -14,6 +14,16 @@ export type SheepState = {
   penIndex: number
   homeX: number
   homeZ: number
+  bumpCooldown: number
+}
+
+export type SheepEvent = {
+  kind: 'fence' | 'penned'
+  x: number
+  z: number
+  nx: number
+  nz: number
+  penIndex: number
 }
 
 const WOOL = [0xf7f6f3, 0xfffefb, 0xeeeae4]
@@ -107,6 +117,7 @@ export function createSheep(): SheepState {
     penIndex: -1,
     homeX: 0,
     homeZ: 0,
+    bumpCooldown: 0,
   }
 }
 
@@ -121,6 +132,7 @@ export function resetSheep(s: SheepState) {
     s.group.rotation.y = Math.atan2(-s.velocity.y, s.velocity.x)
   }
   s.timer = 0.6 + Math.random() * 2
+  s.bumpCooldown = 0
   s.group.position.set(s.homeX, 0, s.homeZ)
   s.headPivot.rotation.x = s.mode === 'graze' ? -0.62 : -0.08
 }
@@ -135,7 +147,8 @@ export function stepSheep(
   t: number,
   rabbitX: number,
   rabbitZ: number,
-) {
+): SheepEvent | null {
+  s.bumpCooldown = Math.max(0, s.bumpCooldown - dt)
   if (s.mode === 'penned' && s.penIndex >= 0) {
     const p = clampToPen(s.penIndex, s.group.position.x, s.group.position.z)
     s.group.position.x = p.x
@@ -143,7 +156,7 @@ export function stepSheep(
     s.group.position.y = 0
     s.velocity.set(0, 0)
     s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
-    return
+    return null
   }
 
   const dx = s.group.position.x - rabbitX
@@ -180,17 +193,21 @@ export function stepSheep(
   if (s.mode === 'graze') {
     s.group.position.y = 0
     s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
-    return
+    return null
   }
 
   const prevX = s.group.position.x
   const prevZ = s.group.position.z
   let nx = clamp(prevX + s.velocity.x * dt, -BOUND, BOUND)
   let nz = clamp(prevZ + s.velocity.y * dt, -BOUND, BOUND)
+  let fence: SheepEvent | null = null
   if (hitsFence(nx, nz, 0.26)) {
+    const vx = s.velocity.x
+    const vz = s.velocity.y
     s.velocity.multiplyScalar(-1)
     nx = prevX
     nz = prevZ
+    fence = { kind: 'fence', x: prevX, z: prevZ, nx: -vx, nz: -vz, penIndex: -1 }
   }
   s.group.position.x = nx
   s.group.position.z = nz
@@ -203,7 +220,14 @@ export function stepSheep(
     s.group.position.x = p.x
     s.group.position.z = p.z
     s.velocity.set(0, 0)
-    return
+    return {
+      kind: 'penned',
+      x: p.x,
+      z: p.z,
+      nx: -Math.sign(p.x),
+      nz: -Math.sign(p.z),
+      penIndex: entered,
+    }
   }
 
   if (s.velocity.lengthSq() > 0.0001) {
@@ -212,6 +236,7 @@ export function stepSheep(
   }
   s.group.position.y = Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
   s.headPivot.rotation.x = -0.08
+  return fence
 }
 
 function clamp(v: number, lo: number, hi: number) {

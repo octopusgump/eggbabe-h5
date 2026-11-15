@@ -30,10 +30,18 @@ function post(parent: THREE.Group, x: number, z: number) {
   parent.add(mesh)
 }
 
+export type PenRig = {
+  root: THREE.Group
+  groups: THREE.Group[]
+  shake: number[]
+}
+
 /** One small pen in each corner of the square. The open side faces the meadow. */
-export function createCornerPens(): THREE.Group {
+export function createCornerPens(): PenRig {
   const root = new THREE.Group()
   root.name = 'pens'
+  const groups: THREE.Group[] = []
+  const shake: number[] = []
 
   for (const [cx, cz] of CORNERS) {
     const sx = Math.sign(cx)
@@ -56,9 +64,35 @@ export function createCornerPens(): THREE.Group {
     post(pen, cx, cz - sz * ARM)
 
     root.add(pen)
+    groups.push(pen)
+    shake.push(0)
   }
 
-  return root
+  return { root, groups, shake }
+}
+
+/** Nudge one corner outward. Collision tests stay on the unshifted coordinates. */
+export function kickPen(rig: PenRig, index: number) {
+  rig.shake[index] = 0.16
+}
+
+export function stepPens(rig: PenRig, dt: number) {
+  const settle = Math.min(1, dt * 8)
+  for (let i = 0; i < rig.groups.length; i++) {
+    rig.shake[i] += (0 - rig.shake[i]) * settle
+    if (rig.shake[i] < 0.001) rig.shake[i] = 0
+    const [cx, cz] = CORNERS[i]
+    const len = Math.hypot(cx, cz) || 1
+    const k = rig.shake[i]
+    rig.groups[i].position.set((cx / len) * k, 0, (cz / len) * k)
+  }
+}
+
+export function resetPens(rig: PenRig) {
+  for (let i = 0; i < rig.groups.length; i++) {
+    rig.shake[i] = 0
+    rig.groups[i].position.set(0, 0, 0)
+  }
 }
 
 function penBox(cx: number, cz: number, inset: number) {

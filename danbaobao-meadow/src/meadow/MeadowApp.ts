@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
+import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
-import { createCornerPens, hitsFence, isInsideCornerPen } from './pen'
+import { createCornerPens, hitsFence, isInsideCornerPen, kickPen, resetPens, stepPens, type PenRig } from './pen'
 import { createRabbit, type RabbitState } from './rabbit'
 import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
@@ -15,6 +16,8 @@ const FRUSTUM = 28
 const RABBIT_BOUND = 6.35
 const RABBIT_SPEED = 2.7
 const RABBIT_HOME = new THREE.Vector3(0, 0, -4.4)
+const TOUCH = 0.72
+const BUMP_COOLDOWN = 0.45
 
 const LAYOUT: [number, number][] = [
   [-3.4, 2.2],
@@ -37,6 +40,7 @@ export class MeadowApp {
   private controls: OrbitControls
   private sheep: SheepState[] = []
   private rabbit: RabbitState
+  private pens: PenRig
   private clock = new THREE.Clock()
   private canvas: HTMLCanvasElement
   private readonly homePolar: number
@@ -127,7 +131,8 @@ export class MeadowApp {
     this.scene.add(sun)
 
     this.scene.add(createIsland())
-    this.scene.add(createCornerPens())
+    this.pens = createCornerPens()
+    this.scene.add(this.pens.root)
     this.scene.add(createTrees())
     this.spawnSheep()
     this.rabbit = createRabbit()
@@ -247,8 +252,23 @@ export class MeadowApp {
     this.rabbit.group.position.copy(RABBIT_HOME)
     this.rabbit.group.rotation.y = 0
     for (const s of this.sheep) resetSheep(s)
+    clearImpacts()
+    resetPens(this.pens)
     if (this.resultEl) this.resultEl.hidden = true
     this.updateHud()
+  }
+
+  private bumpRabbit(s: SheepState, rx: number, rz: number) {
+    if (s.mode === 'penned' || s.bumpCooldown > 0) return
+    const dx = s.group.position.x - rx
+    const dz = s.group.position.z - rz
+    const dist = Math.hypot(dx, dz)
+    if (dist >= TOUCH || dist < 0.001) return
+    spawnImpact(this.scene, (s.group.position.x + rx) / 2, (s.group.position.z + rz) / 2, dx, dz, 0.9)
+    const push = TOUCH - dist + 0.05
+    s.group.position.x = clamp(s.group.position.x + (dx / dist) * push, -6.9, 6.9)
+    s.group.position.z = clamp(s.group.position.z + (dz / dist) * push, -6.9, 6.9)
+    s.bumpCooldown = BUMP_COOLDOWN
   }
 
   private pennedCount() {
@@ -281,10 +301,21 @@ export class MeadowApp {
       this.stepRabbit(dt)
       const rx = this.rabbit.group.position.x
       const rz = this.rabbit.group.position.z
-      for (const s of this.sheep) stepSheep(s, dt, t, rx, rz)
+      for (const s of this.sheep) {
+        const event = stepSheep(s, dt, t, rx, rz)
+        if (event?.kind === 'fence') {
+          spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
+        } else if (event?.kind === 'penned') {
+          spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.8)
+          kickPen(this.pens, event.penIndex)
+        }
+        this.bumpRabbit(s, rx, rz)
+      }
       if (this.remaining <= 0) this.finish()
       else this.updateHud()
     }
+    stepPens(this.pens, dt)
+    stepImpacts(dt)
     this.controls.update()
     this.renderer.render(this.scene, this.camera)
   }
