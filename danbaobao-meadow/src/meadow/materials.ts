@@ -13,6 +13,27 @@ export function clay(color: number) {
 }
 
 let shadowTex: THREE.CanvasTexture | null = null
+let rangeTex: THREE.CanvasTexture | null = null
+
+/** A pale pool, lighter than a foot shadow, fading out at the rim. */
+export function rangeShadowTexture() {
+  if (rangeTex) return rangeTex
+  const c = document.createElement('canvas')
+  c.width = 256
+  c.height = 256
+  const g = c.getContext('2d')
+  if (!g) throw new Error('canvas')
+  const grd = g.createRadialGradient(128, 128, 4, 128, 128, 126)
+  grd.addColorStop(0, 'rgba(62, 96, 42, 0.22)')
+  grd.addColorStop(0.72, 'rgba(62, 96, 42, 0.12)')
+  grd.addColorStop(0.92, 'rgba(62, 96, 42, 0.05)')
+  grd.addColorStop(1, 'rgba(62, 96, 42, 0)')
+  g.fillStyle = grd
+  g.fillRect(0, 0, 256, 256)
+  rangeTex = new THREE.CanvasTexture(c)
+  rangeTex.colorSpace = THREE.SRGBColorSpace
+  return rangeTex
+}
 
 export function softShadowTexture() {
   if (shadowTex) return shadowTex

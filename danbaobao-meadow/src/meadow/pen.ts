@@ -5,23 +5,44 @@ import { clay } from './materials'
 const ARM = PEN_ARM
 const CORNERS = PEN_CORNERS
 
-function rail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: number) {
+function roundedPad(size: number, radius: number) {
+  const s = size / 2
+  const r = Math.min(radius, s - 0.001)
+  const shape = new THREE.Shape()
+  shape.moveTo(-s + r, -s)
+  shape.lineTo(s - r, -s)
+  shape.absarc(s - r, -s + r, r, -Math.PI / 2, 0, false)
+  shape.lineTo(s, s - r)
+  shape.absarc(s - r, s - r, r, 0, Math.PI / 2, false)
+  shape.lineTo(-s + r, s)
+  shape.absarc(-s + r, s - r, r, Math.PI / 2, Math.PI, false)
+  shape.lineTo(-s, -s + r)
+  shape.absarc(-s + r, -s + r, r, Math.PI, Math.PI * 1.5, false)
+  return new THREE.ShapeGeometry(shape)
+}
+
+function layRail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: number) {
   const dx = x2 - x1
   const dz = z2 - z1
-  const len = Math.hypot(dx, dz)
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.46, 0.16), clay(0xc4a06a))
-  mesh.position.set((x1 + x2) / 2, 0.26, (z1 + z2) / 2)
-  mesh.rotation.y = Math.atan2(-dz, dx)
+  const len = Math.hypot(dx, dz) || 1
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, len, 8), clay(0xd8c09a))
+  mesh.position.set((x1 + x2) / 2, 0.3, (z1 + z2) / 2)
+  mesh.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(dx / len, 0, dz / len),
+  )
   mesh.castShadow = true
   parent.add(mesh)
 }
 
-function post(parent: THREE.Group, x: number, z: number) {
+function picket(parent: THREE.Group, x: number, z: number, tall = false) {
+  const h = tall ? 0.5 : 0.36
+  const top = tall ? 0.1 : 0.07
   const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.09, 0.11, 0.58, 8),
-    clay(0xb08a52),
+    new THREE.CylinderGeometry(top, top + 0.02, h, 10),
+    clay(tall ? 0xc4a06a : 0xe0c7a2),
   )
-  mesh.position.set(x, 0.29, z)
+  mesh.position.set(x, h / 2, z)
   mesh.castShadow = true
   parent.add(mesh)
 }
@@ -44,20 +65,34 @@ export function createCornerPens(): PenRig {
     const sz = Math.sign(cz)
     const pen = new THREE.Group()
 
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(ARM * 0.86, ARM * 0.86),
-      clay(0xe7f6bc),
-    )
-    floor.rotation.x = -Math.PI / 2
-    floor.position.set(cx - sx * ARM * 0.46, 0.03, cz - sz * ARM * 0.46)
-    floor.receiveShadow = true
-    pen.add(floor)
+    const yard = new THREE.Mesh(roundedPad(ARM * 1.05, 0.42), clay(0xf4f1d4))
+    yard.rotation.x = -Math.PI / 2
+    yard.position.set(cx - sx * ARM * 0.46, 0.025, cz - sz * ARM * 0.46)
+    yard.receiveShadow = true
+    pen.add(yard)
 
-    rail(pen, cx - sx * ARM, cz, cx, cz)
-    rail(pen, cx, cz - sz * ARM, cx, cz)
-    post(pen, cx, cz)
-    post(pen, cx - sx * ARM, cz)
-    post(pen, cx, cz - sz * ARM)
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.08, 12), clay(0xe7d7b4))
+    bowl.position.set(cx - sx * ARM * 0.28, 0.05, cz - sz * ARM * 0.28)
+    bowl.castShadow = true
+    pen.add(bowl)
+    const water = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), clay(0xb7d7c8))
+    water.rotation.x = -Math.PI / 2
+    water.position.set(bowl.position.x, 0.095, bowl.position.z)
+    pen.add(water)
+
+    const arms: [number, number, number, number][] = [
+      [cx - sx * ARM, cz, cx, cz],
+      [cx, cz - sz * ARM, cx, cz],
+    ]
+    arms.forEach(([x1, z1, x2, z2], arm) => {
+      layRail(pen, x1, z1, x2, z2)
+      const steps = 3
+      for (let i = 0; i <= steps; i++) {
+        if (arm === 1 && i === steps) continue
+        const t = i / steps
+        picket(pen, x1 + (x2 - x1) * t, z1 + (z2 - z1) * t, i === 0 || i === steps)
+      }
+    })
 
     root.add(pen)
     groups.push(pen)
