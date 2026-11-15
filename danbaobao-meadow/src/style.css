@@ -88,7 +88,7 @@ body {
 
 #stick {
   position: absolute;
-  left: 28px;
+  right: 28px;
   bottom: 48px;
   z-index: 4;
   width: 132px;
