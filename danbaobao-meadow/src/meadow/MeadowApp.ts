@@ -6,7 +6,6 @@ import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { buzz, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
-import { rangeShadowTexture } from './materials'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
 import { createHerder, resetHerder, stepHerder as playHerder, type HerderState } from './herder'
 import { createSheep, resetSheep, SHEEP_FEAR, stepSheep, type SheepState } from './sheep'
@@ -342,20 +341,33 @@ export class MeadowApp {
   }
 }
 
-/** Soft ground shadow for the distance at which sheep start running. */
+/** Light green ring for the distance at which sheep start running. */
 function createHerdRange(radius: number) {
-  const mesh = new THREE.Mesh(
+  const group = new THREE.Group()
+  const fill = new THREE.Mesh(
     new THREE.CircleGeometry(radius, 72),
     new THREE.MeshBasicMaterial({
-      map: rangeShadowTexture(),
+      color: 0xd7f3b4,
       transparent: true,
+      opacity: 0.16,
       depthWrite: false,
     }),
   )
-  mesh.rotation.x = -Math.PI / 2
-  mesh.position.y = 0.03
-  const group = new THREE.Group()
-  group.add(mesh)
+  fill.rotation.x = -Math.PI / 2
+  fill.position.y = 0.03
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(Math.max(0.05, radius - 0.08), radius, 72),
+    new THREE.MeshBasicMaterial({
+      color: 0xb6e07a,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  )
+  ring.rotation.x = -Math.PI / 2
+  ring.position.y = 0.05
+  group.add(fill, ring)
   return group
 }
 
