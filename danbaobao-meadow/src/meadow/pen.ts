@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { clay } from './materials'
 
-const ARM = 1.05
+const ARM = 2.2
 const CORNERS: [number, number][] = [
   [7.55, 7.55],
   [-7.55, 7.55],
@@ -13,8 +13,8 @@ function rail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: numbe
   const dx = x2 - x1
   const dz = z2 - z1
   const len = Math.hypot(dx, dz)
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.32, 0.1), clay(0xc4a06a))
-  mesh.position.set((x1 + x2) / 2, 0.18, (z1 + z2) / 2)
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, 0.46, 0.16), clay(0xc4a06a))
+  mesh.position.set((x1 + x2) / 2, 0.26, (z1 + z2) / 2)
   mesh.rotation.y = Math.atan2(-dz, dx)
   mesh.castShadow = true
   parent.add(mesh)
@@ -22,10 +22,10 @@ function rail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: numbe
 
 function post(parent: THREE.Group, x: number, z: number) {
   const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.07, 0.08, 0.42, 8),
+    new THREE.CylinderGeometry(0.09, 0.11, 0.58, 8),
     clay(0xb08a52),
   )
-  mesh.position.set(x, 0.21, z)
+  mesh.position.set(x, 0.29, z)
   mesh.castShadow = true
   parent.add(mesh)
 }
@@ -49,11 +49,11 @@ export function createCornerPens(): PenRig {
     const pen = new THREE.Group()
 
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(ARM * 0.92, ARM * 0.92),
+      new THREE.PlaneGeometry(ARM * 0.86, ARM * 0.86),
       clay(0xe7f6bc),
     )
     floor.rotation.x = -Math.PI / 2
-    floor.position.set(cx - sx * ARM * 0.42, 0.03, cz - sz * ARM * 0.42)
+    floor.position.set(cx - sx * ARM * 0.46, 0.03, cz - sz * ARM * 0.46)
     floor.receiveShadow = true
     pen.add(floor)
 

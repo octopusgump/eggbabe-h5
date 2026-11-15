@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { blobShadow, clay } from './materials'
-import { clampToPen, hitsFence, penIndexAt } from './pen'
+import { hitsFence, penIndexAt } from './pen'
 
 export type SheepMode = 'wander' | 'graze' | 'flee' | 'penned'
 
@@ -133,6 +133,7 @@ export function resetSheep(s: SheepState) {
   }
   s.timer = 0.6 + Math.random() * 2
   s.bumpCooldown = 0
+  s.group.visible = true
   s.group.position.set(s.homeX, 0, s.homeZ)
   s.headPivot.rotation.x = s.mode === 'graze' ? -0.62 : -0.08
 }
@@ -150,12 +151,8 @@ export function stepSheep(
 ): SheepEvent | null {
   s.bumpCooldown = Math.max(0, s.bumpCooldown - dt)
   if (s.mode === 'penned' && s.penIndex >= 0) {
-    const p = clampToPen(s.penIndex, s.group.position.x, s.group.position.z)
-    s.group.position.x = p.x
-    s.group.position.z = p.z
-    s.group.position.y = 0
+    s.group.visible = false
     s.velocity.set(0, 0)
-    s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
     return null
   }
 
@@ -216,16 +213,14 @@ export function stepSheep(
   if (entered >= 0) {
     s.mode = 'penned'
     s.penIndex = entered
-    const p = clampToPen(entered, nx, nz)
-    s.group.position.x = p.x
-    s.group.position.z = p.z
+    s.group.visible = false
     s.velocity.set(0, 0)
     return {
       kind: 'penned',
-      x: p.x,
-      z: p.z,
-      nx: -Math.sign(p.x),
-      nz: -Math.sign(p.z),
+      x: nx,
+      z: nz,
+      nx: -Math.sign(nx),
+      nz: -Math.sign(nz),
       penIndex: entered,
     }
   }
