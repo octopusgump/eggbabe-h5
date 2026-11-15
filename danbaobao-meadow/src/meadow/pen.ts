@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import { clay } from './materials'
 
-const ARM = 1.2
+const ARM = 1.05
 const CORNERS: [number, number][] = [
-  [6.05, 6.05],
-  [-6.05, 6.05],
-  [6.05, -6.05],
-  [-6.05, -6.05],
+  [7.55, 7.55],
+  [-7.55, 7.55],
+  [7.55, -7.55],
+  [-7.55, -7.55],
 ]
 
 function rail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: number) {

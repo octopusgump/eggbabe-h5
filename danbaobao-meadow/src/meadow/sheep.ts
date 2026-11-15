@@ -103,7 +103,7 @@ export function createSheep(): SheepState {
   }
 }
 
-const BOUND = 6.2
+const BOUND = 6.9
 
 /** Walk a while, then pause to graze, then pick a new direction. */
 export function stepSheep(s: SheepState, dt: number, t: number) {
