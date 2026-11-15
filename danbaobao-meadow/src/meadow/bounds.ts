@@ -9,7 +9,7 @@ export const PEN_CORNERS: readonly [number, number][] = [
   [-7.55, -7.55],
 ]
 
-/** Plan of the grass slab. The rabbit's center stays this far in from the rim. */
+/** Plan of the grass slab. The herder's center stays this far in from the rim. */
 const SLAB_RADIUS = 0.62
 const BODY_MARGIN = 0.28
 export const GRASS_HALF = ISLAND_HALF - BODY_MARGIN
@@ -103,8 +103,8 @@ export function clampToGrass(x: number, z: number) {
   return { x: cx + dx * k, z: cz + dz * k }
 }
 
-/** Every grass point the rabbit can stand on, including inside the pens. */
-export function placeRabbit(x: number, z: number) {
+/** Every grass point the herder can stand on, including inside the pens. */
+export function placeHerder(x: number, z: number) {
   let p = clampToGrass(x, z)
   for (let i = 0; i < 3; i++) {
     const freed = pushOutOfFence(p.x, p.z, FENCE_CLEAR)

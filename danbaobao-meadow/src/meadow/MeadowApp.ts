@@ -1,13 +1,13 @@
 import * as THREE from 'three'
 import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { placeRabbit } from './bounds'
+import { placeHerder } from './bounds'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { buzz, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
-import { createRabbit, swayEars, type RabbitState } from './rabbit'
+import { createHerder, stepHerder as playHerder, type HerderState } from './herder'
 import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
@@ -16,11 +16,11 @@ const CAM_POS = new THREE.Vector3(11.2, 13.4, 11.2)
 const LOOK = new THREE.Vector3(0, 0.15, 0)
 /** Vertical span. Portrait stage is narrow, so this is sized to fit the whole island. */
 const FRUSTUM = 28
-const RABBIT_SPEED = 3
-const RABBIT_HOME = new THREE.Vector3(0, 0, -4.4)
+const HERDER_SPEED = 3
+const HERDER_HOME = new THREE.Vector3(0, 0, -4.4)
 const TOUCH = 1.25
 const BUMP_COOLDOWN = 0.45
-const RABBIT_SCALE = 2.05
+const HERDER_SCALE = 2.15
 
 const LAYOUT: [number, number][] = [
   [-3.4, 2.2],
@@ -42,7 +42,7 @@ export class MeadowApp {
   private camera: THREE.OrthographicCamera
   private controls: OrbitControls
   private sheep: SheepState[] = []
-  private rabbit: RabbitState
+  private herder: HerderState
   private pens: PenRig
   private clock = new THREE.Clock()
   private canvas: HTMLCanvasElement
@@ -136,10 +136,10 @@ export class MeadowApp {
     this.scene.add(this.pens.root)
     this.scene.add(createTrees())
     this.spawnSheep()
-    this.rabbit = createRabbit()
-    this.rabbit.group.position.copy(RABBIT_HOME)
-    this.rabbit.group.scale.setScalar(RABBIT_SCALE)
-    this.scene.add(this.rabbit.group)
+    this.herder = createHerder()
+    this.herder.group.position.copy(HERDER_HOME)
+    this.herder.group.scale.setScalar(HERDER_SCALE)
+    this.scene.add(this.herder.group)
 
     this.bindStick()
     requestAnimationFrame(() => this.stick?.reposition())
@@ -199,36 +199,36 @@ export class MeadowApp {
     this.stickY = 0
   }
 
-  private stepRabbit(dt: number) {
-    const pos = this.rabbit.group.position
+  private stepHerder(dt: number) {
+    const pos = this.herder.group.position
     const mag = Math.hypot(this.stickX, this.stickY)
-    if (mag < 0.15) {
-      pos.y = 0
-      return
+    let power = 0
+    if (mag >= 0.15) {
+      const e = this.camera.matrixWorld.elements
+      const rightX = e[0]
+      const rightZ = e[2]
+      const fwdX = -e[8]
+      const fwdZ = -e[10]
+      const rlen = Math.hypot(rightX, rightZ) || 1
+      const flen = Math.hypot(fwdX, fwdZ) || 1
+      power = Math.min(1, (mag - 0.15) / 0.85)
+      let dx = (rightX / rlen) * (this.stickX / mag) + (fwdX / flen) * (this.stickY / mag)
+      let dz = (rightZ / rlen) * (this.stickX / mag) + (fwdZ / flen) * (this.stickY / mag)
+      const dlen = Math.hypot(dx, dz) || 1
+      dx /= dlen
+      dz /= dlen
+      const step = HERDER_SPEED * power * dt
+      const next = placeHerder(pos.x + dx * step, pos.z + dz * step)
+      pos.x = next.x
+      pos.z = next.z
+      this.herder.group.rotation.y = dampAngle(
+        this.herder.group.rotation.y,
+        Math.atan2(-dz, dx),
+        dt,
+      )
     }
-    const e = this.camera.matrixWorld.elements
-    const rightX = e[0]
-    const rightZ = e[2]
-    const fwdX = -e[8]
-    const fwdZ = -e[10]
-    const rlen = Math.hypot(rightX, rightZ) || 1
-    const flen = Math.hypot(fwdX, fwdZ) || 1
-    const power = Math.min(1, (mag - 0.15) / 0.85)
-    let dx = (rightX / rlen) * (this.stickX / mag) + (fwdX / flen) * (this.stickY / mag)
-    let dz = (rightZ / rlen) * (this.stickX / mag) + (fwdZ / flen) * (this.stickY / mag)
-    const dlen = Math.hypot(dx, dz) || 1
-    dx /= dlen
-    dz /= dlen
-    const step = RABBIT_SPEED * power * dt
-    const next = placeRabbit(pos.x + dx * step, pos.z + dz * step)
-    pos.x = next.x
-    pos.z = next.z
-    this.rabbit.group.rotation.y = dampAngle(
-      this.rabbit.group.rotation.y,
-      Math.atan2(-dz, dx),
-      dt,
-    )
-    pos.y = Math.abs(Math.sin(this.clock.elapsedTime * 10)) * 0.04
+    pos.y = 0
+    playHerder(this.herder, dt, power)
   }
 
   resize() {
@@ -251,8 +251,8 @@ export class MeadowApp {
     this.remaining = ROUND_SECONDS
     this.over = false
     this.releaseStick()
-    this.rabbit.group.position.copy(RABBIT_HOME)
-    this.rabbit.group.rotation.y = 0
+    this.herder.group.position.copy(HERDER_HOME)
+    this.herder.group.rotation.y = 0
     for (const s of this.sheep) resetSheep(s)
     clearImpacts()
     resetPens(this.pens)
@@ -260,13 +260,13 @@ export class MeadowApp {
     this.updateHud()
   }
 
-  private bumpRabbit(s: SheepState, rx: number, rz: number) {
+  private bumpHerder(s: SheepState, hx: number, hz: number) {
     if (s.mode === 'penned' || s.bumpCooldown > 0) return
-    const dx = s.group.position.x - rx
-    const dz = s.group.position.z - rz
+    const dx = s.group.position.x - hx
+    const dz = s.group.position.z - hz
     const dist = Math.hypot(dx, dz)
     if (dist >= TOUCH || dist < 0.001) return
-    spawnImpact(this.scene, (s.group.position.x + rx) / 2, (s.group.position.z + rz) / 2, dx, dz, 0.9)
+    spawnImpact(this.scene, (s.group.position.x + hx) / 2, (s.group.position.z + hz) / 2, dx, dz, 0.9)
     const push = TOUCH - dist + 0.05
     s.group.position.x = clamp(s.group.position.x + (dx / dist) * push, -6.9, 6.9)
     s.group.position.z = clamp(s.group.position.z + (dz / dist) * push, -6.9, 6.9)
@@ -300,12 +300,11 @@ export class MeadowApp {
     const t = this.clock.elapsedTime
     if (!this.over) {
       this.remaining = Math.max(0, this.remaining - dt)
-      swayEars(this.rabbit, t)
-      this.stepRabbit(dt)
-      const rx = this.rabbit.group.position.x
-      const rz = this.rabbit.group.position.z
+      this.stepHerder(dt)
+      const hx = this.herder.group.position.x
+      const hz = this.herder.group.position.z
       for (const s of this.sheep) {
-        const event = stepSheep(s, dt, t, rx, rz)
+        const event = stepSheep(s, dt, t, hx, hz)
         if (event?.kind === 'fence') {
           spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
         } else if (event?.kind === 'penned') {
@@ -316,7 +315,7 @@ export class MeadowApp {
           playPenned(last)
           buzz(last ? [16, 30, 28] : 18)
         }
-        this.bumpRabbit(s, rx, rz)
+        this.bumpHerder(s, hx, hz)
       }
       if (this.remaining <= 0 || this.pennedCount() === SHEEP_COUNT) this.finish()
       else this.updateHud()
