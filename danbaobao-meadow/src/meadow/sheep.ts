@@ -138,7 +138,7 @@ export function resetSheep(s: SheepState) {
 }
 
 const BOUND = 6.9
-const FEAR = 3.2
+const FEAR = 3.45
 
 /** Wander, graze, flee from the rabbit, or stay locked in a corner pen. */
 export function stepSheep(
