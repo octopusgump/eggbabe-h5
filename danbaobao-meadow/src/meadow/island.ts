@@ -5,10 +5,10 @@ import { clay } from './materials'
 import { isInsideCornerPen } from './pen'
 import { ribbonMesh } from './ribbon'
 
-const GRASS = 0xc5e99a
-const SIDE = 0x9ed56e
-const TUFT_A = 0x4e8f3e
-const TUFT_B = 0x3d7a34
+const GRASS = 0xd7f3a4
+const SIDE = 0xb8e472
+const TUFT_A = 0x6cb44c
+const TUFT_B = 0x5aa43e
 
 function mulberry32(seed: number) {
   let a = seed

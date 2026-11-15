@@ -86,10 +86,10 @@ export class MeadowApp {
     this.controls.maxPolarAngle = this.homePolar + 0.32
     this.controls.update()
 
-    const hemi = new THREE.HemisphereLight(0xfffaf3, 0x8fbe68, 0.72)
+    const hemi = new THREE.HemisphereLight(0xffffff, 0xc8ee90, 0.95)
     this.scene.add(hemi)
 
-    const sun = new THREE.DirectionalLight(0xfff7ee, 1.05)
+    const sun = new THREE.DirectionalLight(0xfffaf0, 1.25)
     sun.position.set(-9, 16, 5)
     sun.castShadow = true
     sun.shadow.mapSize.set(2048, 2048)

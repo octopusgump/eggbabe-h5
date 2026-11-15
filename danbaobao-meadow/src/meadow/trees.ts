@@ -14,7 +14,7 @@ const SPECS: TreeSpec[] = [
   { x: -4.4, z: -5.4, scale: 0.88 },
 ]
 
-const GREEN = [0x62c45c, 0x78d06a, 0x56b852]
+const GREEN = [0x7ed86c, 0x94e484, 0x6ccc58]
 const PINK = [0xd7a4d4, 0xe4b6df, 0xc890cc]
 
 function canopy(

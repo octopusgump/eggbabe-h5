@@ -42,7 +42,7 @@ export function createCornerPens(): THREE.Group {
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(ARM * 0.92, ARM * 0.92),
-      clay(0xd5e7a4),
+      clay(0xe7f6bc),
     )
     floor.rotation.x = -Math.PI / 2
     floor.position.set(cx - sx * ARM * 0.42, 0.03, cz - sz * ARM * 0.42)
