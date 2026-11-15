@@ -14,7 +14,10 @@
       <div id="stage">
         <canvas id="canvas"></canvas>
         <div id="hud">
-          <div id="time">1:00</div>
+          <div id="time-row">
+            <div id="time">1:00</div>
+            <div id="level">第 1 关</div>
+          </div>
           <div id="count">0 / 11</div>
         </div>
         <button type="button" id="sound" aria-pressed="true" aria-label="关闭声音">🔊</button>
@@ -24,6 +27,8 @@
           <p id="score">0 / 11</p>
           <p id="stars"></p>
           <button type="button" id="again">再来一局</button>
+          <button type="button" id="next" hidden>下一关</button>
+          <button type="button" id="back" hidden>回第一关</button>
         </div>
       </div>
     </div>

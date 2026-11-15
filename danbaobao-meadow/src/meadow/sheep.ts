@@ -1,4 +1,11 @@
 import * as THREE from 'three'
+import {
+  groundHeight,
+  hitsWater,
+  pushOutOfWater,
+  slopeDrift,
+  type LevelId,
+} from './levels'
 import { blobShadow, clay } from './materials'
 import { herdTarget, hitsFence, penIndexAt } from './pen'
 
@@ -123,7 +130,7 @@ export function createSheep(): SheepState {
   }
 }
 
-export function resetSheep(s: SheepState) {
+export function resetSheep(s: SheepState, level: LevelId = 1) {
   s.penIndex = -1
   s.mode = Math.random() > 0.45 ? 'wander' : 'graze'
   s.velocity.set(0, 0)
@@ -137,7 +144,7 @@ export function resetSheep(s: SheepState) {
   s.bumpCooldown = 0
   s.fleeCarry = 0
   s.group.visible = true
-  s.group.position.set(s.homeX, 0, s.homeZ)
+  s.group.position.set(s.homeX, groundHeight(level, s.homeX, s.homeZ), s.homeZ)
   s.headPivot.rotation.x = s.mode === 'graze' ? -0.62 : -0.08
 }
 
@@ -156,6 +163,7 @@ export function stepSheep(
   herderX: number,
   herderZ: number,
   flock: { x: number; z: number }[] = [],
+  level: LevelId = 1,
 ): SheepEvent | null {
   s.bumpCooldown = Math.max(0, s.bumpCooldown - dt)
   s.fleeCarry = Math.max(0, s.fleeCarry - dt)
@@ -203,16 +211,25 @@ export function stepSheep(
     if (pull) s.velocity.copy(pull)
   }
 
-  if (s.mode === 'graze' && s.velocity.lengthSq() < 0.0001) {
-    s.group.position.y = 0
+  const px0 = s.group.position.x
+  const pz0 = s.group.position.z
+  let drift = slopeDrift(level, px0, pz0)
+  if (drift > 0 && hitsWater(level, px0, pz0 + 0.08, 0.26)) drift = 0
+  if (s.mode === 'graze' && s.velocity.lengthSq() < 0.0001 && drift === 0) {
+    s.group.position.y = groundHeight(level, px0, pz0)
     s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
     return null
   }
 
-  const prevX = s.group.position.x
-  const prevZ = s.group.position.z
+  const prevX = px0
+  const prevZ = pz0
   let nx = clamp(prevX + s.velocity.x * dt, -BOUND, BOUND)
-  let nz = clamp(prevZ + s.velocity.y * dt, -BOUND, BOUND)
+  let nz = clamp(prevZ + (s.velocity.y + drift) * dt, -BOUND, BOUND)
+  if (hitsWater(level, nx, nz, 0.26)) {
+    const dry = pushOutOfWater(level, nx, nz, 0.26)
+    nx = clamp(dry.x, -BOUND, BOUND)
+    nz = clamp(dry.z, -BOUND, BOUND)
+  }
   const enteredEarly = penIndexAt(nx, nz, CAPTURE)
   if (enteredEarly >= 0) {
     return penned(s, nx, nz, enteredEarly)
@@ -236,6 +253,11 @@ export function stepSheep(
       fence = { kind: 'fence', x: prevX, z: prevZ, nx: -vx, nz: -vz, penIndex: -1 }
     }
   }
+  if (hitsWater(level, nx, nz, 0.26)) {
+    const dry = pushOutOfWater(level, nx, nz, 0.26)
+    nx = clamp(dry.x, -BOUND, BOUND)
+    nz = clamp(dry.z, -BOUND, BOUND)
+  }
   s.group.position.x = nx
   s.group.position.z = nz
 
@@ -246,8 +268,11 @@ export function stepSheep(
     const facing = Math.atan2(-s.velocity.y, s.velocity.x)
     s.group.rotation.y = dampAngle(s.group.rotation.y, facing, dt)
   }
-  s.group.position.y = Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
-  s.headPivot.rotation.x = -0.08
+  const bob = s.mode === 'graze' ? 0 : Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
+  s.group.position.y = groundHeight(level, nx, nz) + bob
+  s.headPivot.rotation.x = s.mode === 'graze'
+    ? -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
+    : -0.08
   return fence
 }
 

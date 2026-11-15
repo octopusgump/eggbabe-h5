@@ -1,4 +1,5 @@
 import { ISLAND_HALF } from './constants'
+import { pushOutOfWater, type LevelId } from './levels'
 
 /** L-shaped rail in each corner. The open side faces the middle of the meadow. */
 export const PEN_ARM = 2.2
@@ -104,11 +105,12 @@ export function clampToGrass(x: number, z: number) {
 }
 
 /** Every grass point the herder can stand on, including inside the pens. */
-export function placeHerder(x: number, z: number) {
+export function placeHerder(x: number, z: number, level: LevelId = 1) {
   let p = clampToGrass(x, z)
   for (let i = 0; i < 3; i++) {
     const freed = pushOutOfFence(p.x, p.z, FENCE_CLEAR)
-    const next = clampToGrass(freed.x, freed.z)
+    const dry = pushOutOfWater(level, freed.x, freed.z, FENCE_CLEAR)
+    const next = clampToGrass(dry.x, dry.z)
     if (Math.hypot(next.x - p.x, next.z - p.z) < 1e-4) return next
     p = next
   }

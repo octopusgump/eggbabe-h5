@@ -15,6 +15,8 @@ if (!canvas) throw new Error('#canvas missing')
 
 const app = new MeadowApp(canvas)
 document.getElementById('again')?.addEventListener('click', () => app.restart())
+document.getElementById('next')?.addEventListener('click', () => app.gotoLevel(2))
+document.getElementById('back')?.addEventListener('click', () => app.gotoLevel(1))
 
 const soundBtn = document.getElementById('sound')
 function paintSound() {

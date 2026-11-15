@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { groundHeight, type LevelId } from './levels'
 import { blobShadow, clay } from './materials'
 
 type TreeSpec = { x: number; z: number; scale?: number }
@@ -38,7 +39,7 @@ function canopy(
   }
 }
 
-function tree(spec: TreeSpec): THREE.Group {
+function tree(spec: TreeSpec, level: LevelId): THREE.Group {
   const g = new THREE.Group()
   const s = spec.scale ?? 1
   const trunk = new THREE.Mesh(
@@ -54,12 +55,12 @@ function tree(spec: TreeSpec): THREE.Group {
   shade.position.set(0.28 * s, 0.03, 0.36 * s)
   g.add(shade)
 
-  g.position.set(spec.x, 0, spec.z)
+  g.position.set(spec.x, groundHeight(level, spec.x, spec.z), spec.z)
   return g
 }
 
-export function createTrees(): THREE.Group {
+export function createTrees(level: LevelId = 1): THREE.Group {
   const root = new THREE.Group()
-  for (const spec of SPECS) root.add(tree(spec))
+  for (const spec of SPECS) root.add(tree(spec, level))
   return root
 }

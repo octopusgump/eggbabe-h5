@@ -6,6 +6,7 @@ import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { buzz, playBaa, playPenned, popStar, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
+import { groundHeight, herderHome, pushOutOfWater, sheepLayout, type LevelId } from './levels'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
 import { createHerder, resetHerder, stepHerder as playHerder, type HerderState } from './herder'
 import { createSheep, resetSheep, SHEEP_FEAR, stepSheep, type SheepState } from './sheep'
@@ -21,24 +22,9 @@ const CAM_POS = new THREE.Vector3(3.2, 16.5, 16.5)
 const LOOK = new THREE.Vector3(0, 0.15, 0)
 const FRUSTUM = 46
 const HERDER_SPEED = 3.7
-const HERDER_HOME = new THREE.Vector3(0, 0, -4.4)
 const TOUCH = 1.25
 const BUMP_COOLDOWN = 0.45
 const HERDER_SCALE = 2.15
-
-const LAYOUT: [number, number][] = [
-  [-3.4, 2.2],
-  [-1.6, 1.1],
-  [0.2, 1.8],
-  [1.8, 0.4],
-  [-0.5, -0.4],
-  [0.9, -1.5],
-  [3.0, -2.0],
-  [-2.8, -1.3],
-  [-1.1, -2.5],
-  [2.4, 2.3],
-  [3.6, 0.2],
-]
 
 export class MeadowApp {
   private renderer: THREE.WebGLRenderer
@@ -49,6 +35,9 @@ export class MeadowApp {
   private herder: HerderState
   private herdRange: THREE.Group
   private pens: PenRig
+  private island: THREE.Group | null = null
+  private trees: THREE.Group | null = null
+  private level: LevelId = 1
   private clock = new THREE.Clock()
   private canvas: HTMLCanvasElement
   private readonly homePolar: number
@@ -64,6 +53,9 @@ export class MeadowApp {
   private resultEl: HTMLElement | null
   private scoreEl: HTMLElement | null
   private starsEl: HTMLElement | null
+  private levelEl: HTMLElement | null
+  private nextEl: HTMLButtonElement | null
+  private backEl: HTMLButtonElement | null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -72,6 +64,9 @@ export class MeadowApp {
     this.resultEl = document.getElementById('result')
     this.scoreEl = document.getElementById('score')
     this.starsEl = document.getElementById('stars')
+    this.levelEl = document.getElementById('level')
+    this.nextEl = document.getElementById('next') as HTMLButtonElement | null
+    this.backEl = document.getElementById('back') as HTMLButtonElement | null
 
     this.renderer = new THREE.WebGLRenderer({
       canvas,
@@ -137,17 +132,17 @@ export class MeadowApp {
     sun.shadow.camera.bottom = -span
     this.scene.add(sun)
 
-    this.scene.add(createIsland())
+    this.mountTerrain()
     this.pens = createCornerPens()
     this.scene.add(this.pens.root)
-    this.scene.add(createTrees())
     this.spawnSheep()
     this.herder = createHerder()
-    this.herder.group.position.copy(HERDER_HOME)
+    this.placeHerderHome()
     this.herder.group.scale.setScalar(HERDER_SCALE)
     this.scene.add(this.herder.group)
     this.herdRange = createHerdRange(SHEEP_FEAR)
-    this.herdRange.position.set(HERDER_HOME.x, 0, HERDER_HOME.z)
+    const [hx, hz] = herderHome(this.level)
+    this.herdRange.position.set(hx, groundHeight(this.level, hx, hz), hz)
     this.scene.add(this.herdRange)
 
     this.bindStick()
@@ -157,13 +152,34 @@ export class MeadowApp {
     window.addEventListener('resize', () => this.resize())
   }
 
+  private placeHerderHome() {
+    const [x, z] = herderHome(this.level)
+    this.herder.group.position.set(x, groundHeight(this.level, x, z), z)
+  }
+
+  private mountTerrain() {
+    if (this.island) {
+      this.scene.remove(this.island)
+      disposeGeometries(this.island)
+    }
+    if (this.trees) {
+      this.scene.remove(this.trees)
+      disposeGeometries(this.trees)
+    }
+    this.island = createIsland(this.level)
+    this.trees = createTrees(this.level)
+    this.scene.add(this.island)
+    this.scene.add(this.trees)
+  }
+
   private spawnSheep() {
+    const layout = sheepLayout(this.level)
     for (let i = 0; i < SHEEP_COUNT; i++) {
-      const [x, z] = LAYOUT[i]
+      const [x, z] = layout[i]
       const state = createSheep()
       state.homeX = x
       state.homeZ = z
-      state.group.position.set(x, 0, z)
+      state.group.position.set(x, groundHeight(this.level, x, z), z)
       if (state.velocity.lengthSq() > 0.0001) {
         state.group.rotation.y = Math.atan2(-state.velocity.y, state.velocity.x)
       } else {
@@ -227,7 +243,7 @@ export class MeadowApp {
       dx /= dlen
       dz /= dlen
       const step = HERDER_SPEED * power * dt
-      const next = placeHerder(pos.x + dx * step, pos.z + dz * step)
+      const next = placeHerder(pos.x + dx * step, pos.z + dz * step, this.level)
       pos.x = next.x
       pos.z = next.z
       this.herder.group.rotation.y = dampAngle(
@@ -236,7 +252,7 @@ export class MeadowApp {
         dt,
       )
     }
-    pos.y = 0
+    pos.y = groundHeight(this.level, pos.x, pos.z)
     playHerder(this.herder, dt, power)
   }
 
@@ -260,13 +276,13 @@ export class MeadowApp {
     this.remaining = ROUND_SECONDS
     this.over = false
     this.releaseStick()
-    this.herder.group.position.copy(HERDER_HOME)
+    this.placeHerderHome()
     this.herder.group.rotation.y = 0
     resetHerder(this.herder)
-    for (const s of this.sheep) resetSheep(s)
+    for (const s of this.sheep) resetSheep(s, this.level)
     this.baaWait = 2.4
     clearImpacts()
-    resetPens(this.pens)
+    resetPens(this.pens, this.level)
     if (this.resultEl) this.resultEl.hidden = true
     this.updateHud()
   }
@@ -279,8 +295,15 @@ export class MeadowApp {
     if (dist >= TOUCH || dist < 0.001) return
     spawnImpact(this.scene, (s.group.position.x + hx) / 2, (s.group.position.z + hz) / 2, dx, dz, 0.9)
     const push = TOUCH - dist + 0.05
-    s.group.position.x = clamp(s.group.position.x + (dx / dist) * push, -6.9, 6.9)
-    s.group.position.z = clamp(s.group.position.z + (dz / dist) * push, -6.9, 6.9)
+    const shoved = pushOutOfWater(
+      this.level,
+      clamp(s.group.position.x + (dx / dist) * push, -6.9, 6.9),
+      clamp(s.group.position.z + (dz / dist) * push, -6.9, 6.9),
+      0.26,
+    )
+    s.group.position.x = clamp(shoved.x, -6.9, 6.9)
+    s.group.position.z = clamp(shoved.z, -6.9, 6.9)
+    s.group.position.y = groundHeight(this.level, s.group.position.x, s.group.position.z)
     s.bumpCooldown = BUMP_COOLDOWN
   }
 
@@ -294,6 +317,8 @@ export class MeadowApp {
     const n = this.pennedCount()
     if (this.scoreEl) this.scoreEl.textContent = `${n} / ${SHEEP_COUNT}`
     if (this.starsEl) this.starsEl.textContent = n === 0 ? '0 颗星' : `${'★'.repeat(n)}  ${n}`
+    if (this.nextEl) this.nextEl.hidden = this.level !== 1
+    if (this.backEl) this.backEl.hidden = this.level !== 2
     if (this.resultEl) this.resultEl.hidden = false
     this.updateHud()
   }
@@ -304,6 +329,19 @@ export class MeadowApp {
     const s = sec % 60
     if (this.timeEl) this.timeEl.textContent = `${m}:${s.toString().padStart(2, '0')}`
     if (this.countEl) this.countEl.textContent = `${this.pennedCount()} / ${SHEEP_COUNT}`
+    if (this.levelEl) this.levelEl.textContent = `第 ${this.level} 关`
+  }
+
+  /** Rebuild the ground and start this level from the opening positions. */
+  gotoLevel(level: LevelId) {
+    this.level = level
+    const layout = sheepLayout(level)
+    this.sheep.forEach((sheep, i) => {
+      sheep.homeX = layout[i][0]
+      sheep.homeZ = layout[i][1]
+    })
+    this.mountTerrain()
+    this.restart()
   }
 
   tick() {
@@ -314,7 +352,7 @@ export class MeadowApp {
       this.stepHerder(dt)
       const hx = this.herder.group.position.x
       const hz = this.herder.group.position.z
-      this.herdRange.position.set(hx, 0, hz)
+      this.herdRange.position.set(hx, groundHeight(this.level, hx, hz), hz)
       const flock = this.sheep
         .filter((s) => s.mode !== 'penned')
         .map((s) => ({ x: s.group.position.x, z: s.group.position.z }))
@@ -323,7 +361,7 @@ export class MeadowApp {
       let startled = false
       for (const s of this.sheep) {
         const calm = s.mode !== 'flee' && s.mode !== 'penned'
-        const event = stepSheep(s, dt, t, hx, hz, flock)
+        const event = stepSheep(s, dt, t, hx, hz, flock, this.level)
         if (calm && s.mode === 'flee') startled = true
         if (event?.kind === 'fence') {
           spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
@@ -348,11 +386,18 @@ export class MeadowApp {
       else this.updateHud()
     }
     this.herdRange.visible = !this.over
-    stepPens(this.pens, dt)
+    stepPens(this.pens, dt, this.level)
     stepImpacts(dt)
     this.controls.update()
     this.renderer.render(this.scene, this.camera)
   }
+}
+
+function disposeGeometries(root: THREE.Object3D) {
+  root.traverse((child) => {
+    const mesh = child as THREE.Mesh
+    mesh.geometry?.dispose()
+  })
 }
 
 /** Light green ring for the distance at which sheep start running. */
