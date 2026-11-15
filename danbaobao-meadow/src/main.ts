@@ -13,6 +13,7 @@ const canvas = document.getElementById('canvas') as HTMLCanvasElement | null
 if (!canvas) throw new Error('#canvas missing')
 
 const app = new MeadowApp(canvas)
+document.getElementById('again')?.addEventListener('click', () => app.restart())
 
 fitStage()
 addEventListener('resize', fitStage)

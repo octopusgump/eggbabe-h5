@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { blobShadow, clay } from './materials'
+import { clampToPen, hitsFence, penIndexAt } from './pen'
 
-export type SheepMode = 'wander' | 'graze'
+export type SheepMode = 'wander' | 'graze' | 'flee' | 'penned'
 
 export type SheepState = {
   group: THREE.Group
@@ -10,6 +11,9 @@ export type SheepState = {
   velocity: THREE.Vector2
   timer: number
   phaseOffset: number
+  penIndex: number
+  homeX: number
+  homeZ: number
 }
 
 const WOOL = [0xf7f6f3, 0xfffefb, 0xeeeae4]
@@ -100,50 +104,114 @@ export function createSheep(): SheepState {
     velocity,
     timer: 0.8 + Math.random() * 2.4,
     phaseOffset: Math.random() * Math.PI * 2,
+    penIndex: -1,
+    homeX: 0,
+    homeZ: 0,
   }
 }
 
-const BOUND = 6.9
-
-/** Walk a while, then pause to graze, then pick a new direction. */
-export function stepSheep(s: SheepState, dt: number, t: number) {
-  s.timer -= dt
-  if (s.timer <= 0) {
-    if (s.mode === 'wander') {
-      s.mode = 'graze'
-      s.velocity.set(0, 0)
-      s.timer = 1.2 + Math.random() * 2.4
-    } else {
-      s.mode = 'wander'
-      const a = Math.random() * Math.PI * 2
-      const speed = 0.38 + Math.random() * 0.4
-      s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
-      s.timer = 1.8 + Math.random() * 2.6
-    }
-  }
-
+export function resetSheep(s: SheepState) {
+  s.penIndex = -1
+  s.mode = Math.random() > 0.45 ? 'wander' : 'graze'
+  s.velocity.set(0, 0)
   if (s.mode === 'wander') {
-    s.group.position.x += s.velocity.x * dt
-    s.group.position.z += s.velocity.y * dt
-    if (Math.abs(s.group.position.x) > BOUND) {
-      s.group.position.x = clamp(s.group.position.x, -BOUND, BOUND)
-      s.velocity.x *= -1
-    }
-    if (Math.abs(s.group.position.z) > BOUND) {
-      s.group.position.z = clamp(s.group.position.z, -BOUND, BOUND)
-      s.velocity.y *= -1
-    }
-    if (s.velocity.lengthSq() > 0.0001) {
-      const facing = Math.atan2(-s.velocity.y, s.velocity.x)
-      s.group.rotation.y = dampAngle(s.group.rotation.y, facing, dt)
-    }
-    s.group.position.y = Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
-    s.headPivot.rotation.x = -0.08
+    const a = Math.random() * Math.PI * 2
+    const speed = 0.4 + Math.random() * 0.35
+    s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
+    s.group.rotation.y = Math.atan2(-s.velocity.y, s.velocity.x)
+  }
+  s.timer = 0.6 + Math.random() * 2
+  s.group.position.set(s.homeX, 0, s.homeZ)
+  s.headPivot.rotation.x = s.mode === 'graze' ? -0.62 : -0.08
+}
+
+const BOUND = 6.9
+const FEAR = 2.35
+
+/** Wander, graze, flee from the rabbit, or stay locked in a corner pen. */
+export function stepSheep(
+  s: SheepState,
+  dt: number,
+  t: number,
+  rabbitX: number,
+  rabbitZ: number,
+) {
+  if (s.mode === 'penned' && s.penIndex >= 0) {
+    const p = clampToPen(s.penIndex, s.group.position.x, s.group.position.z)
+    s.group.position.x = p.x
+    s.group.position.z = p.z
+    s.group.position.y = 0
+    s.velocity.set(0, 0)
+    s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
     return
   }
 
-  s.group.position.y = 0
-  s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
+  const dx = s.group.position.x - rabbitX
+  const dz = s.group.position.z - rabbitZ
+  const dist = Math.hypot(dx, dz)
+  const afraid = dist < FEAR && dist > 0.001
+
+  if (afraid) {
+    s.mode = 'flee'
+    const speed = 1.35 + (1 - dist / FEAR) * 0.5
+    s.velocity.set((dx / dist) * speed, (dz / dist) * speed)
+  } else if (s.mode === 'flee') {
+    s.mode = 'wander'
+    s.timer = 1.1 + Math.random() * 1.4
+  }
+
+  if (s.mode !== 'flee') {
+    s.timer -= dt
+    if (s.timer <= 0) {
+      if (s.mode === 'wander') {
+        s.mode = 'graze'
+        s.velocity.set(0, 0)
+        s.timer = 1.2 + Math.random() * 2.4
+      } else {
+        s.mode = 'wander'
+        const a = Math.random() * Math.PI * 2
+        const speed = 0.38 + Math.random() * 0.4
+        s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
+        s.timer = 1.8 + Math.random() * 2.6
+      }
+    }
+  }
+
+  if (s.mode === 'graze') {
+    s.group.position.y = 0
+    s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
+    return
+  }
+
+  const prevX = s.group.position.x
+  const prevZ = s.group.position.z
+  let nx = clamp(prevX + s.velocity.x * dt, -BOUND, BOUND)
+  let nz = clamp(prevZ + s.velocity.y * dt, -BOUND, BOUND)
+  if (hitsFence(nx, nz, 0.26)) {
+    s.velocity.multiplyScalar(-1)
+    nx = prevX
+    nz = prevZ
+  }
+  s.group.position.x = nx
+  s.group.position.z = nz
+
+  const entered = penIndexAt(nx, nz)
+  if (entered >= 0) {
+    s.mode = 'penned'
+    s.penIndex = entered
+    const p = clampToPen(entered, nx, nz)
+    s.group.position.x = p.x
+    s.group.position.z = p.z
+    s.velocity.set(0, 0)
+    return
+  }
+
+  if (s.velocity.lengthSq() > 0.0001) {
+    const facing = Math.atan2(-s.velocity.y, s.velocity.x)
+    s.group.rotation.y = dampAngle(s.group.rotation.y, facing, dt)
+  }
+  s.group.position.y = Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
+  s.headPivot.rotation.x = -0.08
 }
 
 function clamp(v: number, lo: number, hi: number) {
