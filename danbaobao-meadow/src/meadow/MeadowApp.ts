@@ -8,7 +8,7 @@ import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
 import { createHerder, resetHerder, stepHerder as playHerder, type HerderState } from './herder'
-import { createSheep, resetSheep, stepSheep, type SheepState } from './sheep'
+import { createSheep, resetSheep, SHEEP_FEAR, stepSheep, type SheepState } from './sheep'
 import { createTrees } from './trees'
 
 /** Default isometric frame, close to the reference still. */
@@ -47,6 +47,7 @@ export class MeadowApp {
   private controls: OrbitControls
   private sheep: SheepState[] = []
   private herder: HerderState
+  private herdRange: THREE.Group
   private pens: PenRig
   private clock = new THREE.Clock()
   private canvas: HTMLCanvasElement
@@ -144,6 +145,9 @@ export class MeadowApp {
     this.herder.group.position.copy(HERDER_HOME)
     this.herder.group.scale.setScalar(HERDER_SCALE)
     this.scene.add(this.herder.group)
+    this.herdRange = createHerdRange(SHEEP_FEAR)
+    this.herdRange.position.set(HERDER_HOME.x, 0, HERDER_HOME.z)
+    this.scene.add(this.herdRange)
 
     this.bindStick()
     requestAnimationFrame(() => this.stick?.reposition())
@@ -308,6 +312,7 @@ export class MeadowApp {
       this.stepHerder(dt)
       const hx = this.herder.group.position.x
       const hz = this.herder.group.position.z
+      this.herdRange.position.set(hx, 0, hz)
       const flock = this.sheep
         .filter((s) => s.mode !== 'penned')
         .map((s) => ({ x: s.group.position.x, z: s.group.position.z }))
@@ -328,11 +333,42 @@ export class MeadowApp {
       if (this.remaining <= 0 || this.pennedCount() === SHEEP_COUNT) this.finish()
       else this.updateHud()
     }
+    this.herdRange.visible = !this.over
     stepPens(this.pens, dt)
     stepImpacts(dt)
     this.controls.update()
     this.renderer.render(this.scene, this.camera)
   }
+}
+
+/** Ground disc for the distance at which sheep start running from the herder. */
+function createHerdRange(radius: number) {
+  const group = new THREE.Group()
+  const fill = new THREE.Mesh(
+    new THREE.CircleGeometry(radius, 72),
+    new THREE.MeshBasicMaterial({
+      color: 0xfff6d0,
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false,
+    }),
+  )
+  fill.rotation.x = -Math.PI / 2
+  fill.position.y = 0.03
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(Math.max(0.05, radius - 0.08), radius, 72),
+    new THREE.MeshBasicMaterial({
+      color: 0xfff3b0,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  )
+  ring.rotation.x = -Math.PI / 2
+  ring.position.y = 0.05
+  group.add(fill, ring)
+  return group
 }
 
 function clamp(v: number, lo: number, hi: number) {

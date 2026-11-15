@@ -142,7 +142,9 @@ export function resetSheep(s: SheepState) {
 }
 
 const BOUND = 6.9
-const FEAR = 4.6
+/** How close the herder must be before a sheep starts to run. The ground ring uses this. */
+export const SHEEP_FEAR = 4.6
+const FEAR = SHEEP_FEAR
 const CAPTURE = 1.2
 const COHESION = 2.7
 
