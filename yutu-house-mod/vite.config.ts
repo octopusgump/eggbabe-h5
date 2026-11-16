@@ -17,5 +17,8 @@ export default defineConfig({
   build: {
     outDir: 'site',
     emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(__dirname, 'app.html'),
+    },
   },
 })
