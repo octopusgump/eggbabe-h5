@@ -10,7 +10,7 @@ export class HouseApp {
   private save: HouseSave
   private house!: House2D
   private modules!: ModuleLayers
-  private layouts = buildRoomLayouts({} as HouseGeom)
+  private layouts!: ReturnType<typeof buildRoomLayouts>
   private panelRoom: RoomId | null = null
 
   constructor(
