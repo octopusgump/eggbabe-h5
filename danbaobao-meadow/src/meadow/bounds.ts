@@ -83,6 +83,19 @@ export function pushOutOfFence(x: number, z: number, radius: number) {
   return { x: px, z: pz }
 }
 
+/** True when the herder's center is still on the rounded grass slab. */
+export function insideGrass(x: number, z: number) {
+  const half = GRASS_HALF
+  const radius = GRASS_CORNER
+  const inner = Math.max(0, half - radius)
+  const ax = Math.abs(x)
+  const az = Math.abs(z)
+  if (ax <= inner || az <= inner) return ax <= half && az <= half
+  const dx = ax - inner
+  const dz = az - inner
+  return dx * dx + dz * dz <= radius * radius
+}
+
 export function clampToGrass(x: number, z: number) {
   const half = GRASS_HALF
   const radius = GRASS_CORNER
@@ -102,6 +115,20 @@ export function clampToGrass(x: number, z: number) {
   const d = Math.hypot(dx, dz) || 1
   const k = Math.min(1, radius / d)
   return { x: cx + dx * k, z: cz + dz * k }
+}
+
+/** Fences and the stream still stop the herder. The grass rim does not. */
+export function moveHerder(x: number, z: number, level: LevelId = 1) {
+  let px = x
+  let pz = z
+  for (let i = 0; i < 3; i++) {
+    const freed = pushOutOfFence(px, pz, FENCE_CLEAR)
+    const dry = pushOutOfWater(level, freed.x, freed.z, FENCE_CLEAR)
+    if (Math.hypot(dry.x - px, dry.z - pz) < 1e-4) return dry
+    px = dry.x
+    pz = dry.z
+  }
+  return { x: px, z: pz }
 }
 
 /** Every grass point the herder can stand on, including inside the pens. */

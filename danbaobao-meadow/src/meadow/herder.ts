@@ -23,6 +23,8 @@ export type HerderState = {
   walk: THREE.AnimationAction
   run: THREE.AnimationAction
   current: THREE.AnimationAction
+  leftArm: THREE.Bone
+  rightArm: THREE.Bone
 }
 
 function joint(name: string, parent: THREE.Object3D, x: number, y: number, z: number) {
@@ -229,7 +231,16 @@ export function createHerder(): HerderState {
   setWeight(run, 0)
   mixer.update(0)
 
-  return { group, mixer, idle, walk, run, current: idle }
+  return {
+    group,
+    mixer,
+    idle,
+    walk,
+    run,
+    current: idle,
+    leftArm: leftArm.upper,
+    rightArm: rightArm.upper,
+  }
 }
 
 function crossFade(state: HerderState, next: THREE.AnimationAction, duration: number) {
@@ -250,6 +261,11 @@ export function stepHerder(state: HerderState, dt: number, power: number) {
 }
 
 export function resetHerder(state: HerderState) {
+  state.group.rotation.order = 'XYZ'
+  state.group.rotation.x = 0
+  state.group.rotation.z = 0
+  state.leftArm.rotation.set(0, 0, 0)
+  state.rightArm.rotation.set(0, 0, 0)
   for (const action of [state.idle, state.walk, state.run]) {
     action.reset().play()
   }

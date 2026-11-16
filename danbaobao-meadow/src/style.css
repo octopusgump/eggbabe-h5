@@ -36,31 +36,65 @@ body {
 
 #hud {
   position: absolute;
-  top: 22px;
+  top: 16px;
   left: 0;
   right: 0;
   display: flex;
   justify-content: space-between;
-  padding: 0 18px;
+  align-items: flex-start;
+  padding: 0 14px;
   font: 600 16px/1.2 -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   color: #2c4a24;
   pointer-events: none;
 }
 
-#time-row {
+.hud-pill {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 12px rgba(40, 60, 30, 0.14);
+  font-variant-numeric: tabular-nums;
 }
 
-#level {
-  font-size: 13px;
+#time,
+#count {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c4a24;
+}
+
+#level,
+.hud-kicker {
+  font-size: 12px;
   font-weight: 600;
+  color: #5d7a52;
+}
+
+#time-pill.urgent {
+  background: #fff4ea;
+}
+
+#time-pill.urgent #time {
+  color: #c4552a;
+}
+
+.hud-pill.pop {
+  animation: hud-pop 280ms ease;
+}
+
+@keyframes hud-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 #sound {
   position: absolute;
-  top: 52px;
+  top: 64px;
   left: 16px;
   z-index: 6;
   width: 42px;
@@ -89,7 +123,7 @@ body {
 .pop-star {
   position: absolute;
   right: 16px;
-  top: 42px;
+  top: 62px;
   font: 700 22px/1 -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   color: #d4a017;
   animation: star-pop 720ms ease-out forwards;
