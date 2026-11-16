@@ -1,0 +1,118 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #211a10;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+#fit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 390px;
+  height: 844px;
+  transform-origin: 50% 50%;
+}
+
+#top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 46px 16px 0;
+  pointer-events: none;
+  background: linear-gradient(rgba(24, 18, 8, 0.6), rgba(24, 18, 8, 0));
+  min-height: 130px;
+  box-sizing: border-box;
+  z-index: 40;
+}
+
+#title {
+  color: #fff8ea;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.chip {
+  padding: 5px 11px;
+  border-radius: 14px;
+  background: rgba(255, 248, 234, 0.2);
+  color: #fff8ea;
+  font-size: 12.5px;
+  border: 1px solid rgba(255, 248, 234, 0.35);
+  backdrop-filter: blur(4px);
+  transition: all 0.25s;
+}
+
+.chip.on {
+  background: #fff4dc;
+  color: #7a5a32;
+  border-color: #fff4dc;
+  font-weight: 600;
+}
+
+#upgrade {
+  pointer-events: auto;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 14px;
+  border: 1px solid #fff4dc;
+  background: rgba(255, 244, 220, 0.92);
+  color: #6d4f2b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#upgrade:disabled {
+  opacity: 0.65;
+}
+
+#hint {
+  position: absolute;
+  left: 50%;
+  bottom: 46px;
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border-radius: 20px;
+  background: rgba(40, 30, 16, 0.55);
+  color: #fff6e2;
+  font-size: 13.5px;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+#label {
+  position: absolute;
+  left: 50%;
+  top: 146px;
+  transform: translate(-50%, -6px);
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: rgba(255, 246, 226, 0.92);
+  color: #6d4f2b;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.35s;
+  pointer-events: none;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  z-index: 40;
+}
+
+#label.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+#world > img.occ.front {
+  z-index: 20;
+}
