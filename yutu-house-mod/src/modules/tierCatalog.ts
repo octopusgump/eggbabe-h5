@@ -1,7 +1,8 @@
 import type { RoomId } from './roomIds'
 import { ROOM_GEOM_INDEX } from './roomIds'
-import type { HouseGeom } from '../types/geom'
+import type { HouseGeom, Point } from '../types/geom'
 import { polyAabb, type Aabb } from './bounds'
+import { pickFloorQuad } from '../bake/homography'
 
 export type ClayPiece = {
   kind: 'box' | 'pad' | 'cylinder'
@@ -21,12 +22,17 @@ export type RoomTierDef = {
 export type RoomLayout = {
   id: RoomId
   aabb: Aabb
-  /** Nudge bake layer in world px */
+  /** Nudge bake layer in world px (legacy; homography placement ignores this) */
   align: { dx: number; dy: number }
+  /** Floor quad in art/world px, atan2-ordered — for matrix3d */
+  artQuad: Point[]
+  /** Front edge Y for depth sort vs bunny foot */
+  frontY: number
+  /** Sample point for bake tint (room target) */
+  tintAt: Point
   tiers: Record<number, RoomTierDef>
 }
 
-const FLOOR = 0xf4f1d4
 const WOOD = 0xc4a06a
 const GREEN = 0x9ecf7a
 const PINK = 0xf0b8c8
@@ -37,29 +43,29 @@ function tier2(id: RoomId): ClayPiece[] {
   switch (id) {
     case 'bedroom':
       return [
-        { kind: 'pad', x: 0, z: 0, sx: 2.4, sy: 0.1, sz: 1.6, color: GREEN },
-        { kind: 'box', x: -0.5, z: 0.2, y: 0.35, sx: 1.1, sy: 0.35, sz: 0.75, color: GREEN },
-        { kind: 'box', x: 0.55, z: -0.35, y: 0.2, sx: 0.35, sy: 0.2, sz: 0.35, color: WOOD },
-        { kind: 'box', x: -0.6, z: -0.4, y: 0.2, sx: 0.35, sy: 0.2, sz: 0.35, color: WOOD },
+        // Rug + bed + nightstands — no full-room pad (art floor stays visible)
+        { kind: 'pad', x: 0, z: 0.35, sx: 0.9, sy: 0.06, sz: 0.9, color: 0xf5f0e4 },
+        { kind: 'box', x: -0.15, z: -0.15, y: 0.28, sx: 1.15, sy: 0.32, sz: 0.85, color: GREEN },
+        { kind: 'box', x: 0.55, z: -0.35, y: 0.18, sx: 0.32, sy: 0.18, sz: 0.32, color: WOOD },
+        { kind: 'box', x: -0.7, z: -0.35, y: 0.18, sx: 0.32, sy: 0.18, sz: 0.32, color: WOOD },
       ]
     case 'cafe':
       return [
-        { kind: 'pad', x: 0, z: 0, sx: 2.2, sy: 0.08, sz: 1.8, color: FLOOR },
-        { kind: 'cylinder', x: 0.3, z: 0.1, y: 0.25, sx: 0.5, sy: 0.5, sz: 0.5, color: CREAM },
-        { kind: 'box', x: -0.45, z: 0.3, y: 0.22, sx: 0.7, sy: 0.25, sz: 0.45, color: WOOD },
+        { kind: 'cylinder', x: 0.25, z: 0.05, y: 0.28, sx: 0.55, sy: 0.42, sz: 0.55, color: CREAM },
+        { kind: 'box', x: -0.45, z: 0.25, y: 0.2, sx: 0.65, sy: 0.22, sz: 0.4, color: WOOD },
+        { kind: 'box', x: 0.15, z: 0.45, y: 0.14, sx: 0.28, sy: 0.16, sz: 0.28, color: WOOD },
       ]
     case 'kitchen':
       return [
-        { kind: 'pad', x: 0, z: 0, sx: 2.3, sy: 0.08, sz: 1.7, color: 0xe8e0d0 },
-        { kind: 'box', x: -0.55, z: 0, y: 0.45, sx: 0.5, sy: 0.9, sz: 0.55, color: 0xfff5e6 },
-        { kind: 'box', x: 0.4, z: -0.2, y: 0.2, sx: 0.9, sy: 0.3, sz: 0.5, color: WOOD },
+        { kind: 'box', x: -0.5, z: 0, y: 0.42, sx: 0.48, sy: 0.85, sz: 0.5, color: 0xfff5e6 },
+        { kind: 'box', x: 0.35, z: -0.15, y: 0.22, sx: 0.85, sy: 0.28, sz: 0.48, color: WOOD },
+        { kind: 'pad', x: 0.15, z: 0.35, sx: 0.7, sy: 0.05, sz: 0.45, color: PINK },
       ]
     case 'sunroom':
       return [
-        { kind: 'pad', x: 0, z: 0, sx: 2.1, sy: 0.08, sz: 1.6, color: FLOOR },
-        { kind: 'box', x: -0.2, z: 0.15, y: 0.35, sx: 0.85, sy: 0.45, sz: 0.55, color: WOOD },
-        { kind: 'cylinder', x: 0.55, z: -0.25, y: 0.2, sx: 0.25, sy: 0.35, sz: 0.25, color: GREEN },
-        { kind: 'cylinder', x: -0.55, z: -0.35, y: 0.18, sx: 0.2, sy: 0.25, sz: 0.2, color: PINK },
+        { kind: 'box', x: -0.1, z: 0.1, y: 0.32, sx: 0.75, sy: 0.4, sz: 0.55, color: WOOD },
+        { kind: 'cylinder', x: 0.55, z: -0.25, y: 0.2, sx: 0.22, sy: 0.35, sz: 0.22, color: GREEN },
+        { kind: 'cylinder', x: -0.55, z: -0.3, y: 0.16, sx: 0.18, sy: 0.22, sz: 0.18, color: PINK },
       ]
   }
 }
@@ -88,13 +94,23 @@ export function buildRoomLayouts(geom: HouseGeom): RoomLayout[] {
   return ids.map((id) => {
     const room = geom.rooms[ROOM_GEOM_INDEX[id]]
     const aabb = polyAabb(room.poly)
+    const artQuad = pickFloorQuad(room.poly)
+    const frontY = Math.max(...artQuad.map((p) => p[1]))
     const tiers: Record<number, RoomTierDef> = {
       2: { pieces: tier2(id) },
     }
     if (id === 'bedroom' || id === 'sunroom') {
       tiers[3] = { pieces: tier3(id) }
     }
-    return { id, aabb, align: { dx: 4, dy: 6 }, tiers }
+    return {
+      id,
+      aabb,
+      align: { dx: 4, dy: 6 },
+      artQuad,
+      frontY,
+      tintAt: [...room.target] as Point,
+      tiers,
+    }
   })
 }
 

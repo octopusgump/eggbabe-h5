@@ -19,6 +19,11 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: path.resolve(__dirname, 'app.html'),
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) return 'three'
+        },
+      },
     },
   },
 })
