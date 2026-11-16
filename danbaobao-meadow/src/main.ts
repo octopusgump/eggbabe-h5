@@ -1,5 +1,6 @@
 import './style.css'
 import { VW, VH } from './meadow/constants'
+import { playBaa, setSoundEnabled, soundEnabled, unlockSound } from './meadow/feedback'
 import { MeadowApp } from './meadow/MeadowApp'
 
 function fitStage() {
@@ -14,6 +15,23 @@ if (!canvas) throw new Error('#canvas missing')
 
 const app = new MeadowApp(canvas)
 document.getElementById('again')?.addEventListener('click', () => app.restart())
+
+const soundBtn = document.getElementById('sound')
+function paintSound() {
+  if (!soundBtn) return
+  const on = soundEnabled()
+  soundBtn.textContent = on ? '🔊' : '🔇'
+  soundBtn.setAttribute('aria-pressed', String(on))
+  soundBtn.setAttribute('aria-label', on ? '关闭声音' : '打开声音')
+}
+paintSound()
+soundBtn?.addEventListener('click', () => {
+  unlockSound()
+  const next = !soundEnabled()
+  setSoundEnabled(next)
+  paintSound()
+  if (next) playBaa('idle', true)
+})
 
 fitStage()
 addEventListener('resize', fitStage)
