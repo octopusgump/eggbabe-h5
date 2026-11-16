@@ -8,8 +8,12 @@ import type { HouseGeom, Point } from '../types/geom'
 import type { RoomModule } from '../modules/RoomModule'
 import type { bakeRoomModule as BakeFn } from '../bake/bakeRoom'
 
+/** Behind bunny (10) and default occ (5). */
 const Z_BEHIND = 4
-const Z_FRONT = 20
+/**
+ * In front of bunny (10) but under occ.front (20) so walls/doorways still occlude clay.
+ */
+const Z_FRONT = 15
 
 function ROOM_IDS_FROM_LAYOUTS(layouts: Map<RoomId, RoomLayout>) {
   return [...layouts.keys()]
@@ -114,7 +118,7 @@ export class ModuleLayers {
     }
 
     await this.ensureEngine()
-    const tasks: Promise<void>[] = []
+    // Serial bake — one WebGL context at a time (mobile-safe)
     for (const [id, mod] of this.mods) {
       const tier = save.roomTiers[id] ?? 1
       mod.rebuild(tier)
@@ -130,13 +134,12 @@ export class ModuleLayers {
 
       if (save.useLiveThree) {
         img.style.opacity = '0'
-        tasks.push(this.drawLive(id, mod, live))
+        await this.drawLive(id, mod, live)
       } else {
         live.style.opacity = '0'
-        tasks.push(this.showBake(id, mod, img, resolved, save.bakeRevision))
+        await this.showBake(id, mod, img, resolved, save.bakeRevision)
       }
     }
-    await Promise.all(tasks)
     this.updateDepth()
   }
 
