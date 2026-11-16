@@ -8,15 +8,18 @@
     />
     <title>蛋宝宝牧场</title>
     <link rel="icon" type="image/svg+xml" href="/eggbabe-h5/danbaobao-meadow/site/favicon.svg" />
-    <script type="module" crossorigin src="/eggbabe-h5/danbaobao-meadow/site/assets/index-DVOhi0h0.js"></script>
-    <link rel="stylesheet" crossorigin href="/eggbabe-h5/danbaobao-meadow/site/assets/index-Cebf9Kaz.css">
+    <script type="module" crossorigin src="/eggbabe-h5/danbaobao-meadow/site/assets/index-Ck5ugvj4.js"></script>
+    <link rel="stylesheet" crossorigin href="/eggbabe-h5/danbaobao-meadow/site/assets/index-D2vWxxT4.css">
   </head>
   <body>
     <div id="fit">
       <div id="stage">
         <canvas id="canvas"></canvas>
         <div id="hud">
-          <div id="time">1:00</div>
+          <div id="time-row">
+            <div id="time">1:00</div>
+            <div id="level">第 1 关</div>
+          </div>
           <div id="count">0 / 11</div>
         </div>
         <button type="button" id="sound" aria-pressed="true" aria-label="关闭声音">🔊</button>
@@ -26,6 +29,8 @@
           <p id="score">0 / 11</p>
           <p id="stars"></p>
           <button type="button" id="again">再来一局</button>
+          <button type="button" id="next" hidden>下一关</button>
+          <button type="button" id="back" hidden>回第一关</button>
         </div>
       </div>
     </div>

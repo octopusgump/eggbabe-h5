@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { PEN_ARM, PEN_CORNERS } from './bounds'
+import { penLift, type LevelId } from './levels'
 import { clay } from './materials'
 
 const ARM = PEN_ARM
@@ -107,7 +108,7 @@ export function kickPen(rig: PenRig, index: number) {
   rig.shake[index] = 0.16
 }
 
-export function stepPens(rig: PenRig, dt: number) {
+export function stepPens(rig: PenRig, dt: number, level: LevelId = 1) {
   const settle = Math.min(1, dt * 8)
   for (let i = 0; i < rig.groups.length; i++) {
     rig.shake[i] += (0 - rig.shake[i]) * settle
@@ -115,14 +116,14 @@ export function stepPens(rig: PenRig, dt: number) {
     const [cx, cz] = CORNERS[i]
     const len = Math.hypot(cx, cz) || 1
     const k = rig.shake[i]
-    rig.groups[i].position.set((cx / len) * k, 0, (cz / len) * k)
+    rig.groups[i].position.set((cx / len) * k, penLift(level, i), (cz / len) * k)
   }
 }
 
-export function resetPens(rig: PenRig) {
+export function resetPens(rig: PenRig, level: LevelId = 1) {
   for (let i = 0; i < rig.groups.length; i++) {
     rig.shake[i] = 0
-    rig.groups[i].position.set(0, 0, 0)
+    rig.groups[i].position.set(0, penLift(level, i), 0)
   }
 }
 

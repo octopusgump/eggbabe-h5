@@ -47,6 +47,17 @@ body {
   pointer-events: none;
 }
 
+#time-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+#level {
+  font-size: 13px;
+  font-weight: 600;
+}
+
 #sound {
   position: absolute;
   top: 52px;
@@ -128,14 +139,30 @@ body {
   letter-spacing: 1px;
 }
 
-#again {
+#again,
+#next,
+#back {
   margin-top: 14px;
   border: 0;
   border-radius: 999px;
   padding: 8px 16px;
+  font: inherit;
+}
+
+#again,
+#next {
   background: #6cb44c;
   color: #fff;
-  font: inherit;
+}
+
+#next,
+#back {
+  margin-top: 8px;
+}
+
+#back {
+  background: #e7efe2;
+  color: #2c4a24;
 }
 
 #stick {
