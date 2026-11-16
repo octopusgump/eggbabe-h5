@@ -116,3 +116,8 @@ body {
 #world > img.occ.front {
   z-index: 20;
 }
+
+#cv {
+  position: absolute;
+  bottom: 0;
+}
