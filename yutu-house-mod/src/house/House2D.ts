@@ -104,7 +104,7 @@ export class House2D {
     this.body.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0'
     this.cv = document.createElement('canvas')
     this.cv.id = 'cv'
-    this.cv.style.height = `${BH}px`
+    this.cv.style.cssText = `position:absolute;bottom:0;height:${BH}px`
     this.body.appendChild(this.cv)
     this.bun.append(this.shadow, this.body)
     this.world.appendChild(this.bun)
