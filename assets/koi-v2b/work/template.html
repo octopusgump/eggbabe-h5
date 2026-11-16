@@ -30,9 +30,10 @@
   /* ---------- geometry (source px of the 880x1600 front cutout) ---------- */
   const TEX = %%TEX%%;               // {x0,y0,w,h} region the textures cover
   const S = %%S%%, OX = %%OX%%, OY = %%OY%%;  // stage = O + src*S
-  const FEET_Y = 1105, CX = 250, NECK = { x: 250, y: 700 };
-  const HEAD = { x: 250, y: 500, rx: 175, ry: 150 };
-  const EAR_L = { x: 165, y: 400 }, EAR_R = { x: 335, y: 400 };
+  const FEET_Y = %%FEET_Y%%, CX = %%CX%%, NECK = %%NECK%%;
+  const HEAD = %%HEAD%%;
+  const EAR_L = %%EAR_L%%, EAR_R = %%EAR_R%%;
+  const BODY_Y = %%BODY_Y%%;
   const COLS = 30, ROWS = 56;
   const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%" };
 
@@ -136,34 +137,30 @@
   function deform(x, y, p, eL, eR) {
     // 1) ears: bend around their bases (weight grows toward the tip; zero inside the head)
     const hd = Math.sqrt(Math.pow((x - HEAD.x) / HEAD.rx, 2) + Math.pow((y - HEAD.y) / HEAD.ry, 2));
-    const out = sstep(0.9, 1.04, hd) * sstep(430, 330, y);
+    const out = sstep(0.9, 1.04, hd) * sstep(EAR_L.y + 24, EAR_L.y - 70, y);
     if (out > 0) {
-      const side = sstep(CX - 30, CX + 30, x);           // 0 = left ear, 1 = right ear
+      const side = sstep(CX - 30, CX + 30, x);
       const piv = side < 0.5 ? EAR_L : EAR_R;
-      const along = clamp((piv.y - y) / 330, 0, 1);       // 0 at base, 1 at tip -> curved bend
-      const ang = lerp(eL, eR, side) * out * (0.55 + 0.45 * along);
+      const along = clamp((piv.y - y) / 80, 0, 1);
+      const ang = lerp(eL, eR, side) * out * (0.55 + 0.45 * along) * 0.35;
       const r = rot(x, y, piv.x, piv.y, ang); x = r[0]; y = r[1];
     }
-    // 2) breathing: belly swells sideways a touch
-    const bw = Math.exp(-Math.pow((y - 870) / 140, 2));
+    const bw = Math.exp(-Math.pow((y - BODY_Y) / (HEAD.ry * 0.9), 2));
     x += (x - CX) * p.breath * bw;
-    // 3) squash / stretch about the feet; head translates with the neck but keeps its shape
-    const wBody = sstep(600, 740, y);                     // 1 = body, 0 = head
+    const wBody = sstep(NECK.y - 70, NECK.y + 24, y);
     const neckY = FEET_Y + (NECK.y - FEET_Y) * p.sy;
     const yBody = FEET_Y + (y - FEET_Y) * p.sy, yHead = y + (neckY - NECK.y);
-    const feetPin = sstep(960, 1080, y);                  // feet keep their width on the ground
+    const feetPin = sstep(FEET_Y - 130, FEET_Y - 12, y);
     const kx = lerp(p.sx, 1 + (p.sx - 1) * 0.12, 1 - wBody);
     const kx2 = lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
     x = CX + (x - CX) * kx2;
     y = lerp(yHead, yBody, wBody);
-    // 4) head tilt: rigid above the neck, bending through the chest
-    const wh = sstep(820, 620, y);
+    const wh = sstep(NECK.y + 36, NECK.y - 80, y);
     if (wh > 0) {
       const ny = neckY;
       const r = rot(x, y, NECK.x, ny, p.headRot * wh); x = r[0] + p.headTx * wh; y = r[1] + p.headTy * wh;
     }
-    // 5) lean (pet): upper body sways toward the finger, feet stay planted
-    x += p.lean * 20 * sstep(1080, 560, y);
+    x += p.lean * 16 * sstep(FEET_Y, HEAD.y, y);
     return [x, y];
   }
 
@@ -200,7 +197,7 @@
   function idle(t, blink) {
     const b = Math.sin(t / 2600 * Math.PI * 2);
     const tw = (t % 4300) / 4300, twitch = tw > 0.9 ? Math.sin((tw - 0.9) / 0.1 * Math.PI * 2) * 6 : 0;
-    return P({ sx: 1 - 0.006 * b, sy: 1 + 0.012 * b, breath: 0.014 * b, headRot: 10 * Math.sin(t / 3800 * Math.PI * 2),
+    return P({ sx: 1 - 0.006 * b, sy: 1 + 0.012 * b, breath: 0.014 * b, headRot: 8 * Math.sin(t / 3800 * Math.PI * 2),
       earL: -0.8 + 1.4 * Math.sin(t / 2600 * Math.PI * 2 + 0.3), earR: 0.8 + 1.4 * Math.sin(t / 3000 * Math.PI * 2 + 1.4) + twitch * 0.5, wDoze: blink || 0 });
   }
   function kf(list, u) {
@@ -236,7 +233,7 @@
   }
   function doze(t) {
     const b = Math.sin(t / 4400 * Math.PI * 2);
-    return P({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: 8, rot: 1, earL: -6 + 1 * b, earR: 58 + 3 * b, wDoze: 1, shS: 1.03 });
+    return P({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: 6, rot: 1, earL: -4 + b, earR: 8 + 2 * b, wDoze: 1, shS: 1.03 });
   }
   function dozeEnter(from, u) {
     const p = mix(from, doze(0), easeInOut(clamp(u / 0.6, 0, 1)));
