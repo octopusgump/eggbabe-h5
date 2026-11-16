@@ -49,6 +49,29 @@ function play(notes: readonly (number | undefined)[]) {
   zzfx(...(notes as [number, ...number[]]))
 }
 
+const SCREAM = [680, 540, 410, 290]
+let screamTimers: number[] = []
+
+/** Four falling "ah" notes. Later notes stay silent if the player mutes mid-fall. */
+export function playScream() {
+  stopScream()
+  SCREAM.forEach((freq, i) => {
+    const id = window.setTimeout(() => {
+      play([.62, , freq, .005, .05, .22, 0, 1.5, -.55, , , , , .05, .25])
+    }, i * 180)
+    screamTimers.push(id)
+  })
+}
+
+export function stopScream() {
+  for (const id of screamTimers) clearTimeout(id)
+  screamTimers = []
+}
+
+export function playTick() {
+  play([.22, , 980, .001, .015, .03, 1, 1.1])
+}
+
 export function playPenned(last: boolean) {
   play(last ? WIN : PEN)
 }

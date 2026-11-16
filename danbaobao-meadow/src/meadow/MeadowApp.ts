@@ -1,9 +1,9 @@
 import * as THREE from 'three'
 import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { placeHerder } from './bounds'
+import { insideGrass, moveHerder } from './bounds'
 import { ROUND_SECONDS, SHEEP_COUNT } from './constants'
-import { buzz, playBaa, playPenned, popStar, unlockSound } from './feedback'
+import { buzz, playBaa, playPenned, playScream, playTick, popStar, stopScream, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { groundHeight, herderHome, pushOutOfWater, sheepLayout, type LevelId } from './levels'
@@ -22,6 +22,9 @@ const CAM_POS = new THREE.Vector3(3.2, 16.5, 16.5)
 const LOOK = new THREE.Vector3(0, 0.15, 0)
 const FRUSTUM = 46
 const HERDER_SPEED = 3.7
+const FALL_SECONDS = 0.9
+const FALL_DROP = -2.2
+const FALL_SLIDE = 1.35
 const TOUCH = 1.25
 const BUMP_COOLDOWN = 0.45
 const HERDER_SCALE = 2.15
@@ -45,6 +48,15 @@ export class MeadowApp {
   private remaining = ROUND_SECONDS
   private baaWait = 2.4
   private over = false
+  private shownSecond = ROUND_SECONDS
+  private fall: {
+    t: number
+    dirX: number
+    dirZ: number
+    x0: number
+    z0: number
+    y0: number
+  } | null = null
   private stickX = 0
   private stickY = 0
   private stick: ReturnType<typeof createStick> | null = null
@@ -54,6 +66,8 @@ export class MeadowApp {
   private scoreEl: HTMLElement | null
   private starsEl: HTMLElement | null
   private levelEl: HTMLElement | null
+  private timePill: HTMLElement | null
+  private countPill: HTMLElement | null
   private nextEl: HTMLButtonElement | null
   private backEl: HTMLButtonElement | null
 
@@ -65,6 +79,8 @@ export class MeadowApp {
     this.scoreEl = document.getElementById('score')
     this.starsEl = document.getElementById('stars')
     this.levelEl = document.getElementById('level')
+    this.timePill = document.getElementById('time-pill')
+    this.countPill = document.getElementById('count-pill')
     this.nextEl = document.getElementById('next') as HTMLButtonElement | null
     this.backEl = document.getElementById('back') as HTMLButtonElement | null
 
@@ -243,7 +259,7 @@ export class MeadowApp {
       dx /= dlen
       dz /= dlen
       const step = HERDER_SPEED * power * dt
-      const next = placeHerder(pos.x + dx * step, pos.z + dz * step, this.level)
+      const next = moveHerder(pos.x + dx * step, pos.z + dz * step, this.level)
       pos.x = next.x
       pos.z = next.z
       this.herder.group.rotation.y = dampAngle(
@@ -251,9 +267,59 @@ export class MeadowApp {
         Math.atan2(-dz, dx),
         dt,
       )
+      if (!insideGrass(next.x, next.z)) {
+        pos.y = groundHeight(this.level, pos.x, pos.z)
+        this.beginFall(dx, dz)
+        return
+      }
     }
     pos.y = groundHeight(this.level, pos.x, pos.z)
     playHerder(this.herder, dt, power)
+  }
+
+  private beginFall(dirX: number, dirZ: number) {
+    const pos = this.herder.group.position
+    this.over = true
+    this.releaseStick()
+    this.fall = {
+      t: 0,
+      dirX,
+      dirZ,
+      x0: pos.x,
+      z0: pos.z,
+      y0: pos.y,
+    }
+    this.herder.group.rotation.order = 'YXZ'
+    spawnImpact(this.scene, pos.x, pos.z, dirX, dirZ, 0.85)
+    playScream()
+  }
+
+  private stepFall(dt: number) {
+    const fall = this.fall
+    if (!fall) return
+    fall.t += dt
+    const u = Math.min(1, fall.t / FALL_SECONDS)
+    const ease = u * u * (3 - 2 * u)
+    const pos = this.herder.group.position
+    pos.x = fall.x0 + fall.dirX * FALL_SLIDE * ease
+    pos.z = fall.z0 + fall.dirZ * FALL_SLIDE * ease
+    pos.y = fall.y0 + (FALL_DROP - fall.y0) * ease
+    this.herder.group.rotation.order = 'YXZ'
+    this.herder.group.rotation.x = (Math.PI / 2) * ease
+    const lift = Math.sin(u * Math.PI) * 1.2
+    this.herder.leftArm.rotation.z = lift
+    this.herder.rightArm.rotation.z = -lift
+    if (u >= 1) {
+      this.fall = null
+      this.finish('fall')
+    }
+  }
+
+  private pulse(el: HTMLElement | null) {
+    if (!el) return
+    el.classList.remove('pop')
+    void el.offsetWidth
+    el.classList.add('pop')
   }
 
   resize() {
@@ -273,12 +339,17 @@ export class MeadowApp {
   }
 
   restart() {
+    stopScream()
+    this.fall = null
     this.remaining = ROUND_SECONDS
+    this.shownSecond = ROUND_SECONDS
     this.over = false
     this.releaseStick()
     this.placeHerderHome()
     this.herder.group.rotation.y = 0
     resetHerder(this.herder)
+    this.timePill?.classList.remove('urgent', 'pop')
+    this.countPill?.classList.remove('pop')
     for (const s of this.sheep) resetSheep(s, this.level)
     this.baaWait = 2.4
     clearImpacts()
@@ -311,12 +382,17 @@ export class MeadowApp {
     return this.sheep.filter((s) => s.mode === 'penned').length
   }
 
-  private finish() {
+  private finish(reason: 'round' | 'fall' = 'round') {
     this.over = true
     this.releaseStick()
     const n = this.pennedCount()
-    if (this.scoreEl) this.scoreEl.textContent = `${n} / ${SHEEP_COUNT}`
-    if (this.starsEl) this.starsEl.textContent = n === 0 ? '0 颗星' : `${'★'.repeat(n)}  ${n}`
+    if (reason === 'fall') {
+      if (this.scoreEl) this.scoreEl.textContent = '出界了'
+      if (this.starsEl) this.starsEl.textContent = `${n} / ${SHEEP_COUNT}`
+    } else {
+      if (this.scoreEl) this.scoreEl.textContent = `${n} / ${SHEEP_COUNT}`
+      if (this.starsEl) this.starsEl.textContent = n === 0 ? '0 颗星' : `${'★'.repeat(n)}  ${n}`
+    }
     if (this.nextEl) this.nextEl.hidden = this.level !== 1
     if (this.backEl) this.backEl.hidden = this.level !== 2
     if (this.resultEl) this.resultEl.hidden = false
@@ -328,8 +404,17 @@ export class MeadowApp {
     const m = Math.floor(sec / 60)
     const s = sec % 60
     if (this.timeEl) this.timeEl.textContent = `${m}:${s.toString().padStart(2, '0')}`
-    if (this.countEl) this.countEl.textContent = `${this.pennedCount()} / ${SHEEP_COUNT}`
+    if (this.countEl) this.countEl.textContent = `${this.pennedCount()}/${SHEEP_COUNT}`
     if (this.levelEl) this.levelEl.textContent = `第 ${this.level} 关`
+    const urgent = !this.over && sec <= 5 && sec >= 1
+    this.timePill?.classList.toggle('urgent', urgent)
+    if (sec !== this.shownSecond) {
+      if (urgent) {
+        this.pulse(this.timePill)
+        playTick()
+      }
+      this.shownSecond = sec
+    }
   }
 
   /** Rebuild the ground and start this level from the opening positions. */
@@ -350,6 +435,9 @@ export class MeadowApp {
     if (!this.over) {
       this.remaining = Math.max(0, this.remaining - dt)
       this.stepHerder(dt)
+    }
+    if (this.fall) this.stepFall(dt)
+    if (!this.over) {
       const hx = this.herder.group.position.x
       const hz = this.herder.group.position.z
       this.herdRange.position.set(hx, groundHeight(this.level, hx, hz), hz)
@@ -370,6 +458,7 @@ export class MeadowApp {
           kickPen(this.pens, event.penIndex)
           const last = this.pennedCount() === SHEEP_COUNT
           popStar()
+          this.pulse(this.countPill)
           playPenned(last)
           buzz(last ? [16, 30, 28] : 18)
         }
