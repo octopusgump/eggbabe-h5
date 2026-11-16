@@ -11,13 +11,16 @@ meta = json.loads((EX / 'meta.json').read_text())
 
 base = Image.open(W / 'tex_base.png')
 CW, CH = base.size
+lm = json.loads((W / 'landmarks.json').read_text())
 a = base.split()[3].point(lambda v: 255 if v > 8 else 0)
 x0, y0, x1, y1 = a.getbbox()
-x0, y0, x1, y1 = max(0, x0 - 8), max(0, y0 - 8), min(CW, x1 + 8), min(CH, y1 + 8)
+x0, y0, x1, y1 = max(0, x0 - 4), max(0, y0 - 4), min(CW, x1 + 4), min(CH, y1 + 4)
 TEX = dict(x0=x0, y0=y0, w=x1 - x0, h=y1 - y0)
-S = 0.35
-FEET = (195.0, 656.0)
-FOOT_SRC = (250.0, 1105.0)
+# Fit the full body on the 390-wide stage, feet just above the wardrobe sheet.
+BODY_W = max(1, lm['bbox'][2] - lm['bbox'][0])
+S = min(0.72, 300.0 / BODY_W)
+FEET = (195.0, 560.0)
+FOOT_SRC = (float(lm['cx']), float(lm['feetY']))
 OX = FEET[0] - FOOT_SRC[0] * S
 OY = FEET[1] - FOOT_SRC[1] * S
 
@@ -147,11 +150,16 @@ acc_init = r'''
 
 early_worn = r'''
   const worn = { head: null, neck: null, dorsal: null, hand: null, boots: "boots_yellow" };
-  let texBodyDefault = null, texBodyMint = null;
+  let texBodyDefault = null, texBodyMint = null, texClosed = null, texDoze = null;
   function syncBootsBodyTex() {
-    if (!texBodyDefault || !texBodyMint) return;
-    const t = worn.boots === "boots_mint" ? texBodyMint : texBodyDefault;
+    const t = (worn.boots === "boots_mint" && texBodyMint) ? texBodyMint : texBodyDefault;
+    if (!t) return;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t);
+  }
+  function rebindBodyTex() {
+    syncBootsBodyTex();
+    if (texClosed) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texClosed); }
+    if (texDoze) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texDoze); }
   }
 '''
 boot_mint_loader = r'''
@@ -175,7 +183,7 @@ boot_mint_loader = r'''
 '''
 t = t.replace(
     '      gl.uniform1i(gl.getUniformLocation(prog, "t" + unit), unit);\n      ready += 1; if (ready === 3) { window.__ready = true; render(lastPose); }',
-    '      gl.uniform1i(gl.getUniformLocation(prog, "t" + unit), unit);\n      if (unit === 0) texBodyDefault = t;\n      ready += 1; if (ready === 3) { window.__ready = true; render(lastPose); }',
+    '      gl.uniform1i(gl.getUniformLocation(prog, "t" + unit), unit);\n      if (unit === 0) texBodyDefault = t;\n      else if (unit === 1) texClosed = t;\n      else if (unit === 2) texDoze = t;\n      ready += 1; if (ready === 3) { window.__ready = true; render(lastPose); }',
 )
 t = t.replace(
     '  loadTex(0, IMG.base, true); loadTex(1, IMG.closed); loadTex(2, IMG.doze);',
@@ -231,8 +239,13 @@ draw_acc = r'''
     if (typeof worn !== "undefined") {
       ["dorsal", "neck", "hand", "head"].forEach(function (sl) { if (worn[sl]) drawAcc(accItems[worn[sl]]); });
     }
+    rebindBodyTex();
 '''
 t = t.replace('    gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);\n    const air = clamp(-p.hopY / 70, 0, 1);',
+              '    if (ready < 3) return;\n    gl.useProgram(prog);\n    rebindBodyTex();\n'
+              '    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(aUv);\n'
+              '    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, pos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(aPos);\n'
+              '    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);\n'
               '    gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);\n' + draw_acc + '    const air = clamp(-p.hopY / 70, 0, 1);')
 
 # Hit testing: after body miss, check accessories. Also if body hits, fine.
@@ -262,7 +275,7 @@ hit_patch_new = '''  function hitAcc(srcX, srcY) {
     if (lx >= 0 && ly >= 0 && lx < TEX.w && ly < TEX.h) body = hitCtx.getImageData(lx, ly, 1, 1).data[3] >= 40;
     if (!body && !hitAcc(s.x, s.y)) return null;
     const hd = Math.pow((s.x - HEAD.x) / HEAD.rx, 2) + Math.pow((s.y - HEAD.y) / HEAD.ry, 2);
-    return { face: hd <= 1 || s.y < 560, x: s.x, stageX: s.stageX };
+    return { face: hd <= 1 || s.y < NECK.y, x: s.x, stageX: s.stageX };
   }'''
 t = t.replace(hit_patch_old, hit_patch_new)
 
@@ -338,7 +351,7 @@ demo_old = '''  window.__demo = {
     setSleepDelay: function (ms) { sleepDelay = ms; sleepAt = performance.now() + ms; }
   };'''
 demo_new = '''  const DRESS_TL = { hatA: 900, hatAHold: 1650, hatB: 2000, hatBHold: 2750, scarf: 3100, scarfHold: 4000, tilt: 4300, tiltEnd: 5250, jump: 5450, jumpEnd: 5450 + JUMP_MS, end: 5450 + JUMP_MS + 900 };
-  const DRESS_HAT_A = "strawberry", DRESS_HAT_B = "crown", DRESS_SCARF = "scarf_stripe";
+  const DRESS_HAT_A = "kasa", DRESS_HAT_B = "crown", DRESS_SCARF = "scarf";
   function poseAtDress(ms) {
     const T = DRESS_TL;
     if (ms < T.hatA) return idle(ms, 0);
@@ -397,6 +410,13 @@ rep = {
     'SH_CON_X': f'{FEET[0]+3}',
     'SH_CON_Y': f'{FEET[1]+1}',
     'ITEMS': json.dumps(items, ensure_ascii=False),
+    'FEET_Y': str(lm['feetY']),
+    'CX': str(lm['cx']),
+    'NECK': json.dumps(lm['neck']),
+    'HEAD': json.dumps(lm['head']),
+    'EAR_L': json.dumps(lm['earL']),
+    'EAR_R': json.dumps(lm['earR']),
+    'BODY_Y': str(lm['bodyY']),
     'SHEET_HTML': sheet,
 }
 for k, v in rep.items():

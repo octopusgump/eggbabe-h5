@@ -12,50 +12,51 @@ ROOT = Path(__file__).resolve().parents[3]
 REF = ROOT / "assets/refs/koi_turnaround.png"
 WORK = Path(__file__).resolve().parent
 EX = WORK / "dress/extract"
-TARGET_H = 1119
 BOOTS_YELLOW = (252, 210, 58)
 BOOTS_MINT = (168, 228, 198)
 
 
+# FIGURE 1 only. Rows below this are the floor line and the "FIGURE 1 / front" caption.
+FRONT_BODY = (50, 236, 344, 576)  # x0, y0, x1, y1 in the left panel
+SCALE = 2
+
+
 def crop_front(im: Image.Image) -> Image.Image:
-    w, h = im.size
-    panel = w // 4
-    crop = im.crop((0, 0, panel, h))
-    scale = TARGET_H / crop.height
-    nw = int(crop.width * scale)
-    return crop.resize((nw, TARGET_H), Image.Resampling.LANCZOS)
+    w, _h = im.size
+    panel = im.crop((0, 0, w // 4, im.height))
+    x0, y0, x1, y1 = FRONT_BODY
+    crop = panel.crop((x0, y0, min(x1, panel.width), min(y1, panel.height)))
+    nw, nh = crop.width * SCALE, crop.height * SCALE
+    return crop.resize((nw, nh), Image.Resampling.LANCZOS)
 
 
 def rgba_from_rgb(im: Image.Image) -> Image.Image:
     im = im.convert("RGBA")
     arr = np.array(im)
-    # white backdrop -> transparent
-    rgb = arr[:, :, :3].astype(np.int16)
-    white = (rgb > 245).all(axis=2)
+    # sheet backdrop is pure white; cream fur stays (its darkest channel is well under this)
+    white = arr[:, :, :3].min(axis=2) > 236
     arr[white, 3] = 0
-  # soften fringe
-    im = Image.fromarray(arr)
-    return im
+    return Image.fromarray(arr)
 
 
 def recolor_boots(im: Image.Image, target: tuple[int, int, int]) -> Image.Image:
     arr = np.array(im).copy()
     h = arr.shape[0]
-    y0 = int(h * 0.72)
-    region = arr[y0:, :]
-    rgb = region[:, :, :3].astype(np.float32)
-    mask = region[:, :, 3] > 40
-    yellowish = (
-        (rgb[:, :, 0] > 180)
-        & (rgb[:, :, 1] > 150)
-        & (rgb[:, :, 2] < 140)
-        & mask
-    )
-    if yellowish.sum() < 80:
-        yellowish = mask
-    tgt = np.array(target, dtype=np.float32)
+    y0 = int(h * 0.80)
+    region = arr[y0:]
+    rgb = region[:, :, :3].astype(np.int16)
+    alpha = region[:, :, 3] > 40
+    boot = alpha & ((rgb[:, :, 0].astype(np.int16) - rgb[:, :, 2]) > 50) & (rgb[:, :, 0] > 120)
+    grown = Image.fromarray(np.where(boot, 255, 0).astype(np.uint8)).filter(ImageFilter.MaxFilter(9))
+    boot = (np.array(grown) > 0) & alpha
+    tgt = np.array(target, dtype=np.uint8)
+    # keep the shading: scale each boot pixel toward the mint color
+    base = rgb.astype(np.float32)
+    luma = base.mean(axis=2, keepdims=True) / 255.0
+    tint = np.array(target, dtype=np.float32)
+    painted = np.clip(tint * (0.55 + 0.7 * luma), 0, 255)
     for c in range(3):
-        region[:, :, c] = np.where(yellowish, tgt[c], region[:, :, c])
+        region[:, :, c] = np.where(boot, painted[:, :, c], region[:, :, c])
     arr[y0:] = region
     return Image.fromarray(arr)
 
@@ -92,20 +93,67 @@ def box_xywh(box: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
     return (x, y, x + w, y + h)
 
 
-def anchor_boxes(tex: Image.Image) -> dict[str, tuple[int, int, int, int]]:
-    a = tex.split()[3]
-    bb = a.getbbox() or (0, 0, tex.width, tex.height)
-    x0, y0, x1, y1 = bb
-    cx = (x0 + x1) // 2
-    bh = min(190, max(120, y1 - y0 - 20))
-    by = max(y0 + 40, y1 - bh)
+def opaque_bbox(tex: Image.Image) -> tuple[int, int, int, int]:
+    bb = tex.split()[3].getbbox()
+    if not bb:
+        return (0, 0, tex.width, tex.height)
+    return bb
+
+
+def landmarks_for(tex: Image.Image) -> dict:
+    """Head, neck and feet in tex_base pixels, from the opaque silhouette."""
+    arr = np.array(tex.split()[3])
+    ys, xs = np.where(arr > 40)
+    x0, x1 = int(xs.min()), int(xs.max())
+    y0, y1 = int(ys.min()), int(ys.max())
+    cx = int(round((x0 + x1) / 2))
+    widths = (arr > 40).sum(axis=1)
+    eq = int(np.argmax(widths))
+    half = max(40, int(widths[eq] * 0.46))
+    above = eq
+    for y in range(eq, y0, -1):
+        if widths[y] < widths[eq] * 0.55:
+            above = y
+            break
+    below = eq
+    for y in range(eq, y1):
+        if widths[y] < widths[eq] * 0.42:
+            below = y
+            break
+    ry = max(50, int((eq - above + below - eq) * 0.45))
     return {
-        "head": (cx - 140, y0 + 20, 280, 200),
-        "neck": (cx - 200, y0 + 180, 400, 160),
-        "dorsal": (cx - 120, y0 + 40, 240, 180),
-        "hand": (max(x0, x1 - 120), y0 + 200, 100, 120),
-        "boots": (cx - 170, by, 340, bh),
+        "cx": cx,
+        "feetY": y1,
+        "neck": {"x": cx, "y": int(below)},
+        "head": {"x": cx, "y": int(eq), "rx": half, "ry": ry},
+        "earL": {"x": cx - 18, "y": int(y0 + (eq - y0) * 0.25)},
+        "earR": {"x": cx + 18, "y": int(y0 + (eq - y0) * 0.25)},
+        "bodyY": int((eq + below) / 2),
+        "bbox": [x0, y0, x1, y1],
     }
+
+
+def clamp_box(box: tuple[int, int, int, int], size: tuple[int, int]) -> tuple[int, int, int, int]:
+    x, y, w, h = box
+    x = max(0, min(x, size[0] - 8))
+    y = max(0, min(y, size[1] - 8))
+    w = max(16, min(w, size[0] - x))
+    h = max(16, min(h, size[1] - y))
+    return (x, y, w, h)
+
+
+def anchor_boxes(tex: Image.Image, lm: dict) -> dict[str, tuple[int, int, int, int]]:
+    x0, y0, x1, y1 = lm["bbox"]
+    cx = lm["cx"]
+    bw, bh = x1 - x0, y1 - y0
+    raw = {
+        "head": (cx - int(bw * 0.28), y0 + int(bh * 0.06), int(bw * 0.56), int(bh * 0.28)),
+        "neck": (x0 + int(bw * 0.08), lm["neck"]["y"] - int(bh * 0.06), int(bw * 0.84), int(bh * 0.16)),
+        "dorsal": (cx - int(bw * 0.08), y0 + int(bh * 0.04), int(bw * 0.34), int(bh * 0.22)),
+        "hand": (x1 - int(bw * 0.28), lm["head"]["y"], int(bw * 0.22), int(bh * 0.16)),
+        "boots": (x0 + int(bw * 0.12), y1 - int(bh * 0.28), int(bw * 0.76), int(bh * 0.28)),
+    }
+    return {k: clamp_box(v, tex.size) for k, v in raw.items()}
 
 
 def draw_accessory(kind: str, size: tuple[int, int], color: tuple[int, int, int]) -> Image.Image:
@@ -162,7 +210,11 @@ def main() -> None:
     save_tex(front.copy(), WORK / "tex_doze.png")
     save_tex(recolor_boots(front, BOOTS_MINT), WORK / "tex_boots_mint.png")
 
-    anchors = anchor_boxes(front)
+    lm = landmarks_for(front)
+    (WORK / "landmarks.json").write_text(json.dumps(lm, indent=2), encoding="utf-8")
+    print("landmarks", lm)
+
+    anchors = anchor_boxes(front, lm)
     meta = []
     EX.mkdir(parents=True, exist_ok=True)
 
