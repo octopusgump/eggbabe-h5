@@ -1,8 +1,6 @@
 import type { HouseGeom, Point } from '../types/geom'
 import { BH, HOUSE_CY, SMIN, SMAX, VH, VW, WH, WW } from './constants'
-
-const asset = (name: string) =>
-  new URL(`../../../yutu-house/src/${name}`, import.meta.url).href
+import { houseAsset as asset, OCC_IMAGES } from './assets'
 
 type WalkApi = {
   goTo: (wp: Point) => boolean
@@ -77,7 +75,7 @@ export class House2D {
       const el = document.createElement('img')
       el.id = `oc${i}`
       el.className = 'occ'
-      el.src = asset(`occ${i}.webp`)
+      el.src = OCC_IMAGES[i]
       let pos = 'position:absolute;pointer-events:none;z-index:5'
       if (o.box) {
         const [x0, y0, x1, y1] = o.box

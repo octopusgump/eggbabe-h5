@@ -23,7 +23,7 @@
 
 - [`yutu-house/`](yutu-house/) — 玉兔小屋无桥 HTML demo（双击 `yutu_house_demo.html`；说明见 [`HANDOFF.md`](yutu-house/HANDOFF.md)）。未接入小程序。
 - [`danbaobao-meadow/`](danbaobao-meadow/) — **蛋宝宝牧场**一期：Three.js 草场（11 羊、方圈四角口、拖羊/旋转/缩放）。
-- [`yutu-house-mod/`](yutu-house-mod/) — **玉兔小屋路线 B**：2D 寻路 + 四房粘土模块烘焙升级。
+- [`yutu-house-mod/`](yutu-house-mod/) — **玉兔小屋路线 B**：2D 寻路 + 四房粘土模块烘焙升级。在线：[yutu-house-mod.html](https://octopusgump.github.io/eggbabe-h5/yutu-house-mod.html)
 
 ## 蛋宝宝牧场 · 在线
 

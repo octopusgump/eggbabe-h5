@@ -61,7 +61,7 @@ export class HouseApp {
 
     const hint = document.createElement('div')
     hint.id = 'hint'
-    hint.textContent = '点地板走动 · 双击房间名可升级粘土模块'
+    hint.textContent = '点地板走动 · Lv1 与原画一致；双击房间名或点「升级房间」看粘土模块'
     this.stageRoot.appendChild(hint)
 
     const label = document.createElement('div')

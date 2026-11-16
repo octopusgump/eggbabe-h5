@@ -4,7 +4,8 @@ Vite + TypeScript + Three.js：**2D 寻路/遮挡**（[`yutu-house`](../yutu-hou
 
 ## 在线（合并 `main` 并部署后）
 
-`https://octopusgump.github.io/eggbabe-h5/yutu-house-mod/site/`
+- 短链：https://octopusgump.github.io/eggbabe-h5/yutu-house-mod.html  
+- 完整：https://octopusgump.github.io/eggbabe-h5/yutu-house-mod/site/
 
 ## 开发
 
