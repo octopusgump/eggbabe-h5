@@ -16,10 +16,10 @@ a = base.split()[3].point(lambda v: 255 if v > 8 else 0)
 x0, y0, x1, y1 = a.getbbox()
 x0, y0, x1, y1 = max(0, x0 - 4), max(0, y0 - 4), min(CW, x1 + 4), min(CH, y1 + 4)
 TEX = dict(x0=x0, y0=y0, w=x1 - x0, h=y1 - y0)
-# Same rug anchor as the yutu room (feet at stage 195,656) and a similar body height.
+# Same rug anchor as the yutu room. Body is a step smaller than the rabbit.
 BODY_H = max(1, lm['feetY'] - lm['bbox'][1])
 BODY_W = max(1, lm['bbox'][2] - lm['bbox'][0])
-S = min(400.0 / BODY_H, 340.0 / BODY_W)
+S = min(320.0 / BODY_H, 280.0 / BODY_W)
 FEET = (195.0, 656.0)
 FOOT_SRC = (float(lm['cx']), float(lm['feetY']))
 OX = FEET[0] - FOOT_SRC[0] * S
