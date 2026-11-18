@@ -1,48 +1,87 @@
-# 玉兔换装 H5 — 背景与上下文
+# 玉兔换装 H5 — 背景与上下文（v2b WebGL）
 
-## 为什么单独建 `eggbabe-h5`
+## 仓库
 
-- **蛋贝贝 / 玉兔**相关玩法需要在 H5 上快速试玩和演示，但小程序仓库发布链路重、与 PRD 耦合紧。
-- **玉兔小屋**已以无桥版 HTML 交接包形式存在（本仓库 `yutu-house/`），证明「独立 repo + 浏览器打开」可行。
-- **换装小游戏**是下一增量：同样放在独立仓库，避免误改小程序或 merge 到 eggbabe 主工程。
+- **GitHub**：<https://github.com/octopusgump/eggbabe-h5>
+- **分支**：换装工程在 **`main`**；`yutu-house/` 为已交接的小屋 HTML demo，**保留、不删除**。
 
-仓库地址：<https://github.com/octopusgump/eggbabe-h5>
+## 上下文包（canonical）
 
-## 与 `yutu-house` 的关系
+策划与 v2b 资产以压缩包为准：
 
-| 内容 | 路径 | 状态 |
+- **`yutu_context_bundle_946c.zip`** / **`yutu_context_bundle.zip`**（同一套 v2b 资产，后缀因打包批次不同）
+- 内含：剧情/方案 A 说明、**`yutu_mesh_demo.html`**（WebGL mesh 基线）、v2b 贴图与 mesh 相关文件、破壳/走路等资源索引
+
+**P0（已完成）**：v2b 树已迁入 `assets/v2b/`；路径对照见 [`docs/V2B_BUNDLE_MAP.md`](docs/V2B_BUNDLE_MAP.md)。
+
+## v2b 资产路径（本仓库约定）
+
+当前 **946c / ae36 bundle** 实际结构（非空目录细拆）：
+
+```text
+assets/v2b/
+  yutu_mesh_demo.html    # P1 对照金标准
+  work/
+    tex_*.png
+    template.html, build.py, inject_dress.py
+    dress/extract/       # 8 配饰 + meta.json + thumb_*
+```
+
+后续 Vite 工程从上述路径引用；mesh 在 demo 内为 WebGL grid，无单独 glTF 文件。
+
+### 基线 Demo
+
+- **`yutu_mesh_demo.html`** — v2b WebGL **grid / mesh** 换装演示；`PLAN.md` P1 要求与之行为对齐后再 Vite 化。
+- **不是** Canvas 2D 叠图层方案。
+
+## 与 `yutu-house/` 的关系
+
+| 目录 | 内容 | 技术 |
 |------|------|------|
-| 玉兔小屋无桥 demo | `yutu-house/` | 已完成交接，单文件 `yutu_house_demo.html` |
-| 玉兔换装 MVP | 根目录 `src/` + `assets/`（待建） | 方案 A：2 上衣 + 2 裙子 |
+| `yutu-house/` | 无桥版玉兔小屋单文件 HTML | DOM + 内嵌 WebP，已交接完成 |
+| `src/` + `assets/v2b/` | 破壳换装走路小屋（方案 A） | **WebGL mesh**，Vite+TS |
 
-两子项目 **共享同一 Git 仓库**，目录隔离；换装开发 **不要求** 改动小屋 demo，除非产品明确要求联动。
+两棵子树 **目录隔离**；换装流程结尾可 **视觉对齐** 小屋，但 **默认不要求** 修改 `yutu-house/` 内文件。
 
-## 产品范围（方案 A）
+## 产品切片（方案 A）
 
-- 角色：玉兔（Yutu），与小程序世界观一致，但 **无登录、无云存档**。
-- 玩法：点选上衣 / 裙子，实时合成角色立绘。
-- 内容量：2 tops × 2 skirts = 4 套可见组合，用于 MVP 验收与美术流程试跑。
+- **破壳换装走路小屋** — 线性流程，**仅一次换装**（见 `PLAN.md` §3）
+- MVP：**2 上衣 + 2 裙子 + 8 配饰**，WebGL mesh 槽位切换（bundle 现仅有 **8 配饰**，上衣/裙子待补）
 
-## 技术约束
+### 配饰已知瑕疵（bundle 交接，修图优先级待拍板）
 
-- **Vite + TypeScript**：与团队现代前端习惯一致，便于 Cursor Agent 增量开发。
-- **Standalone**：不依赖小程序 bridge、不引用微信 JSSDK（除非后续明确要分享页）。
-- **资源**：服装与身体分图层；`assets/` 纳入 Git 或 Git LFS（大文件时再加 LFS，当前仅占位）。
+- 条纹围巾：空洞与色块感
+- 皇冠：齿尖之间残留白底
+- 花环：内耳边缘白色毛刺
+- 毛线帽、草莓帽偏大；草帽偏小
+- 焦糖围巾：一角有小缺口
+- 闭眼睫毛：较 `refs/closed_eyes_darkcircles_ref.png` 略长
 
-## 分支策略
+视觉基线仍以 **`assets/v2b/yutu_mesh_demo.html`** 为准：奶油毛色、网格清晰、闭眼睫毛与眼下蓝灰痕。
 
-- **`main`**：换装规划 + 后续工程 + 保留 `yutu-house/` 全量内容（当前 `main` 已包含小屋文件）。
-- **`yutu-house`**：历史分支，仅含小屋交接提交；与 `main` 上 `yutu-house/` 目录 **内容对齐**，新工作请以 `main` 为准。
+## 锦鲤 BOON KOI · 自由试衣（P2b）
 
-若 GitHub 默认分支仍为 `yutu-house`，请在仓库设置中改为 **`main`**（见 `README.md`）。
+- **金标准对照**：`assets/koi-v2b/koi_mesh_demo.html`（与玉兔同一 WebGL grid + 底栏逻辑）
+- **参考图**：`assets/refs/koi_turnaround.png`（四视图；runtime 用正面裁切）
+- **切换入口**：`assets/dress_pets_demo.html`（仅 demo，不写剧情存档）
+- **8 格**：`boots_yellow` / `boots_mint` + `kasa` / `crown` / `bow` / `scarf` / `omamori` / `goldfish`（见 `assets/koi-v2b/work/dress/extract/meta.json`）
+- **重建**：`python3 assets/koi-v2b/work/prepare_koi_assets.py` → `python3 assets/koi-v2b/work/build_koi_demo.py`
+- **美术状态**：当前配饰为 **v0 程序化占位**，正式「画进静息图 + extract」成片待美术 pass 替换 `dress/extract/` 内 PNG
 
-## 硬约束（从小屋交接延续）
+## 与 eggbabe-miniprogram 的关系（硬约束）
 
-- 不修改 `octopusgump/eggbabe-miniprogram` 仓库
-- 不把 H5 demo 自动接入小程序
-- 不确定需求先与 Bohao 确认，再扩大范围
+- **零耦合**：不修改 `octopusgump/eggbabe-miniprogram`，不提交 PR 到该仓库，不设 submodule。
+- 不把本 H5 接入微信小程序；不同步用户存档、登录态或 PRD 内未确认的玩法。
+- 小程序侧 PRD/CONTEXT 仅供 **世界观与美术风格参考**，不是本仓库的实现依赖。
 
-## 参考
+## 分支说明
 
+- **`main`**：v2b WebGL 换装规划 + 后续工程 + `yutu-house/` 全量内容。
+- **`yutu-house`**：历史默认分支名；应与 `main` 上 `yutu-house/` 目录内容一致时，以 **`main`** 为协作基准。
+
+## 参考文档
+
+- 实施计划：`PLAN.md`（v2b WebGL，含 P0–P5）
+- v2b 路径对照：`docs/V2B_BUNDLE_MAP.md`
 - 小屋交接：`yutu-house/HANDOFF.md`、`yutu-house/PROMPT.md`
 - 建仓备忘：`docs/CREATE_REPO.md`

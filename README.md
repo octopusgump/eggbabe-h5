@@ -1,29 +1,35 @@
 # eggbabe-H5
 
-玉兔（Yutu）换装小游戏 — 独立 H5 仓库，与 `eggbabe-miniprogram` 分离。
+玉兔（Yutu）**v2b WebGL mesh** 换装小游戏 — 独立 H5 仓库。
 
-**仓库**：<https://github.com/octopusgump/eggbabe-h5>
+**GitHub**：<https://github.com/octopusgump/eggbabe-h5>
 
-## 默认分支
+## 文档
 
-| 分支 | 用途 |
+| 文件 | 内容 |
 |------|------|
-| **`main`** | 换装 H5 规划、文档与后续 Vite+TS 工程（**推荐默认分支**） |
-| `yutu-house` | 玉兔小屋无桥版 HTML 交接包（历史默认分支，内容与 `main` 上的 `yutu-house/` 目录一致） |
+| [**PLAN.md**](PLAN.md) | v2b 基线、`yutu_mesh_demo.html`、方案 A（破壳换装走路小屋）、MVP（2+2+8）、Vite+TS、阶段 **P0–P5** |
+| [**CONTEXT.md**](CONTEXT.md) | `yutu_context_bundle_946c`、**`assets/v2b/`** 路径、与小程序仓库 **无耦合** |
 
-在 GitHub 仓库 **Settings → General → Default branch** 中请将默认分支设为 **`main`**。
+## 自由试衣 demo（玉兔 + 锦鲤）
 
-## 换装小游戏（主项目）
+- **双宠物切换**：[`assets/dress_pets_demo.html`](assets/dress_pets_demo.html)（顶栏 **玉兔 | 锦鲤**）
+- 玉兔：[`assets/v2b/yutu_mesh_demo.html`](assets/v2b/yutu_mesh_demo.html)
+- 锦鲤：[`assets/koi-v2b/koi_mesh_demo.html`](assets/koi-v2b/koi_mesh_demo.html)
 
-- 方案 A MVP：2 件上衣 + 2 件裙子（见 `PLAN.md`、`CONTEXT.md`）
-- 技术栈：Vite + TypeScript，纯 H5，不接小程序
-- 占位资源目录：`assets/`
+资产对照见 [`docs/V2B_BUNDLE_MAP.md`](docs/V2B_BUNDLE_MAP.md)；锦鲤说明见 [`CONTEXT.md`](CONTEXT.md) § 锦鲤。
 
-## 玉兔小屋 Demo（已有）
+## 其它目录
 
-浏览器打开 [`yutu-house/yutu_house_demo.html`](yutu-house/yutu_house_demo.html)。说明见 [`yutu-house/HANDOFF.md`](yutu-house/HANDOFF.md)。未接入小程序。
+- [`yutu-house/`](yutu-house/) — 玉兔小屋无桥 HTML demo（双击 `yutu_house_demo.html`；说明见 [`HANDOFF.md`](yutu-house/HANDOFF.md)）。未接入小程序。
+- [`danbaobao-meadow/`](danbaobao-meadow/) — **蛋宝宝牧场**一期：Three.js 草场（11 羊、方圈四角口、拖羊/旋转/缩放）。
+- [`yutu-house-mod/`](yutu-house-mod/) — **玉兔小屋路线 B**：2D 寻路 + 四房粘土模块烘焙升级。在线：[yutu-house-mod.html](https://octopusgump.github.io/eggbabe-h5/yutu-house-mod.html)
 
-## 本地开发（换装 MVP 脚手架落地后）
+## 蛋宝宝牧场 · 在线
+
+**https://octopusgump.github.io/eggbabe-h5/danbaobao-meadow/site/**（短链：[danbaobao-meadow.html](danbaobao-meadow.html)）
+
+## 开发（P3 脚手架落地后）
 
 ```bash
 npm install

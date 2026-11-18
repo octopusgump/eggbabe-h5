@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>锦鲤 BOON KOI 网格换装 Demo</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #2a2118; overflow: hidden; }
+  body { min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
+  #fit { width: 390px; height: 844px; flex-shrink: 0; transform-origin: center center; }
+  #stage { width: 390px; height: 844px; position: relative; overflow: hidden; border-radius: 20px; box-shadow: 0 18px 50px rgba(0,0,0,.4); background: #f0e2cc; touch-action: none; user-select: none; }
+  #bg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+  #gl { position: absolute; left: 0; top: 0; width: 390px; height: 844px; z-index: 2; pointer-events: none; }
+  #shadow-soft { position: absolute; left: %%SH_SOFT_X%%px; top: %%SH_SOFT_Y%%px; width: 168px; height: 46px; transform: translate(-50%,-50%);
+    background: radial-gradient(ellipse at 48% 46%, rgba(86,52,28,.32) 0%, rgba(92,58,32,.19) 28%, rgba(110,72,40,.09) 52%, rgba(120,80,46,0) 76%); filter: blur(8px); z-index: 1; pointer-events: none; }
+  #shadow-contact { position: absolute; left: %%SH_CON_X%%px; top: %%SH_CON_Y%%px; width: 116px; height: 15px; transform: translate(-50%,-50%);
+    background: radial-gradient(ellipse at 50% 50%, rgba(52,32,16,.46) 0%, rgba(62,38,20,.2) 42%, rgba(62,38,20,0) 74%); filter: blur(2.2px); z-index: 1; pointer-events: none; }
+  .zz { position: absolute; left: 0; top: 0; font: 700 15px/1 sans-serif; color: #8a7a68; opacity: 0; pointer-events: none; z-index: 3; }
+</style>
+</head>
+<body>
+<div id="fit"><div id="stage">
+  <img id="bg" alt="" src="%%BG%%">
+  <div id="shadow-soft"></div><div id="shadow-contact"></div>
+  <canvas id="gl"></canvas>
+</div></div>
+<script>
+(function () {
+  /* ---------- geometry (source px of the 880x1600 front cutout) ---------- */
+  const TEX = %%TEX%%;               // {x0,y0,w,h} region the textures cover
+  const S = %%S%%, OX = %%OX%%, OY = %%OY%%;  // stage = O + src*S
+  const FEET_Y = %%FEET_Y%%, CX = %%CX%%, NECK = %%NECK%%;
+  const HEAD = %%HEAD%%;
+  const EAR_L = %%EAR_L%%, EAR_R = %%EAR_R%%;
+  const BODY_Y = %%BODY_Y%%;
+  const COLS = 30, ROWS = 56;
+  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%" };
+
+  const stage = document.getElementById("stage"), fit = document.getElementById("fit");
+  const canvas = document.getElementById("gl");
+  const shSoft = document.getElementById("shadow-soft"), shCon = document.getElementById("shadow-contact");
+  const DPR = Math.min(3, window.devicePixelRatio || 1);
+  canvas.width = Math.round(390 * DPR); canvas.height = Math.round(844 * DPR);
+  const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, preserveDrawingBuffer: true });
+
+  const vs = "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;" +
+    "void main(){ vUv = aUv; gl_Position = vec4(aPos.x / 195.0 - 1.0, 1.0 - aPos.y / 422.0, 0.0, 1.0); }";
+  const fs = "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2; uniform float w1; uniform float w2;" +
+    "float gate(float w){ w = clamp(w, 0.0, 1.0); return 1.0 - pow(1.0 - w, 2.6); }" +
+    "void main(){ vec4 a = texture2D(t0, vUv); vec4 b = texture2D(t1, vUv); vec4 c = texture2D(t2, vUv);" +
+    " float c1 = gate(w1); float c2 = gate(w2); float s = c1 + c2; if (s > 1.0) { c1 /= s; c2 /= s; }" +
+    " gl_FragColor = a * (1.0 - c1 - c2) + b * c1 + c * c2; }";
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  const aPos = gl.getAttribLocation(prog, "aPos"), aUv = gl.getAttribLocation(prog, "aUv");
+  const uW1 = gl.getUniformLocation(prog, "w1"), uW2 = gl.getUniformLocation(prog, "w2");
+
+  // Rest grid
+  const NV = (COLS + 1) * (ROWS + 1);
+  const rest = new Float32Array(NV * 2), uv = new Float32Array(NV * 2), pos = new Float32Array(NV * 2);
+  // textures are drawn into power-of-two canvases (for mipmaps) -> uv scale
+  const POT_W = 1024, POT_H = 2048;
+  for (let r = 0, i = 0; r <= ROWS; r++) for (let c = 0; c <= COLS; c++, i++) {
+    const u = c / COLS, v = r / ROWS;
+    rest[i * 2] = TEX.x0 + u * TEX.w; rest[i * 2 + 1] = TEX.y0 + v * TEX.h;
+    uv[i * 2] = u * TEX.w / POT_W; uv[i * 2 + 1] = v * TEX.h / POT_H;
+  }
+  const idx = [];
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const a = r * (COLS + 1) + c, b = a + 1, d = a + COLS + 1, e = d + 1;
+    idx.push(a, d, b, b, d, e);
+  }
+  const posBuf = gl.createBuffer(), uvBuf = gl.createBuffer(), idxBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(aUv); gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+
+  let ready = 0; const hitCanvas = document.createElement("canvas");
+  hitCanvas.width = TEX.w; hitCanvas.height = TEX.h;
+  const hitCtx = hitCanvas.getContext("2d", { willReadFrequently: true });
+  function loadTex(unit, src, isBase) {
+    const img = new Image();
+    img.onload = function () {
+      const c = document.createElement("canvas"); c.width = POT_W; c.height = POT_H;
+      c.getContext("2d").drawImage(img, 0, 0);
+      if (isBase) hitCtx.drawImage(img, 0, 0);
+      const t = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.uniform1i(gl.getUniformLocation(prog, "t" + unit), unit);
+      ready += 1; if (ready === 3) { window.__ready = true; render(lastPose); }
+    };
+    img.src = src;
+  }
+  loadTex(0, IMG.base, true); loadTex(1, IMG.closed); loadTex(2, IMG.doze);
+
+  /* ---------- math ---------- */
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function sstep(e0, e1, x) { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); }
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function easeInOut(t) { return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+  function easeOutBack(t) { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); }
+  function rot(x, y, px, py, deg) {
+    const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), dx = x - px, dy = y - py;
+    return [px + dx * c - dy * s, py + dx * s + dy * c];
+  }
+
+  /* ---------- pose -> vertex deformation ---------- */
+  const KEYS = ["hopY", "rot", "sx", "sy", "breath", "headRot", "headTx", "headTy", "earL", "earR", "lean", "wClosed", "wDoze", "shS", "shO"];
+  function P(o) { const p = { hopY: 0, rot: 0, sx: 1, sy: 1, breath: 0, headRot: 0, headTx: 0, headTy: 0, earL: 0, earR: 0, lean: 0, wClosed: 0, wDoze: 0, shS: 1, shO: 1 }; for (const k in o) p[k] = o[k]; return p; }
+  function mix(a, b, t) { const p = P({}); KEYS.forEach(function (k) { p[k] = lerp(a[k], b[k], t); }); return p; }
+
+  const spring = { r: 0, vr: 0, y: 0, vy: 0, t: -1 };
+  function stepSpring(p, clock) {
+    const dt = spring.t < 0 ? 0 : (clock - spring.t) / 1000; spring.t = clock;
+    if (dt <= 0 || dt > 0.1) { spring.r = p.headRot; spring.vr = 0; spring.y = p.hopY; spring.vy = 0; return; }
+    const n = Math.max(1, Math.ceil(dt / 0.008)), h = dt / n;
+    for (let i = 0; i < n; i++) {
+      spring.vr += (-(spring.r - p.headRot) * 150 - spring.vr * 9) * h; spring.r += spring.vr * h;
+      spring.vy += (-(spring.y - p.hopY) * 140 - spring.vy * 9) * h; spring.y += spring.vy * h;
+    }
+  }
+
+  function deform(x, y, p, eL, eR) {
+    // 1) ears: bend around their bases (weight grows toward the tip; zero inside the head)
+    const hd = Math.sqrt(Math.pow((x - HEAD.x) / HEAD.rx, 2) + Math.pow((y - HEAD.y) / HEAD.ry, 2));
+    const out = sstep(0.9, 1.04, hd) * sstep(EAR_L.y + 24, EAR_L.y - 70, y);
+    if (out > 0) {
+      const side = sstep(CX - 30, CX + 30, x);
+      const piv = side < 0.5 ? EAR_L : EAR_R;
+      const along = clamp((piv.y - y) / 80, 0, 1);
+      const ang = lerp(eL, eR, side) * out * (0.55 + 0.45 * along) * 0.35;
+      const r = rot(x, y, piv.x, piv.y, ang); x = r[0]; y = r[1];
+    }
+    const bw = Math.exp(-Math.pow((y - BODY_Y) / (HEAD.ry * 0.9), 2));
+    x += (x - CX) * p.breath * bw;
+    const wBody = sstep(NECK.y - 70, NECK.y + 24, y);
+    const neckY = FEET_Y + (NECK.y - FEET_Y) * p.sy;
+    const yBody = FEET_Y + (y - FEET_Y) * p.sy, yHead = y + (neckY - NECK.y);
+    const feetPin = sstep(FEET_Y - 130, FEET_Y - 12, y);
+    const kx = lerp(p.sx, 1 + (p.sx - 1) * 0.12, 1 - wBody);
+    const kx2 = lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
+    x = CX + (x - CX) * kx2;
+    y = lerp(yHead, yBody, wBody);
+    const wh = sstep(NECK.y + 36, NECK.y - 80, y);
+    if (wh > 0) {
+      const ny = neckY;
+      const r = rot(x, y, NECK.x, ny, p.headRot * wh); x = r[0] + p.headTx * wh; y = r[1] + p.headTy * wh;
+    }
+    x += p.lean * 16 * sstep(FEET_Y, HEAD.y, y);
+    return [x, y];
+  }
+
+  let lastPose = P({});
+  function render(p, clock) {
+    lastPose = p;
+    stepSpring(p, clock == null ? performance.now() : clock);
+    const lagR = clamp(spring.r - p.headRot, -25, 25);
+    const lagY = clamp((spring.y - p.hopY) * 0.6, -18, 28);
+    const eL = p.earL + lagR * 1.1 - lagY, eR = p.earR + lagR * 1.1 + lagY;
+    const cr = Math.cos(p.rot * Math.PI / 180), sr = Math.sin(p.rot * Math.PI / 180);
+    for (let i = 0; i < NV; i++) {
+      const d = deform(rest[i * 2], rest[i * 2 + 1], p, eL, eR);
+      // whole-body rotation about the feet, then to stage px
+      const dx = d[0] - CX, dy = d[1] - FEET_Y;
+      const rx = CX + dx * cr - dy * sr, ry = FEET_Y + dx * sr + dy * cr;
+      pos[i * 2] = OX + rx * S; pos[i * 2 + 1] = OY + ry * S + p.hopY;
+    }
+    if (ready < 3) return;
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferSubData(gl.ARRAY_BUFFER, 0, pos);
+    gl.uniform1f(uW1, clamp(p.wClosed, 0, 1)); gl.uniform1f(uW2, clamp(p.wDoze, 0, 1 - clamp(p.wClosed, 0, 1)));
+    gl.drawElements(gl.TRIANGLES, idx.length, gl.UNSIGNED_SHORT, 0);
+    const air = clamp(-p.hopY / 70, 0, 1);
+    shSoft.style.transform = "translate(-50%,-50%) scale(" + (p.shS * (1 - 0.5 * air)).toFixed(3) + ")";
+    shSoft.style.opacity = (p.shO * (1 - 0.7 * air)).toFixed(3);
+    shCon.style.transform = "translate(-50%,-50%) scale(" + (p.shS * (1 - 0.6 * air)).toFixed(3) + ")";
+    shCon.style.opacity = (1 - 0.85 * air).toFixed(3);
+  }
+
+  /* ---------- poses ---------- */
+  const BLINK_MS = 200;
+  function blinkAmt(u) { if (u < 0 || u > 1) return 0; if (u < 0.22) return easeOutCubic(u / 0.22); if (u < 0.50) return 1; return 1 - easeInOut((u - 0.50) / 0.50); }
+  function idle(t, blink) {
+    const b = Math.sin(t / 2600 * Math.PI * 2);
+    const tw = (t % 4300) / 4300, twitch = tw > 0.9 ? Math.sin((tw - 0.9) / 0.1 * Math.PI * 2) * 6 : 0;
+    return P({ sx: 1 - 0.006 * b, sy: 1 + 0.012 * b, breath: 0.014 * b, headRot: 8 * Math.sin(t / 3800 * Math.PI * 2),
+      earL: -0.8 + 1.4 * Math.sin(t / 2600 * Math.PI * 2 + 0.3), earR: 0.8 + 1.4 * Math.sin(t / 3000 * Math.PI * 2 + 1.4) + twitch * 0.5, wDoze: blink || 0 });
+  }
+  function kf(list, u) {
+    u = clamp(u, 0, 1); let a = list[0], b = list[list.length - 1];
+    for (let i = 1; i < list.length; i++) if (u <= list[i].o) { a = list[i - 1]; b = list[i]; break; }
+    let t = clamp((u - a.o) / ((b.o - a.o) || 1), 0, 1);
+    t = a.e === "out" ? easeOutCubic(t) : a.e === "in" ? t * t * t : a.e === "back" ? easeOutBack(t) : a.e === "io" ? easeInOut(t) : t;
+    return mix(P(a), P(b), t);
+  }
+  const JUMP_MS = 1100, PEAK = 0.44;
+  // squash on take-off & landing (feet stay on the floor), stretch in the air
+  const jumpK = [
+    { o: 0,    e: "in",  sx: 1,    sy: 1 },
+    { o: 0.13, e: "out", sx: 1.10, sy: 0.84, earL: -10, earR: 10, shS: 1.15 },
+    { o: 0.24, e: "out", sx: 0.93, sy: 1.10, hopY: -26, earL: -22, earR: 22, rot: -1.5, shS: 0.9 },
+    { o: 0.44, e: "in",  sx: 1.0,  sy: 1.02, hopY: -70, earL: -4, earR: 4, rot: 1.5 },
+    { o: 0.70, e: "out", sx: 0.95, sy: 1.07, hopY: -20, earL: 8, earR: -8, rot: -1 },
+    { o: 0.80, e: "back", sx: 1.13, sy: 0.84, hopY: 0, earL: -20, earR: 20, shS: 1.18 },
+    { o: 0.90, e: "io",  sx: 0.97, sy: 1.04, earL: 6, earR: -6 },
+    { o: 1,    e: "out", sx: 1, sy: 1 }
+  ];
+  function jump(u) { return kf(jumpK, u); }
+  function tilt(u, s) {
+    return kf([
+      { o: 0, e: "out" },
+      { o: 0.24, e: "io", headRot: 13 * s, rot: 1.5 * s, headTy: 3, earL: -6 * s, earR: -6 * s },
+      { o: 0.40, e: "io", headRot: 12 * s, rot: 1.5 * s, headTy: 3, earL: 4 * s, earR: 4 * s },
+      { o: 0.55, e: "lin", headRot: 12 * s, rot: 1.5 * s, headTy: 3, wDoze: 1 },
+      { o: 0.66, e: "out", headRot: 10 * s, rot: 1 * s, headTy: 2, wDoze: 0 },
+      { o: 0.84, e: "io", headRot: 4 * s, earL: 3 * s, earR: 3 * s },
+      { o: 1, e: "out" }
+    ], u);
+  }
+  function doze(t) {
+    const b = Math.sin(t / 4400 * Math.PI * 2);
+    return P({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: 6, rot: 1, earL: -4 + b, earR: 8 + 2 * b, wDoze: 1, shS: 1.03 });
+  }
+  function dozeEnter(from, u) {
+    const p = mix(from, doze(0), easeInOut(clamp(u / 0.6, 0, 1)));
+    p.wDoze = u < 0.18 ? easeOutCubic(u / 0.18) : 1;
+    // the ear droops slowly, last
+    p.earR = lerp(from.earR, doze(0).earR, easeInOut(clamp((u - 0.35) / 0.65, 0, 1)));
+    return p;
+  }
+  function wake(u, from) {
+    return kf([
+      Object.assign({ o: 0, e: "out" }, from),
+      { o: 0.2, e: "out", wDoze: 0.5, headRot: 2, earR: 30, sy: 1.04, sx: 0.98, hopY: -2 },
+      { o: 0.42, e: "io", wDoze: 0, sy: 1.09, sx: 0.95, hopY: -10, earL: 6, earR: -10 },
+      { o: 0.62, e: "lin", sy: 1.05, sx: 0.97, hopY: -5, earL: -3, earR: 5, wDoze: 0.9 },
+      { o: 0.72, e: "out", wDoze: 0 },
+      { o: 1, e: "out" }
+    ], u);
+  }
+  function pet(lean, t) {
+    const tw = Math.sin(t / 3000 * Math.PI * 2);
+    return P({ sx: 1.015, sy: 0.985, lean: lean, headRot: 7 * lean, rot: 2 * lean, headTy: 4, earL: -15 + 2 * tw, earR: 15 - 2 * tw, wClosed: 1, breath: 0.01 * tw });
+  }
+
+  /* ---------- live state machine ---------- */
+  const SLEEP_DELAY = 7000, DOZE_ENTER_MS = 2600, TILT_MS = 950, WAKE_MS = 1100, PET_RELEASE_MS = 700, BLEND_MS = 140;
+  let live = true, mode = "idle", t0 = performance.now(), idleT0 = t0, nextBlink = 2600, sleepAt = t0 + SLEEP_DELAY, sleepDelay = SLEEP_DELAY;
+  let from = P({}), blendFrom = null, blendUntil = 0, tiltSide = 1, petLean = 0, zzAt = 0;
+  function begin(m, now) { mode = m; t0 = now; from = lastPose; blendFrom = lastPose; blendUntil = now + BLEND_MS; live = true; }
+  function toIdle(now) { mode = "idle"; idleT0 = now; nextBlink = 2400 + Math.random() * 1600; sleepAt = now + sleepDelay; blendFrom = lastPose; blendUntil = now + 260; }
+  function blend(p, now) { if (!blendFrom || now >= blendUntil) return p; const span = mode === "idle" ? 260 : BLEND_MS; return mix(blendFrom, p, easeOutCubic(clamp(1 - (blendUntil - now) / span, 0, 1))); }
+  function tick(now) {
+    requestAnimationFrame(tick);
+    if (!live) return;
+    const t = now - t0;
+    if (mode === "idle") {
+      if (now >= sleepAt) { begin("doze-enter", now); return; }
+      const it = now - idleT0; let bl = 0;
+      if (it >= nextBlink) { bl = blinkAmt((it - nextBlink) / BLINK_MS); if (it > nextBlink + BLINK_MS) nextBlink = it + 2600 + Math.random() * 1800; }
+      render(blend(idle(it, bl), now), now);
+    } else if (mode === "jump") { if (t >= JUMP_MS) toIdle(now); else render(blend(jump(t / JUMP_MS), now), now); }
+    else if (mode === "tilt") { if (t >= TILT_MS) toIdle(now); else render(blend(tilt(t / TILT_MS, tiltSide), now), now); }
+    else if (mode === "doze-enter") { if (t >= DOZE_ENTER_MS) { mode = "doze"; t0 = now; } render(dozeEnter(from, t / DOZE_ENTER_MS), now); }
+    else if (mode === "doze") { render(doze(t), now); if (now > zzAt) { spawnZz(); zzAt = now + 1700; } }
+    else if (mode === "wake") { if (t >= WAKE_MS) toIdle(now); else render(wake(t / WAKE_MS, from), now); }
+    else if (mode === "pet") { render(blend(pet(petLean, t), now), now); }
+    else if (mode === "pet-release") { if (t >= PET_RELEASE_MS) toIdle(now); else { const u = t / PET_RELEASE_MS; const p = mix(pet(petLean, 0), idle(0, 0), easeInOut(u)); p.wClosed = u < 0.4 ? 1 : 1 - easeOutCubic((u - 0.4) / 0.6); render(p, now); } }
+  }
+  function spawnZz() {
+    const n = document.createElement("div"); n.className = "zz"; n.textContent = "z"; stage.appendChild(n);
+    const x = OX + 600 * S, y = OY + 520 * S;
+    const a = n.animate([{ transform: "translate(" + x + "px," + y + "px) scale(.7)", opacity: 0 }, { transform: "translate(" + (x + 6) + "px," + (y - 14) + "px)", opacity: .85, offset: .3 }, { transform: "translate(" + (x + 16) + "px," + (y - 40) + "px) scale(1.25)", opacity: 0 }], { duration: 1500, easing: "ease-out", fill: "forwards" });
+    a.onfinish = function () { n.remove(); };
+  }
+
+  /* ---------- input: hit test on opaque pixels of the rest pose ---------- */
+  function toSrc(ev) {
+    const r = stage.getBoundingClientRect();
+    const sx = (ev.clientX - r.left) / r.width * 390, sy = (ev.clientY - r.top) / r.height * 844 - lastPose.hopY;
+    return { x: (sx - OX) / S, y: (sy - OY) / S, stageX: sx };
+  }
+  function hit(ev) {
+    const s = toSrc(ev), lx = Math.floor(s.x - TEX.x0), ly = Math.floor(s.y - TEX.y0);
+    if (lx < 0 || ly < 0 || lx >= TEX.w || ly >= TEX.h || ready < 3) return null;
+    if (hitCtx.getImageData(lx, ly, 1, 1).data[3] < 40) return null;
+    const hd = Math.pow((s.x - HEAD.x) / HEAD.rx, 2) + Math.pow((s.y - HEAD.y) / HEAD.ry, 2);
+    return { face: hd <= 1 || s.y < 560, x: s.x, stageX: s.stageX };
+  }
+  let ptr = null;
+  stage.addEventListener("pointerdown", function (ev) {
+    ev.preventDefault(); const h = hit(ev); if (!h) return;
+    if (mode === "doze" || mode === "doze-enter") { begin("wake", performance.now()); return; }
+    if (mode !== "idle") return;
+    ptr = { id: ev.pointerId, x0: h.stageX, t: performance.now(), face: h.face, side: h.x < CX ? -1 : 1, petting: false };
+    try { stage.setPointerCapture(ev.pointerId); } catch (e) {}
+  });
+  stage.addEventListener("pointermove", function (ev) {
+    if (!ptr || ev.pointerId !== ptr.id) return;
+    const r = stage.getBoundingClientRect(), x = (ev.clientX - r.left) / r.width * 390, dx = x - ptr.x0;
+    if (!ptr.petting && Math.abs(dx) > 16) { ptr.petting = true; begin("pet", performance.now()); }
+    if (ptr.petting) petLean = lerp(petLean, clamp(dx / 50, -1, 1), 0.3);
+  });
+  function up(ev) {
+    if (!ptr || ev.pointerId !== ptr.id) return;
+    const p = ptr; ptr = null; const now = performance.now();
+    if (p.petting) { begin("pet-release", now); return; }
+    if (now - p.t > 500 || mode !== "idle") return;
+    if (p.face) { tiltSide = p.side; begin("tilt", now); } else begin("jump", now);
+  }
+  stage.addEventListener("pointerup", up); stage.addEventListener("pointercancel", up);
+  function fitStage() { const s = Math.min(1, (innerWidth - 20) / 390, (innerHeight - 20) / 844); fit.style.transform = "scale(" + s + ")"; }
+  fitStage(); addEventListener("resize", fitStage);
+  requestAnimationFrame(tick);
+
+  /* ---------- scripted timeline for screenshots / video ---------- */
+  const TL = { blink: 900, jump: 1700, tilt: 3200, pet: 4600, petRel: 5900, doze: 6900, dozeHold: 9500, wake: 11000, end: 12300 };
+  function poseAt(ms) {
+    if (ms < TL.jump) return idle(ms, blinkAmt((ms - TL.blink) / BLINK_MS));
+    if (ms < TL.jump + JUMP_MS) return jump((ms - TL.jump) / JUMP_MS);
+    if (ms < TL.tilt) return idle(ms - TL.jump - JUMP_MS, 0);
+    if (ms < TL.tilt + TILT_MS) return tilt((ms - TL.tilt) / TILT_MS, 1);
+    if (ms < TL.pet) return idle(ms - TL.tilt - TILT_MS, 0);
+    if (ms < TL.petRel) { const u = (ms - TL.pet) / (TL.petRel - TL.pet); return mix(idle(0, 0), pet(0.8 * easeOutCubic(clamp(u / 0.4, 0, 1)), ms - TL.pet), easeOutCubic(clamp(u / 0.15, 0, 1))); }
+    if (ms < TL.petRel + PET_RELEASE_MS) { const u = (ms - TL.petRel) / PET_RELEASE_MS; const p = mix(pet(0.8, 0), idle(0, 0), easeInOut(u)); p.wClosed = u < 0.4 ? 1 : 1 - easeOutCubic((u - 0.4) / 0.6); return p; }
+    if (ms < TL.doze) return idle(ms - TL.petRel - PET_RELEASE_MS, 0);
+    if (ms < TL.dozeHold) return dozeEnter(idle(0, 0), (ms - TL.doze) / (TL.dozeHold - TL.doze));
+    if (ms < TL.wake) return doze(ms - TL.dozeHold);
+    if (ms < TL.wake + WAKE_MS) return wake((ms - TL.wake) / WAKE_MS, doze(TL.wake - TL.dozeHold));
+    return idle(ms - TL.wake - WAKE_MS, 0);
+  }
+  window.__demo = {
+    timeline: TL, jumpMs: JUMP_MS, mode: function () { return mode; },
+    seek: function (ms) { live = false; render(poseAt(ms), ms); return ms; },
+    live: function () { live = true; toIdle(performance.now()); },
+    setSleepDelay: function (ms) { sleepDelay = ms; sleepAt = performance.now() + ms; }
+  };
+})();
+</script>
+</body>
+</html>
