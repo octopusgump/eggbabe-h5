@@ -1,7 +1,7 @@
 import type { RoomId } from '../modules/roomIds'
 
 export const SAVE_KEY = 'yutu-house-mod-save'
-export const BAKE_REVISION = 1
+export const BAKE_REVISION = 3
 
 export type HouseSave = {
   roomTiers: Record<RoomId, number>

@@ -5,6 +5,31 @@ import { ModuleLayers } from './house/ModuleLayers'
 import { buildRoomLayouts } from './modules/tierCatalog'
 import { MAX_TIER, ROOM_GEOM_INDEX, ROOM_IDS, ROOM_LABEL, type RoomId } from './modules/roomIds'
 import { VW, VH } from './house/constants'
+import { setPxPerUnit } from './bake/constants'
+
+function parseDebugParams() {
+  const q = new URLSearchParams(location.search)
+  const pxu = Number(q.get('pxu'))
+  if (pxu) setPxPerUnit(pxu)
+
+  const tiersRaw = q.get('tiers')
+  let tiers: Partial<Record<RoomId, number>> | null = null
+  if (tiersRaw) {
+    const parts = tiersRaw.split(',').map((s) => Number(s.trim()))
+    if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+      tiers = {
+        bedroom: parts[0],
+        cafe: parts[1],
+        kitchen: parts[2],
+        sunroom: parts[3],
+      }
+    }
+  }
+  const freeze = q.get('freeze') === '1'
+  const live = q.get('live') === '1'
+  const debug = q.get('debug') === '1'
+  return { tiers, freeze, live, debug }
+}
 
 export class HouseApp {
   private save: HouseSave
@@ -12,19 +37,40 @@ export class HouseApp {
   private modules!: ModuleLayers
   private layouts!: ReturnType<typeof buildRoomLayouts>
   private panelRoom: RoomId | null = null
+  private readonly debug = parseDebugParams()
 
   constructor(
     private readonly stageRoot: HTMLElement,
     private readonly geom: HouseGeom,
   ) {
     this.save = loadSave()
+    if (this.debug.tiers) {
+      this.save = {
+        ...this.save,
+        roomTiers: { ...this.save.roomTiers, ...this.debug.tiers },
+        bakeRevision: BAKE_REVISION,
+      }
+    }
+    if (this.debug.live) {
+      this.save = { ...this.save, useLiveThree: true }
+    }
     this.layouts = buildRoomLayouts(geom)
   }
 
   mount() {
     this.house = new House2D(this.stageRoot, this.geom)
-    this.modules = new ModuleLayers(this.house.world, this.layouts)
+    this.modules = new ModuleLayers(this.house.world, this.layouts, this.geom)
     this.modules.bindLayouts(this.layouts)
+    this.modules.trackBunny(() => this.house.getWalkApi().st.p)
+
+    if (this.debug.freeze) {
+      const st = this.house.getWalkApi().st as unknown as { follow: boolean }
+      Object.defineProperty(st, 'follow', {
+        get: () => false,
+        set: () => {},
+        configurable: true,
+      })
+    }
 
     const top = document.createElement('div')
     top.id = 'top'
@@ -32,7 +78,6 @@ export class HouseApp {
       '<div id="title">玉兔的小屋</div><div id="chips-slot"></div><button id="upgrade" type="button" hidden>升级房间</button>'
     this.stageRoot.appendChild(top)
     const upgradeBtn = top.querySelector('#upgrade') as HTMLButtonElement
-    upgradeBtn.id = 'upgrade'
 
     this.house.mountTopBar(top)
     this.refreshChips()
@@ -69,6 +114,17 @@ export class HouseApp {
     this.stageRoot.appendChild(label)
 
     void this.modules.applyTiers(this.save).then(() => this.house.start())
+
+    if (this.debug.debug) {
+      // Acceptance-test hook only; never loaded without ?debug=1
+      ;(window as unknown as Record<string, unknown>).__app = {
+        house: this.house,
+        modules: this.modules,
+        layouts: this.layouts,
+        save: this.save,
+        geom: this.geom,
+      }
+    }
   }
 
   private setUpgradeLabel(btn: HTMLButtonElement, id: RoomId) {

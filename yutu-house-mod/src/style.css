@@ -113,6 +113,10 @@ body {
   transform: translate(-50%, 0);
 }
 
+#world > img.occ {
+  z-index: 5;
+}
+
 #world > img.occ.front {
   z-index: 20;
 }
