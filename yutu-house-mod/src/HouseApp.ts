@@ -27,7 +27,8 @@ function parseDebugParams() {
   }
   const freeze = q.get('freeze') === '1'
   const live = q.get('live') === '1'
-  return { tiers, freeze, live }
+  const debug = q.get('debug') === '1'
+  return { tiers, freeze, live, debug }
 }
 
 export class HouseApp {
@@ -113,6 +114,17 @@ export class HouseApp {
     this.stageRoot.appendChild(label)
 
     void this.modules.applyTiers(this.save).then(() => this.house.start())
+
+    if (this.debug.debug) {
+      // Acceptance-test hook only; never loaded without ?debug=1
+      ;(window as unknown as Record<string, unknown>).__app = {
+        house: this.house,
+        modules: this.modules,
+        layouts: this.layouts,
+        save: this.save,
+        geom: this.geom,
+      }
+    }
   }
 
   private setUpgradeLabel(btn: HTMLButtonElement, id: RoomId) {

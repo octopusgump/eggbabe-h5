@@ -76,7 +76,7 @@ export class House2D {
       el.id = `oc${i}`
       el.className = 'occ'
       el.src = OCC_IMAGES[i]
-      let pos = 'position:absolute;pointer-events:none;z-index:5'
+      let pos = 'position:absolute;pointer-events:none'
       if (o.box) {
         const [x0, y0, x1, y1] = o.box
         pos += `;left:${x0}px;top:${y0}px;width:${x1 - x0}px;height:${y1 - y0}px`
