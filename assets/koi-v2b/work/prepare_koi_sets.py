@@ -16,7 +16,7 @@ from PIL import Image, ImageDraw, ImageFilter
 WORK = Path(__file__).resolve().parent
 EX = WORK / "dress" / "extract"
 SETS_DIR = WORK / "sets"
-SRC_SHEET = Path("/home/antigravity/image.png")
+SRC_SHEET = SETS_DIR / "source_batch2.jpg"
 
 # Unified expanded canvas so tall hats (chef/mushroom/astronaut/lion) never clip
 CANVAS_W, CANVAS_H = 640, 780
@@ -174,69 +174,78 @@ def matte_panel(im: Image.Image, translucent_helmet: bool = False) -> Image.Imag
                 q.append((ny, nx))
 
     # Second pass: clean narrow floor shadow halo outside boots
-    extra_shadow = (
-        floor_zone
-        & (tex < 4.5)
-        & (chroma_diff < 12.0)
-        & (px_luma < bg_luma + 4.0)
-        & (px_luma > bg_luma - 65.0)
+    eye_l, eye_r = find_eyes(rgb)
+    ecx = (eye_l[0] + eye_r[0]) * 0.5
+    ecy = (eye_l[1] + eye_r[1]) * 0.5
+    edist = eye_r[0] - eye_l[0]
+
+    # Boots sit strictly within ecx +/- 1.18 * edist (and +/- 0.96 * edist near soles)
+    yy_all, xx_all = np.mgrid[0:h, 0:w].astype(np.float32)
+    outside_boots_floor = (
+        ((yy_all > h * 0.80) & (np.abs(xx_all - ecx) > edist * 1.14))
+        | ((yy_all > h * 0.86) & (np.abs(xx_all - ecx) > edist * 0.96))
+        | ((yy_all > h * 0.89) & (np.abs(xx_all - ecx) < edist * 0.22) & (diff < 32.0))
     )
-    boot_guard = np.zeros((h, w), dtype=bool)
-    boot_guard[int(h * 0.78) : int(h * 0.935), int(w * 0.34) : int(w * 0.66)] = True
-    extra_shadow = extra_shadow & (~boot_guard)
-    q2: deque[tuple[int, int]] = deque()
-    ys_v, xs_v = np.where(visited & floor_zone)
-    for y, x in zip(ys_v, xs_v):
-        q2.append((int(y), int(x)))
-    while q2:
-        cy, cx = q2.popleft()
+    visited = visited | outside_boots_floor
+
+    # Punch out beige background gap BETWEEN the two legs/boots:
+    # seed in vertical strip between the boots (near center x, y in 82%..96% of height)
+    between_cand = (
+        (yy_all > h * 0.78)
+        & (np.abs(xx_all - ecx) < edist * 0.42)
+        & (tex < 3.6)
+        & (edge < 10.0)
+        & (diff < 24.0)
+    )
+    qb: deque[tuple[int, int]] = deque()
+    for y in range(int(h * 0.84), int(h * 0.96)):
+        for x in range(int(ecx - 6), int(ecx + 7)):
+            if 0 <= y < h and 0 <= x < w and between_cand[y, x] and not visited[y, x]:
+                visited[y, x] = True
+                qb.append((y, x))
+    while qb:
+        cy, cx = qb.popleft()
         for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
-            if 0 <= ny < h and 0 <= nx < w and not visited[ny, nx] and extra_shadow[ny, nx]:
+            if 0 <= ny < h and 0 <= nx < w and not visited[ny, nx] and between_cand[ny, nx]:
                 visited[ny, nx] = True
-                q2.append((ny, nx))
+                qb.append((ny, nx))
 
     fg_mask = ~visited
 
-    # Trim the ~2px outer halo caused by the 5x5 local_texture window:
-    # erode 2px inward ONLY where pixels are still close to the studio backdrop color
-    fg_eroded2 = np.array(
+    # Unconditional 2px inward shrink to completely remove the 5x5 local_texture dilation rim
+    fg_shrunk = np.array(
         Image.fromarray((fg_mask * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(5))
     ) > 128
-    outer_band = fg_mask & (~fg_eroded2)
-    halo_px = outer_band & ((diff < 18.0) | (floor_zone & (chroma_diff < 13.0) & (px_luma < bg_luma + 8.0)))
-    fg_mask = fg_mask & (~halo_px)
+    # Extra 1px trim on any remaining pale-beige outer border pixel (diff < 22)
+    fg_shrunk_in = np.array(
+        Image.fromarray((fg_shrunk * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(3))
+    ) > 128
+    rim_1px = fg_shrunk & (~fg_shrunk_in)
+    fg_mask = fg_shrunk & (~(rim_1px & (diff < 22.0)))
 
-    # Soft 0.8px edge feathering
+    # Soft 0.75px anti-aliased edge ramp
     fg_img = Image.fromarray((fg_mask * 255).astype(np.uint8))
-    fg_soft = fg_img.filter(ImageFilter.GaussianBlur(radius=0.8))
+    fg_soft = fg_img.filter(ImageFilter.GaussianBlur(radius=0.75))
     alpha = np.array(fg_soft, dtype=np.float32) / 255.0
-
-    # Zero out definitely-background pixels far from boundary
     bg_eroded = (
         np.array(Image.fromarray(((~fg_mask) * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(3))) > 128
     )
     alpha[bg_eroded] = 0.0
 
     # Special translucent glass dome alpha for astronaut
+    in_glass_ring = np.zeros((h, w), dtype=bool)
     if translucent_helmet:
-        eye_l, eye_r = find_eyes(rgb)
-        ecx = (eye_l[0] + eye_r[0]) * 0.5
-        ecy = (eye_l[1] + eye_r[1]) * 0.5
-        edist = eye_r[0] - eye_l[0]
-
-        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
         dome_cx = ecx
         dome_cy = ecy - edist * 0.22
-        dome_r = edist * 1.56
-        dist_dome = np.hypot(xx - dome_cx, yy - dome_cy)
+        dome_r = edist * 1.54
+        dist_dome = np.hypot(xx_all - dome_cx, yy_all - dome_cy)
 
-        # Smooth inner opaque plush head + rounded top fin + collar + side fins
-        head_r = edist * 1.14
-        dist_head = np.hypot((xx - ecx) / 1.03, (yy - (ecy - edist * 0.05)) / 1.07)
-        dist_fin = np.hypot((xx - ecx) / (edist * 0.22), (yy - (ecy - edist * 1.18)) / (edist * 0.42))
+        head_r = edist * 1.13
+        dist_head = np.hypot((xx_all - ecx) / 1.03, (yy_all - (ecy - edist * 0.05)) / 1.07)
+        dist_fin = np.hypot((xx_all - ecx) / (edist * 0.21), (yy_all - (ecy - edist * 1.18)) / (edist * 0.40))
         in_top_fin = dist_fin <= 1.0
-        in_suit = yy > ecy + edist * 0.72
-        in_side_fins = (np.abs(xx - ecx) > edist * 1.04) & (yy > ecy - edist * 0.35) & (yy < ecy + edist * 0.55)
+        in_suit = yy_all > ecy + edist * 0.72
+        in_side_fins = (np.abs(xx_all - ecx) > edist * 1.04) & (yy_all > ecy - edist * 0.35) & (yy_all < ecy + edist * 0.55)
 
         in_glass_ring = (dist_dome <= dome_r) & (dist_head > head_r) & (~in_top_fin) & (~in_suit) & (~in_side_fins)
         inner_blend = np.clip((dist_head - head_r) / 6.0, 0.0, 1.0) * np.clip((dist_fin - 1.0) / 0.25, 0.0, 1.0)
@@ -249,14 +258,40 @@ def matte_panel(im: Image.Image, translucent_helmet: bool = False) -> Image.Imag
         dome_alpha = alpha * (1.0 - inner_blend) + glass_alpha * inner_blend
         alpha = np.where(in_glass_ring, dome_alpha, alpha)
 
-    # Color decontamination on semi-transparent edges (0 < alpha < 0.96)
+    # Inward Foreground RGB Edge Bleed: pull pure solid interior foreground RGB
+    # outward into all anti-aliased edge pixels so zero beige/white fringe can exist!
     out_rgb = rgb.copy()
-    semi = (alpha > 0.03) & (alpha < 0.96)
-    safe_a = np.maximum(alpha[semi, None], 0.14)
-    decon = (rgb[semi] - (1.0 - alpha[semi, None]) * bg[semi]) / safe_a
-    out_rgb[semi] = np.clip(decon, 0.0, 255.0)
-    out_rgb[alpha <= 0.01] = 0.0
+    solid = (alpha >= 0.96) & (~in_glass_ring)
+    known = solid.copy()
+    bleed_rgb = rgb.copy()
+    for _ in range(4):
+        need = (~known) & (alpha > 0.01) & (~in_glass_ring)
+        if not need.any():
+            break
+        acc = np.zeros_like(bleed_rgb)
+        cnt = np.zeros((h, w), dtype=np.float32)
+        for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)):
+            sy0, sy1 = max(0, -dy), min(h, h - dy)
+            sx0, sx1 = max(0, -dx), min(w, w - dx)
+            ty0, ty1 = max(0, dy), min(h, h + dy)
+            tx0, tx1 = max(0, dx), min(w, w + dx)
+            k = known[sy0:sy1, sx0:sx1]
+            acc[ty0:ty1, tx0:tx1] += bleed_rgb[sy0:sy1, sx0:sx1] * k[:, :, None]
+            cnt[ty0:ty1, tx0:tx1] += k.astype(np.float32)
+        upd = need & (cnt > 0)
+        bleed_rgb[upd] = acc[upd] / cnt[upd, None]
+        known[upd] = True
 
+    edge_band = (alpha > 0.01) & (alpha < 0.96) & (~in_glass_ring) & known
+    out_rgb[edge_band] = bleed_rgb[edge_band]
+
+    # Color decontamination for translucent astronaut glass ring
+    if translucent_helmet:
+        semi_g = in_glass_ring & (alpha > 0.03) & (alpha < 0.96)
+        safe_a = np.maximum(alpha[semi_g, None], 0.14)
+        out_rgb[semi_g] = np.clip((rgb[semi_g] - (1.0 - alpha[semi_g, None]) * bg[semi_g]) / safe_a, 0.0, 255.0)
+
+    out_rgb[alpha <= 0.01] = 0.0
     rgba = np.dstack([out_rgb, np.clip(alpha * 255.0, 0.0, 255.0)]).astype(np.uint8)
     return Image.fromarray(rgba, "RGBA")
 
