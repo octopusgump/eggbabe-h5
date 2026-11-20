@@ -1,5 +1,45 @@
 [
   {
+    "id": "set_duck",
+    "slot": "set",
+    "name": "小黄鸭雨衣",
+    "desc": "鹅黄连帽小鸭雨衣配雨靴",
+    "price": 20,
+    "tex": "sets/tex_set_duck.png",
+    "thumb": "sets/thumb_set_duck.png",
+    "translucent": false
+  },
+  {
+    "id": "set_yukata",
+    "slot": "set",
+    "name": "夏日祭浴衣",
+    "desc": "靛蓝海浪浴衣配狐狸面具",
+    "price": 20,
+    "tex": "sets/tex_set_yukata.png",
+    "thumb": "sets/thumb_set_yukata.png",
+    "translucent": false
+  },
+  {
+    "id": "set_sailor",
+    "slot": "set",
+    "name": "小海军水手",
+    "desc": "针织水手服配红领结白帽",
+    "price": 20,
+    "tex": "sets/tex_set_sailor.png",
+    "thumb": "sets/thumb_set_sailor.png",
+    "translucent": false
+  },
+  {
+    "id": "set_strawberry_pj",
+    "slot": "set",
+    "name": "草莓睡衣",
+    "desc": "浅粉波点毛绒睡衣配草莓帽",
+    "price": 20,
+    "tex": "sets/tex_set_strawberry_pj.png",
+    "thumb": "sets/thumb_set_strawberry_pj.png",
+    "translucent": false
+  },
+  {
     "id": "set_mushroom",
     "slot": "set",
     "name": "森林小蘑菇",
@@ -37,6 +77,46 @@
     "price": 20,
     "tex": "sets/tex_set_lion.png",
     "thumb": "sets/thumb_set_lion.png",
+    "translucent": false
+  },
+  {
+    "id": "set_trex",
+    "slot": "set",
+    "name": "暴走霸王龙",
+    "desc": "搞怪锯齿牙霸王龙小短手",
+    "price": 20,
+    "tex": "sets/tex_set_trex.png",
+    "thumb": "sets/thumb_set_trex.png",
+    "translucent": false
+  },
+  {
+    "id": "set_triceratops",
+    "slot": "set",
+    "name": "针织三角龙",
+    "desc": "海蓝粗毛线颈盾配波点裤",
+    "price": 20,
+    "tex": "sets/tex_set_triceratops.png",
+    "thumb": "sets/thumb_set_triceratops.png",
+    "translucent": false
+  },
+  {
+    "id": "set_eggshell_dino",
+    "slot": "set",
+    "name": "破壳小恐龙",
+    "desc": "锯齿奶油蛋壳裤配恐龙帽",
+    "price": 20,
+    "tex": "sets/tex_set_eggshell_dino.png",
+    "thumb": "sets/thumb_set_eggshell_dino.png",
+    "translucent": false
+  },
+  {
+    "id": "set_stego",
+    "slot": "set",
+    "name": "粉黄小剑龙",
+    "desc": "张嘴包脸剑龙配黄背板靴",
+    "price": 20,
+    "tex": "sets/tex_set_stego.png",
+    "thumb": "sets/thumb_set_stego.png",
     "translucent": false
   }
 ]

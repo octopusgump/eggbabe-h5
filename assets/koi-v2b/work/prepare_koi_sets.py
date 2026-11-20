@@ -21,6 +21,42 @@ CANVAS_W, CANVAS_H = 640, 780
 BASE_DX, BASE_DY = 26, 92
 
 SET_SPECS = [
+    # Batch 1: Daily & Cute (4)
+    {
+        "id": "set_duck",
+        "name": "小黄鸭雨衣",
+        "desc": "鹅黄连帽小鸭雨衣配雨靴",
+        "price": 20,
+        "key": "blue",
+        "translucent_helmet": False,
+    },
+    {
+        "id": "set_yukata",
+        "name": "夏日祭浴衣",
+        "desc": "靛蓝海浪浴衣配狐狸面具",
+        "price": 20,
+        "key": "green",
+        "has_blue": True,
+        "translucent_helmet": False,
+    },
+    {
+        "id": "set_sailor",
+        "name": "小海军水手",
+        "desc": "针织水手服配红领结白帽",
+        "price": 20,
+        "key": "green",
+        "has_blue": True,
+        "translucent_helmet": False,
+    },
+    {
+        "id": "set_strawberry_pj",
+        "name": "草莓睡衣",
+        "desc": "浅粉波点毛绒睡衣配草莓帽",
+        "price": 20,
+        "key": "blue",
+        "translucent_helmet": False,
+    },
+    # Batch 2: Fairytale & Festival (4)
     {
         "id": "set_mushroom",
         "name": "森林小蘑菇",
@@ -53,6 +89,41 @@ SET_SPECS = [
         "key": "green",
         "translucent_helmet": False,
     },
+    # Batch 3: Goofy Dinosaurs (4)
+    {
+        "id": "set_trex",
+        "name": "暴走霸王龙",
+        "desc": "搞怪锯齿牙霸王龙小短手",
+        "price": 20,
+        "key": "blue",
+        "translucent_helmet": False,
+    },
+    {
+        "id": "set_triceratops",
+        "name": "针织三角龙",
+        "desc": "海蓝粗毛线颈盾配波点裤",
+        "price": 20,
+        "key": "green",
+        "has_blue": True,
+        "translucent_helmet": False,
+    },
+    {
+        "id": "set_eggshell_dino",
+        "name": "破壳小恐龙",
+        "desc": "锯齿奶油蛋壳裤配恐龙帽",
+        "price": 20,
+        "key": "blue",
+        "has_purple": True,
+        "translucent_helmet": False,
+    },
+    {
+        "id": "set_stego",
+        "name": "粉黄小剑龙",
+        "desc": "张嘴包脸剑龙配黄背板靴",
+        "price": 20,
+        "key": "blue",
+        "translucent_helmet": False,
+    },
 ]
 
 
@@ -72,7 +143,13 @@ def find_eyes(rgb: np.ndarray) -> tuple[tuple[float, float], tuple[float, float]
     return (float(xs[l].mean()), float(ys[l].mean())), (float(xs[r].mean()), float(ys[r].mean()))
 
 
-def chroma_key_matte(im: Image.Image, key: str, translucent_helmet: bool = False) -> Image.Image:
+def chroma_key_matte(
+    im: Image.Image,
+    key: str,
+    translucent_helmet: bool = False,
+    has_blue: bool = False,
+    has_purple: bool = False,
+) -> Image.Image:
     """Extract spotless RGBA matte from a flat shadowless blue/green chroma screen
     with chroma spill suppression and optical translucent glass matting for astronaut.
     """
@@ -80,10 +157,13 @@ def chroma_key_matte(im: Image.Image, key: str, translucent_helmet: bool = False
     h, w, _ = rgb.shape
     r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
 
-    # Sample exact background chroma color from the 4 corners
     corners = np.concatenate(
-        [rgb[:16, :16].reshape(-1, 3), rgb[:16, -16:].reshape(-1, 3),
-         rgb[-16:, :16].reshape(-1, 3), rgb[-16:, -16:].reshape(-1, 3)],
+        [
+            rgb[:16, :16].reshape(-1, 3),
+            rgb[:16, -16:].reshape(-1, 3),
+            rgb[-16:, :16].reshape(-1, 3),
+            rgb[-16:, -16:].reshape(-1, 3),
+        ],
         axis=0,
     )
     bg_col = np.median(corners, axis=0)
@@ -91,15 +171,14 @@ def chroma_key_matte(im: Image.Image, key: str, translucent_helmet: bool = False
     if key == "blue":
         excess = b - np.maximum(r, g)
         bg_excess = float(bg_col[2] - max(bg_col[0], bg_col[1]))
-        lo, hi = 24.0, max(105.0, bg_excess * 0.58)
+        lo = 52.0 if has_purple else 24.0
+        hi = max(115.0, bg_excess * 0.58)
     else:
         excess = g - np.maximum(r, b)
         bg_excess = float(bg_col[1] - max(bg_col[0], bg_col[2]))
         lo, hi = 24.0, max(125.0, bg_excess * 0.56)
 
-    # Smooth physical alpha ramp for opaque objects
     alpha = np.clip((hi - excess) / max(hi - lo, 1.0), 0.0, 1.0)
-    # Clean near-zero noise in pure chroma background
     alpha[excess > hi + 15.0] = 0.0
 
     out_rgb = rgb.copy()
@@ -113,12 +192,10 @@ def chroma_key_matte(im: Image.Image, key: str, translucent_helmet: bool = False
         edist = eye_r[0] - eye_l[0]
         yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
 
-        # Locate the outer bubble helmet dome circle
         dome_cx = ecx
         dome_cy = ecy - edist * 0.25
         dome_r = edist * 1.50
         dist_dome = np.hypot(xx - dome_cx, yy - dome_cy)
-        # Inner opaque plush head + top fin + suit collar + side fins
         dist_head = np.hypot((xx - ecx) / (edist * 1.08), (yy - (ecy - edist * 0.05)) / (edist * 1.12))
         dist_fin = np.hypot((xx - ecx) / (edist * 0.21), (yy - (ecy - edist * 1.24)) / (edist * 0.36))
         in_suit = yy > ecy + edist * 0.72
@@ -126,37 +203,38 @@ def chroma_key_matte(im: Image.Image, key: str, translucent_helmet: bool = False
 
         in_glass = (dist_dome <= dome_r) & (dist_head > 1.0) & (dist_fin > 1.0) & (~in_suit) & (~in_side_fins)
 
-        # True optical blue-screen recovery:
-        # C_obs = a * C_glass + (1 - a) * C_bg  =>  a ≈ 1 - excess / bg_excess
-        # Pure glass body has slight visibility (0.14+), specular highlights reach ~0.92!
         outer_fade = np.clip((dome_r - dist_dome) / 6.0, 0.0, 1.0)
         optical_a = np.clip(1.0 - excess / max(bg_excess, 1.0), 0.0, 1.0)
-        # Boost slightly so glass shell stays gently visible even over light cream room bg
         rim_boost = np.clip((dist_dome / dome_r - 0.84) / 0.16, 0.0, 1.0) * 0.24
         glass_a = np.clip(optical_a * 1.08 + 0.08 + rim_boost, 0.0, 0.94) * outer_fade
 
-        # Smooth transition at inner plush head & top fin boundary
         inner_t = np.clip((dist_head - 1.0) / 0.07, 0.0, 1.0) * np.clip((dist_fin - 1.0) / 0.12, 0.0, 1.0)
         alpha = np.where(in_glass, alpha * (1.0 - inner_t) + glass_a * inner_t, alpha)
 
-        # Recover pure neutral-white glass reflection RGB (removing blue backdrop contribution)
         safe_a = np.maximum(alpha[in_glass, None], 0.12)
         rec = (rgb[in_glass] - (1.0 - alpha[in_glass, None]) * bg_col[None, :]) / safe_a
         rec = np.clip(rec, 0.0, 255.0)
-        # Neutralize any remaining blue tint on the glass reflection
         rec[:, 2] = np.minimum(rec[:, 2], np.maximum(rec[:, 0], rec[:, 1]) + 10.0)
         out_rgb[in_glass] = rec
 
-    # Chroma spill suppression on all non-glass pixels (completely kills green/blue edge tint!)
+    # Chroma spill suppression on all non-glass pixels
     non_glass = ~in_glass
     if key == "blue":
-        # Clamp excess blue toward max(R, G) everywhere outside pure background
-        spill = non_glass & (b > np.maximum(r, g))
+        if has_purple:
+            # Preserve purple spikes (where R > G + 15) while despilling neutral/fringe blue
+            spill = non_glass & (b > np.maximum(r, g)) & (~((r > g + 15.0) & (alpha > 0.95)))
+        else:
+            spill = non_glass & (b > np.maximum(r, g))
         out_rgb[spill, 2] = np.maximum(out_rgb[spill, 0], out_rgb[spill, 1])
     else:
-        # Clamp excess green to warm cream balance (eliminates green bounce tint on white/cream fur)
-        spill = non_glass & (g > (r * 0.94 + b * 0.06))
-        out_rgb[spill, 1] = np.minimum(out_rgb[spill, 1], out_rgb[spill, 0] * 0.94 + out_rgb[spill, 2] * 0.06)
+        if has_blue:
+            # Preserve blue/teal fabric while killing pure green spill
+            spill = non_glass & (g > np.maximum(r, b))
+            out_rgb[spill, 1] = np.maximum(out_rgb[spill, 0], out_rgb[spill, 2])
+        else:
+            # Warm cream balance kills faint green bounce on white/cream fur
+            spill = non_glass & (g > (r * 0.94 + b * 0.06))
+            out_rgb[spill, 1] = np.minimum(out_rgb[spill, 1], out_rgb[spill, 0] * 0.94 + out_rgb[spill, 2] * 0.06)
 
     # Inward RGB bleed on semi-transparent anti-aliased fringes (2 passes)
     solid = (alpha >= 0.96) & non_glass
@@ -347,7 +425,13 @@ def main() -> None:
         im = Image.open(src_path).convert("RGB")
         rgb = np.array(im, dtype=np.float32)
         eye_l, eye_r = find_eyes(rgb)
-        cutout = chroma_key_matte(im, key=spec["key"], translucent_helmet=spec["translucent_helmet"])
+        cutout = chroma_key_matte(
+            im,
+            key=spec["key"],
+            translucent_helmet=spec["translucent_helmet"],
+            has_blue=spec.get("has_blue", False),
+            has_purple=spec.get("has_purple", False),
+        )
         aligned, stats = place_aligned(cutout, eye_l, eye_r, ref_eye_mid, ref_feet_y)
 
         tex_path = SETS_DIR / f"tex_{spec['id']}.png"

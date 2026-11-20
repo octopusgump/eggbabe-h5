@@ -116,20 +116,20 @@ sheet = (
     '<div id="sheet">'
     '<div class="handle"></div>'
     '<div class="tabs">'
-    '<button type="button" class="tab active" data-tab="set">套装 (4)</button>'
-    '<button type="button" class="tab" data-tab="acc">配饰 (8)</button>'
+    f'<button type="button" class="tab active" data-tab="set">套装 ({len(sets_meta)})</button>'
+    f'<button type="button" class="tab" data-tab="acc">配饰 ({len(meta)})</button>'
     "</div>"
     '<div id="grid">' + "".join(cards) + "</div>"
     "</div>"
 )
 
 css = r"""
-  #sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; background: #fbf4ea; border-radius: 26px 26px 0 0; box-shadow: 0 -10px 30px rgba(80,50,20,.14); padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px)); touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+  #sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; background: #fbf4ea; border-radius: 26px 26px 0 0; box-shadow: 0 -10px 30px rgba(80,50,20,.14); padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px)); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
   #sheet .handle { width: 38px; height: 4px; background: #e4d3bf; border-radius: 99px; margin: 2px auto 8px; }
   .tabs { display: flex; gap: 8px; margin-bottom: 10px; }
   .tab { flex: 1; padding: 6px 10px; border-radius: 999px; border: 1.5px solid #e6d5c1; background: #fffdf9; color: #7a634d; font: 600 12px/1.2 system-ui, sans-serif; cursor: pointer; }
   .tab.active { background: #c9955a; border-color: #c9955a; color: #fff; }
-  #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 222px; overflow-y: auto; padding: 2px 1px 4px; -webkit-overflow-scrolling: touch; }
   .card { position: relative; background: #fffdf9; border-radius: 14px; border: 2px solid rgba(201,149,90,0); box-shadow: 0 1px 3px rgba(80,50,20,.08); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 6px 4px 5px; cursor: pointer; appearance: none; -webkit-appearance: none; }
   .card.hidden { display: none; }
   .card .thumb-wrap { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
