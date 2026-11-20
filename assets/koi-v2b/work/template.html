@@ -42,21 +42,32 @@
   const shSoft = document.getElementById("shadow-soft"), shCon = document.getElementById("shadow-contact");
   const DPR = Math.min(3, window.devicePixelRatio || 1);
   canvas.width = Math.round(390 * DPR); canvas.height = Math.round(844 * DPR);
-  const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, preserveDrawingBuffer: true });
+  const gl = canvas.getContext("webgl", { alpha: true, premultipliedAlpha: true, antialias: true, preserveDrawingBuffer: location.search.indexOf("capture=1") >= 0 });
+  if (!gl) {
+    const fb = document.createElement("div");
+    fb.style.cssText = "position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;color:#5a4636;font:600 15px/1.5 sans-serif;background:rgba(251,244,234,.92);";
+    fb.textContent = "当前设备暂不支持 WebGL，无法展示动态换装效果。";
+    stage.appendChild(fb);
+    return;
+  }
+  canvas.addEventListener("webglcontextlost", function (ev) { ev.preventDefault(); live = false; }, false);
+  canvas.addEventListener("webglcontextrestored", function () { location.reload(); }, false);
 
   const vs = "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;" +
     "void main(){ vUv = aUv; gl_Position = vec4(aPos.x / 195.0 - 1.0, 1.0 - aPos.y / 422.0, 0.0, 1.0); }";
-  const fs = "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2; uniform float w1; uniform float w2;" +
+  const fs = "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2; uniform float w1; uniform float w2; uniform float uEye;" +
     "float gate(float w){ w = clamp(w, 0.0, 1.0); return 1.0 - pow(1.0 - w, 2.6); }" +
     "void main(){ vec4 a = texture2D(t0, vUv); vec4 b = texture2D(t1, vUv); vec4 c = texture2D(t2, vUv);" +
     " float c1 = gate(w1); float c2 = gate(w2); float s = c1 + c2; if (s > 1.0) { c1 /= s; c2 /= s; }" +
-    " gl_FragColor = a * (1.0 - c1 - c2) + b * c1 + c * c2; }";
+    " if (uEye > 0.5) { vec4 eye = b * c1 + c * c2; gl_FragColor = eye + a * (1.0 - eye.a); }" +
+    " else { gl_FragColor = a * (1.0 - c1 - c2) + b * c1 + c * c2; } }";
   function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
   const prog = gl.createProgram();
   gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
   gl.linkProgram(prog); gl.useProgram(prog);
   const aPos = gl.getAttribLocation(prog, "aPos"), aUv = gl.getAttribLocation(prog, "aUv");
-  const uW1 = gl.getUniformLocation(prog, "w1"), uW2 = gl.getUniformLocation(prog, "w2");
+  const uW1 = gl.getUniformLocation(prog, "w1"), uW2 = gl.getUniformLocation(prog, "w2"), uEye = gl.getUniformLocation(prog, "uEye");
+  gl.uniform1f(uEye, 0.0);
 
   // Rest grid
   const NV = (COLS + 1) * (ROWS + 1);
@@ -266,7 +277,7 @@
   function blend(p, now) { if (!blendFrom || now >= blendUntil) return p; const span = mode === "idle" ? 260 : BLEND_MS; return mix(blendFrom, p, easeOutCubic(clamp(1 - (blendUntil - now) / span, 0, 1))); }
   function tick(now) {
     requestAnimationFrame(tick);
-    if (!live) return;
+    if (!live || document.hidden) return;
     const t = now - t0;
     if (mode === "idle") {
       if (now >= sleepAt) { begin("doze-enter", now); return; }

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "set_mushroom",
+    "slot": "set",
+    "name": "森林小蘑菇",
+    "desc": "针织波点蘑菇帽配背带裤",
+    "price": 20,
+    "tex": "sets/tex_set_mushroom.png",
+    "thumb": "sets/thumb_set_mushroom.png",
+    "translucent": false
+  },
+  {
+    "id": "set_baker",
+    "slot": "set",
+    "name": "小厨师烘焙",
+    "desc": "蓬蓬厨师帽配格纹可颂围裙",
+    "price": 20,
+    "tex": "sets/tex_set_baker.png",
+    "thumb": "sets/thumb_set_baker.png",
+    "translucent": false
+  },
+  {
+    "id": "set_astronaut",
+    "slot": "set",
+    "name": "复古宇航员",
+    "desc": "透明泡泡头盔配星星宇航服",
+    "price": 20,
+    "tex": "sets/tex_set_astronaut.png",
+    "thumb": "sets/thumb_set_astronaut.png",
+    "translucent": true
+  },
+  {
+    "id": "set_lion",
+    "slot": "set",
+    "name": "新年小醒狮",
+    "desc": "红金毛绒醒狮帽配祥云马甲",
+    "price": 20,
+    "tex": "sets/tex_set_lion.png",
+    "thumb": "sets/thumb_set_lion.png",
+    "translucent": false
+  }
+]
