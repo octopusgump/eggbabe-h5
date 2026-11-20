@@ -114,7 +114,7 @@ def local_texture(rgb: np.ndarray) -> np.ndarray:
     return np.sqrt(np.maximum(var, 0.0))
 
 
-def matte_panel(im: Image.Image, translucent_helmet: bool = False) -> Image.Image:
+def matte_panel(im: Image.Image, translucent_helmet: bool = False, set_id: str = "") -> Image.Image:
     """Remove studio cream backdrop using smooth-background + texture-barrier
     flood-fill and color decontamination. Preserves translucent glass bubble
     helmet alpha for astronaut.
@@ -137,10 +137,15 @@ def matte_panel(im: Image.Image, translucent_helmet: bool = False) -> Image.Imag
     px_norm = rgb / np.maximum(px_luma[:, :, None], 1.0)
     chroma_diff = np.linalg.norm(px_norm - bg_norm, axis=2) * 255.0
 
+    eye_l, eye_r = find_eyes(rgb)
+    ecx = (eye_l[0] + eye_r[0]) * 0.5
+    ecy = (eye_l[1] + eye_r[1]) * 0.5
+    edist = eye_r[0] - eye_l[0]
+    yy_all, xx_all = np.mgrid[0:h, 0:w].astype(np.float32)
+
     # Background has tex p95 ~0.7 and diff p95 ~3.1; plush has tex ~4.5+ and diff ~19+
     is_smooth = (tex < 2.2) & (edge < 7.0)
-    floor_zone = np.zeros((h, w), dtype=bool)
-    floor_zone[int(h * 0.80) :, :] = True
+    floor_zone = yy_all >= h * 0.80
     is_floor_shadow = (
         floor_zone
         & (tex < 3.2)
@@ -152,6 +157,12 @@ def matte_panel(im: Image.Image, translucent_helmet: bool = False) -> Image.Imag
 
     bg_thresh = 9.5 if translucent_helmet else 11.5
     bg_cand = ((diff < bg_thresh) & is_smooth) | is_floor_shadow
+
+    # For baker's cream boots, protect the inner left/right boot cuff columns from color-match leak
+    if set_id == "set_baker":
+        left_cuff = (yy_all > h * 0.78) & (yy_all < h * 0.94) & (xx_all > ecx - edist * 0.82) & (xx_all < ecx - edist * 0.17)
+        right_cuff = (yy_all > h * 0.78) & (yy_all < h * 0.94) & (xx_all > ecx + edist * 0.17) & (xx_all < ecx + edist * 0.82)
+        bg_cand = bg_cand & (~(left_cuff | right_cuff))
 
     visited = np.zeros((h, w), dtype=bool)
     q: deque[tuple[int, int]] = deque()
@@ -173,33 +184,32 @@ def matte_panel(im: Image.Image, translucent_helmet: bool = False) -> Image.Imag
                 visited[ny, nx] = True
                 q.append((ny, nx))
 
-    # Second pass: clean narrow floor shadow halo outside boots
-    eye_l, eye_r = find_eyes(rgb)
-    ecx = (eye_l[0] + eye_r[0]) * 0.5
-    ecy = (eye_l[1] + eye_r[1]) * 0.5
-    edist = eye_r[0] - eye_l[0]
-
-    # Boots sit strictly within ecx +/- 1.18 * edist (and +/- 0.96 * edist near soles)
-    yy_all, xx_all = np.mgrid[0:h, 0:w].astype(np.float32)
+    # Clean all floor shadow patches in bottom boot zone (y > 80%)
     outside_boots_floor = (
-        ((yy_all > h * 0.80) & (np.abs(xx_all - ecx) > edist * 1.14))
-        | ((yy_all > h * 0.86) & (np.abs(xx_all - ecx) > edist * 0.96))
-        | ((yy_all > h * 0.89) & (np.abs(xx_all - ecx) < edist * 0.22) & (diff < 32.0))
+        ((yy_all > h * 0.80) & (np.abs(xx_all - ecx) > edist * 1.12))
+        | ((yy_all > h * 0.86) & (np.abs(xx_all - ecx) > edist * 0.94))
+        | ((yy_all > h * 0.82) & (np.abs(xx_all - ecx) < edist * 0.15) & (chroma_diff < 16.0) & (px_luma > 140.0))
     )
     visited = visited | outside_boots_floor
 
-    # Punch out beige background gap BETWEEN the two legs/boots:
-    # seed in vertical strip between the boots (near center x, y in 82%..96% of height)
+    # For colored/metallic boots (mushroom brown, lion red, astronaut silver),
+    # any pale warm-beige floor/shadow pixel in the bottom 18% is guaranteed background!
+    if set_id in ("set_mushroom", "set_lion"):
+        beige_floor = (yy_all > h * 0.82) & (chroma_diff < 15.0) & (px_luma > 152.0) & (rgb[:, :, 0] - rgb[:, :, 2] > 18.0)
+        visited = visited | beige_floor
+
+    # Punch out beige background gap BETWEEN the two legs/boots
     between_cand = (
         (yy_all > h * 0.78)
         & (np.abs(xx_all - ecx) < edist * 0.42)
-        & (tex < 3.6)
-        & (edge < 10.0)
-        & (diff < 24.0)
+        & (tex < 4.0)
+        & (edge < 11.0)
+        & (chroma_diff < 14.0)
+        & (px_luma > 145.0)
     )
     qb: deque[tuple[int, int]] = deque()
-    for y in range(int(h * 0.84), int(h * 0.96)):
-        for x in range(int(ecx - 6), int(ecx + 7)):
+    for y in range(int(h * 0.82), int(h * 0.97)):
+        for x in range(int(ecx - 8), int(ecx + 9)):
             if 0 <= y < h and 0 <= x < w and between_cand[y, x] and not visited[y, x]:
                 visited[y, x] = True
                 qb.append((y, x))
@@ -481,7 +491,7 @@ def main() -> None:
         q_im = quads[spec["quad"]]
         q_rgb = np.array(q_im, dtype=np.float32)
         eye_l, eye_r = find_eyes(q_rgb)
-        cutout = matte_panel(q_im, translucent_helmet=spec["translucent_helmet"])
+        cutout = matte_panel(q_im, translucent_helmet=spec["translucent_helmet"], set_id=spec["id"])
         aligned, stats = place_aligned(cutout, eye_l, eye_r, ref_eye_mid, ref_eye_dist, ref_feet_y)
 
         tex_path = SETS_DIR / f"tex_{spec['id']}.png"
