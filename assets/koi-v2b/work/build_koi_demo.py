@@ -25,11 +25,11 @@ CW, CH = int(ext_lm["canvasW"]), int(ext_lm["canvasH"])
 # Unified texture region covers the full 640x780 expanded canvas so tall hats never clip
 TEX = dict(x0=0, y0=0, w=CW, h=CH)
 
-# Keep exact same on-stage body scale & rug anchor as original koi demo
+# Frame BOON KOI completely above the fixed 410px bottom panel (top edge y=434)
 BODY_H = max(1, ext_lm["feetY"] - ext_lm["bbox"][1])
 BODY_W = max(1, ext_lm["bbox"][2] - ext_lm["bbox"][0])
-S = min(320.0 / BODY_H, 280.0 / BODY_W)
-FEET = (195.0, 628.0)  # lifted slightly so bottom tab bar + cards never cover boots
+S = min(268.0 / BODY_H, 240.0 / BODY_W)
+FEET = (195.0, 412.0)  # stands cleanly on lifted rug with 22px clearance above #sheet and >100px jump headroom
 FOOT_SRC = (float(ext_lm["cx"]), float(ext_lm["feetY"]))
 OX = FEET[0] - FOOT_SRC[0] * S
 OY = FEET[1] - FOOT_SRC[1] * S
@@ -124,18 +124,19 @@ sheet = (
 )
 
 css = r"""
-  #sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 10; background: #fbf4ea; border-radius: 26px 26px 0 0; box-shadow: 0 -10px 30px rgba(80,50,20,.14); padding: 8px 14px calc(16px + env(safe-area-inset-bottom, 0px)); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-  #sheet .handle { width: 38px; height: 4px; background: #e4d3bf; border-radius: 99px; margin: 2px auto 8px; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  #sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 410px; z-index: 10; background: #fbf4ea; border-radius: 24px 24px 0 0; box-shadow: 0 -8px 26px rgba(80,50,20,.14); padding: 8px 14px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+  #sheet .handle { width: 38px; height: 4px; background: #e4d3bf; border-radius: 99px; margin: 2px auto 8px; flex-shrink: 0; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 10px; flex-shrink: 0; }
   .tab { flex: 1; padding: 6px 10px; border-radius: 999px; border: 1.5px solid #e6d5c1; background: #fffdf9; color: #7a634d; font: 600 12px/1.2 system-ui, sans-serif; cursor: pointer; }
   .tab.active { background: #c9955a; border-color: #c9955a; color: #fff; }
-  #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 222px; overflow-y: auto; padding: 2px 1px 4px; -webkit-overflow-scrolling: touch; }
-  .card { position: relative; background: #fffdf9; border-radius: 14px; border: 2px solid rgba(201,149,90,0); box-shadow: 0 1px 3px rgba(80,50,20,.08); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 6px 4px 5px; cursor: pointer; appearance: none; -webkit-appearance: none; }
+  #grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: max-content; align-content: start; gap: 9px 8px; overflow-y: auto; overscroll-behavior: contain; padding: 2px 1px 18px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  #grid::-webkit-scrollbar { display: none; }
+  .card { position: relative; background: #fffdf9; border-radius: 14px; border: 2px solid rgba(201,149,90,0); box-shadow: 0 1px 3px rgba(80,50,20,.08); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 7px 4px 6px; cursor: pointer; appearance: none; -webkit-appearance: none; }
   .card.hidden { display: none; }
   .card .thumb-wrap { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .card img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
-  .card-name { margin-top: 3px; font: 600 10.5px/1.15 system-ui, sans-serif; color: #4f3d2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-  .card-price { margin-top: 2px; font: 600 10px/1 system-ui, sans-serif; color: #c48840; }
+  .card-name { margin-top: 4px; font: 600 11px/1.15 system-ui, sans-serif; color: #4f3d2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .card-price { margin-top: 3px; font: 600 10.5px/1 system-ui, sans-serif; color: #c48840; }
   .card.selected { border-color: #c9955a; box-shadow: 0 0 0 1.5px #c9955a, 0 2px 6px rgba(201,149,90,.2); }
   .card .badge { display: none; position: absolute; top: 4px; right: 4px; width: 17px; height: 17px; border-radius: 50%; background: #c9955a; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
   .card.selected .badge { display: flex; }
