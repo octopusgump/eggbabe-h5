@@ -245,14 +245,15 @@ early_worn = r"""
   let texEyesClosed = null, texEyesDoze = null;
   function rebindBodyTex() {
     gl.useProgram(prog);
-    if (worn.set && setTextures[worn.set]) {
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, setTextures[worn.set]);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texEyesClosed || texClosed);
-      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texEyesDoze || texDoze);
-      gl.uniform1f(uEye, texEyesClosed && texEyesDoze ? 1.0 : 0.0);
+    const t0 = (worn.set && setTextures[worn.set])
+      ? setTextures[worn.set]
+      : ((worn.boots === "boots_mint" && texBodyMint) ? texBodyMint : texBodyDefault);
+    if (t0) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t0); }
+    if (texEyesClosed && texEyesDoze) {
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texEyesClosed);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texEyesDoze);
+      gl.uniform1f(uEye, 1.0);
     } else {
-      const t0 = (worn.boots === "boots_mint" && texBodyMint) ? texBodyMint : texBodyDefault;
-      if (t0) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t0); }
       if (texClosed) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texClosed); }
       if (texDoze) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texDoze); }
       gl.uniform1f(uEye, 0.0);
@@ -503,6 +504,18 @@ rep = {
     "HEAD": json.dumps(ext_lm["head"]),
     "EAR_L": json.dumps(ext_lm["earL"]),
     "EAR_R": json.dumps(ext_lm["earR"]),
+    "EYE_L_UV": json.dumps([
+        round(ext_lm["eyeL"]["x"] / 1024.0, 6),
+        round(ext_lm["eyeL"]["y"] / 2048.0, 6),
+        round(ext_lm["eyeL"]["rx"] / 1024.0, 6),
+        round(ext_lm["eyeL"]["ry"] / 2048.0, 6),
+    ]),
+    "EYE_R_UV": json.dumps([
+        round(ext_lm["eyeR"]["x"] / 1024.0, 6),
+        round(ext_lm["eyeR"]["y"] / 2048.0, 6),
+        round(ext_lm["eyeR"]["rx"] / 1024.0, 6),
+        round(ext_lm["eyeR"]["ry"] / 2048.0, 6),
+    ]),
     "BODY_Y": str(ext_lm["bodyY"]),
     "SHEET_HTML": sheet,
 }

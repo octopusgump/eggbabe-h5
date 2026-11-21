@@ -59,19 +59,62 @@
 
   const vs = "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;" +
     "void main(){ vUv = aUv; gl_Position = vec4(aPos.x / 195.0 - 1.0, 1.0 - aPos.y / 422.0, 0.0, 1.0); }";
-  const fs = "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2; uniform float w1; uniform float w2; uniform float uEye;" +
-    "float gate(float w){ w = clamp(w, 0.0, 1.0); return 1.0 - pow(1.0 - w, 2.6); }" +
-    "void main(){ vec4 a = texture2D(t0, vUv); vec4 b = texture2D(t1, vUv); vec4 c = texture2D(t2, vUv);" +
-    " float c1 = gate(w1); float c2 = gate(w2); float s = c1 + c2; if (s > 1.0) { c1 /= s; c2 /= s; }" +
-    " if (uEye > 0.5) { vec4 eye = b * c1 + c * c2; gl_FragColor = eye + a * (1.0 - eye.a); }" +
-    " else { gl_FragColor = a * (1.0 - c1 - c2) + b * c1 + c * c2; } }";
+  const fs = "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2; uniform float w1; uniform float w2; uniform float uEye; uniform vec4 uEyeL; uniform vec4 uEyeR;" +
+    "vec2 eyeLid(vec2 uv, vec4 eye, float w){" +
+    "  if (w <= 0.004) return vec2(0.0);" +
+    "  vec2 d = (uv - eye.xy) / eye.zw;" +
+    "  if (dot(d, d) > 1.45) return vec2(0.0);" +
+    "  float curve = mix(-0.14, 0.28, w);" +
+    "  float lidY = mix(-1.12, 0.36, w) - curve * (d.x * d.x);" +
+    "  float lowY = mix(1.22, 0.36, smoothstep(0.25, 1.0, w)) - curve * (d.x * d.x);" +
+    "  float coverTop = smoothstep(lidY + 0.12, lidY - 0.08, d.y);" +
+    "  float coverBot = smoothstep(lowY - 0.12, lowY + 0.08, d.y);" +
+    "  float cover = clamp(max(coverTop, coverBot), 0.0, 1.0);" +
+    "  float xTaper = smoothstep(0.84, 0.32, abs(d.x));" +
+    "  float distLine = abs(d.y - lidY);" +
+    "  float thick = mix(0.055, 0.095, w) * xTaper;" +
+    "  float line = (1.0 - smoothstep(thick * 0.45, thick + 0.045, distLine)) * xTaper * smoothstep(0.10, 0.30, w);" +
+    "  float castSh = smoothstep(0.30, 0.0, d.y - lidY) * smoothstep(-0.04, 0.06, d.y - lidY) * (1.0 - w * 0.78) * 0.28 * xTaper;" +
+    "  return vec2(cover, clamp(line + castSh * (1.0 - cover), 0.0, 1.0));" +
+    "}" +
+    "void main(){" +
+    "  vec4 a = texture2D(t0, vUv);" +
+    "  if (uEye > 0.5) {" +
+    "    vec4 col = a;" +
+    "    float c2 = clamp(w2, 0.0, 1.0);" +
+    "    if (c2 > 0.004) {" +
+    "      vec4 plush = texture2D(t2, vUv);" +
+    "      vec2 lL = eyeLid(vUv, uEyeL, c2); vec2 lR = eyeLid(vUv, uEyeR, c2);" +
+    "      float cov = max(lL.x, lR.x) * plush.a;" +
+    "      vec3 lidRgb = plush.rgb / max(plush.a, 0.001);" +
+    "      vec3 baseRgb = col.rgb / max(col.a, 0.001);" +
+    "      vec3 mixed = mix(baseRgb, lidRgb, cov);" +
+    "      float lash = max(lL.y, lR.y) * smoothstep(0.05, 0.35, plush.a);" +
+    "      mixed = mix(mixed, vec3(0.14, 0.115, 0.098), lash);" +
+    "      col = vec4(mixed * col.a, col.a);" +
+    "    }" +
+    "    float c1 = clamp(w1, 0.0, 1.0);" +
+    "    if (c1 > 0.004) {" +
+    "      vec4 happy = texture2D(t1, vUv) * c1;" +
+    "      col = happy + col * (1.0 - happy.a);" +
+    "    }" +
+    "    gl_FragColor = col;" +
+    "  } else {" +
+    "    vec4 b = texture2D(t1, vUv); vec4 c = texture2D(t2, vUv);" +
+    "    float c1 = clamp(w1, 0.0, 1.0); float c2 = clamp(w2, 0.0, 1.0 - c1);" +
+    "    gl_FragColor = a * (1.0 - c1 - c2) + b * c1 + c * c2;" +
+    "  }" +
+    "}";
   function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; }
   const prog = gl.createProgram();
   gl.attachShader(prog, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, fs));
   gl.linkProgram(prog); gl.useProgram(prog);
   const aPos = gl.getAttribLocation(prog, "aPos"), aUv = gl.getAttribLocation(prog, "aUv");
   const uW1 = gl.getUniformLocation(prog, "w1"), uW2 = gl.getUniformLocation(prog, "w2"), uEye = gl.getUniformLocation(prog, "uEye");
-  gl.uniform1f(uEye, 0.0);
+  const uEyeL = gl.getUniformLocation(prog, "uEyeL"), uEyeR = gl.getUniformLocation(prog, "uEyeR");
+  gl.uniform1f(uEye, 1.0);
+  gl.uniform4fv(uEyeL, %%EYE_L_UV%%);
+  gl.uniform4fv(uEyeR, %%EYE_R_UV%%);
 
   // Rest grid
   const NV = (COLS + 1) * (ROWS + 1);
@@ -207,8 +250,8 @@
   }
 
   /* ---------- poses ---------- */
-  const BLINK_MS = 200;
-  function blinkAmt(u) { if (u < 0 || u > 1) return 0; if (u < 0.22) return easeOutCubic(u / 0.22); if (u < 0.50) return 1; return 1 - easeInOut((u - 0.50) / 0.50); }
+  const BLINK_MS = 240;
+  function blinkAmt(u) { if (u < 0 || u > 1) return 0; if (u < 0.32) return easeOutCubic(u / 0.32); if (u < 0.48) return 1; return 1 - easeInOut((u - 0.48) / 0.52); }
   function idle(t, blink) {
     const b = Math.sin(t / 2600 * Math.PI * 2);
     const tw = (t % 4300) / 4300, twitch = tw > 0.9 ? Math.sin((tw - 0.9) / 0.1 * Math.PI * 2) * 6 : 0;
@@ -251,8 +294,11 @@
     return P({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: 6, rot: 1, earL: -4 + b, earR: 8 + 2 * b, wDoze: 1, shS: 1.03 });
   }
   function dozeEnter(from, u) {
-    const p = mix(from, doze(0), easeInOut(clamp(u / 0.6, 0, 1)));
-    p.wDoze = u < 0.18 ? easeOutCubic(u / 0.18) : 1;
+    const p = mix(from, doze(0), easeInOut(clamp(u / 0.72, 0, 1)));
+    // Sleepy two-stage eyelid droop: drift to half-closed (0.62), hesitate briefly, then close
+    if (u < 0.35) p.wDoze = 0.62 * easeOutCubic(u / 0.35);
+    else if (u < 0.52) p.wDoze = 0.62 - 0.06 * Math.sin((u - 0.35) / 0.17 * Math.PI);
+    else p.wDoze = lerp(0.62, 1.0, easeInOut(clamp((u - 0.52) / 0.28, 0, 1)));
     // the ear droops slowly, last
     p.earR = lerp(from.earR, doze(0).earR, easeInOut(clamp((u - 0.35) / 0.65, 0, 1)));
     return p;

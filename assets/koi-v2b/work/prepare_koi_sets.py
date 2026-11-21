@@ -319,60 +319,89 @@ def place_aligned(
 
 
 def make_eye_overlays(base_ext: Image.Image, eye_l: tuple[float, float], eye_r: tuple[float, float]) -> tuple[Image.Image, Image.Image]:
-    """Create shared transparent eye-expression overlays (happy closed + sleepy doze)."""
-    arr = np.array(base_ext)
+    """Create seamless real-plush eyelid overlays sampled directly from BOON KOI's
+    own terry-cloth forehead/cheek fur (zero flat sticker rim!):
+      - eyes_doze.png: pure seamless real-plush eyelid skin (driven by WebGL sliding eyelid shader)
+      - eyes_closed.png: seamless real-plush eyelid skin + tapered embroidered happy crescent eyes
+    """
+    arr = np.array(base_ext, dtype=np.float32)
     mx = int(round((eye_l[0] + eye_r[0]) * 0.5))
     my = int(round((eye_l[1] + eye_r[1]) * 0.5))
-    patch = arr[my - 14 : my + 14, mx - 14 : mx + 14, :3]
-    cream = tuple(int(v) for v in np.median(patch.reshape(-1, 3), axis=0))
-    r_eye = 57
 
-    def render_state(mode: str) -> Image.Image:
-        s = 2
-        cov = Image.new("RGBA", (CANVAS_W * s, CANVAS_H * s), (0, 0, 0, 0))
-        d_cov = ImageDraw.Draw(cov)
-        for ex, ey in (eye_l, eye_r):
-            cx, cy = ex * s, ey * s
-            rr = r_eye * s
-            d_cov.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=cream + (255,))
-        cov = cov.filter(ImageFilter.GaussianBlur(radius=6.0))
+    # 1. Harvest a clean 96x64 real cream terry-cloth plush patch from BOON KOI's forehead
+    fy0 = max(0, my - 124)
+    fy1 = fy0 + 64
+    fx0 = max(0, mx - 48)
+    fx1 = fx0 + 96
+    fur_tile = arr[fy0:fy1, fx0:fx1, :3].copy()
+    # Mirror-tile into a seamless 2x2 texture block (192x128)
+    row_tile = np.concatenate([fur_tile, fur_tile[:, ::-1, :]], axis=1)
+    big_tile = np.concatenate([row_tile, row_tile[::-1, :, :]], axis=0)
+    th, tw, _ = big_tile.shape
 
-        cov_arr = np.array(cov)
-        rng = np.random.default_rng(42 if mode == "closed" else 99)
-        noise = rng.normal(0, 5.5, size=(CANVAS_H * s, CANVAS_W * s, 1))
-        mask = cov_arr[:, :, 3] > 20
-        for c in range(3):
-            ch = cov_arr[:, :, c].astype(np.float32) + noise[:, :, 0]
-            cov_arr[:, :, c] = np.where(mask, np.clip(ch, 0, 255), cov_arr[:, :, c]).astype(np.uint8)
-        cov = Image.fromarray(cov_arr, "RGBA")
+    # Tile across full canvas
+    reps_y = (CANVAS_H // th) + 2
+    reps_x = (CANVAS_W // tw) + 2
+    plush_full = np.tile(big_tile, (reps_y, reps_x, 1))[:CANVAS_H, :CANVAS_W, :].copy()
 
-        draw = ImageDraw.Draw(cov)
-        stroke = (34, 29, 25, 255)
-        lw = 14
-        for ex, ey in (eye_l, eye_r):
-            cx, cy = ex * s, ey * s
-            w_arc = 34 * s
-            h_arc = 22 * s
-            if mode == "closed":
-                bbox = (cx - w_arc, cy - h_arc * 0.55, cx + w_arc, cy + h_arc * 1.45)
-                draw.arc(bbox, start=202, end=338, fill=stroke, width=lw)
-                for ang_deg in (202, 338):
-                    ang = math.radians(ang_deg)
-                    px = cx + math.cos(ang) * w_arc
-                    py = (cy + h_arc * 0.45) + math.sin(ang) * h_arc
-                    draw.ellipse((px - lw / 2, py - lw / 2, px + lw / 2, py + lw / 2), fill=stroke)
-            else:
-                bbox = (cx - w_arc, cy - h_arc * 1.25, cx + w_arc, cy + h_arc * 0.75)
-                draw.arc(bbox, start=20, end=160, fill=stroke, width=lw)
-                for ang_deg in (20, 160):
-                    ang = math.radians(ang_deg)
-                    px = cx + math.cos(ang) * w_arc
-                    py = (cy - h_arc * 0.25) + math.sin(ang) * h_arc
-                    draw.ellipse((px - lw / 2, py - lw / 2, px + lw / 2, py + lw / 2), fill=stroke)
+    # Match local cheek luminance around each eye and add subtle 3D spherical shading
+    yy, xx = np.mgrid[0:CANVAS_H, 0:CANVAS_W].astype(np.float32)
+    alpha_mask = np.zeros((CANVAS_H, CANVAS_W), dtype=np.float32)
+    shade = np.ones((CANVAS_H, CANVAS_W), dtype=np.float32)
 
-        return cov.resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
+    for ex, ey in (eye_l, eye_r):
+        # Slightly wider ellipse covering the glossy button eye + its thin outer shadow ring
+        dx = (xx - ex) / 62.0
+        dy = (yy - ey) / 60.0
+        r = np.hypot(dx, dy)
+        # Wide smooth radial feather: 100% solid inside r <= 0.78 (48px), smoothly fading to 0 at r = 1.08 (67px)
+        t = np.clip((1.08 - r) / 0.30, 0.0, 1.0)
+        smooth_m = t * t * (3.0 - 2.0 * t)
+        alpha_mask = np.maximum(alpha_mask, smooth_m)
+        # Subtle spherical face lighting: gently brighter upper-left, softly shaded lower-right
+        s_local = 1.0 + np.clip(-0.045 * dx - 0.055 * dy, -0.09, 0.07)
+        shade = np.where(smooth_m > 0.01, shade * (1.0 - smooth_m) + s_local * smooth_m, shade)
 
-    return render_state("closed"), render_state("doze")
+    warm = np.array([0.975, 0.96, 0.935], dtype=np.float32)[None, None, :]
+    plush_shaded = np.clip(plush_full * shade[:, :, None] * warm, 0.0, 255.0)
+    plush_rgba = np.dstack([plush_shaded, np.clip(alpha_mask * 255.0, 0.0, 255.0)]).astype(np.uint8)
+    eyes_doze = Image.fromarray(plush_rgba, "RGBA")
+
+    # 2. Build eyes_closed.png (petting happy crescent eyes) on top of the seamless plush cover
+    s = 2
+    hi = eyes_doze.resize((CANVAS_W * s, CANVAS_H * s), Image.Resampling.LANCZOS)
+    line_layer = Image.new("RGBA", (CANVAS_W * s, CANVAS_H * s), (0, 0, 0, 0))
+    shadow_layer = Image.new("RGBA", (CANVAS_W * s, CANVAS_H * s), (0, 0, 0, 0))
+    d_line = ImageDraw.Draw(line_layer)
+    d_sh = ImageDraw.Draw(shadow_layer)
+
+    stroke_rgb = (36, 30, 25)
+    sh_rgb = (115, 98, 80)
+
+    for ex, ey in (eye_l, eye_r):
+        cx, cy = ex * s, (ey + 2.0) * s
+        w_arc = 33.0 * s
+        h_arc = 19.0 * s
+        steps = 48
+        # Draw smooth tapered upward crescent arc (thick in center, gently tapered tips)
+        for i in range(steps + 1):
+            u = i / steps  # 0..1
+            ang = math.radians(205.0 + u * 130.0)
+            px = cx + math.cos(ang) * w_arc
+            py = (cy + h_arc * 0.55) + math.sin(ang) * h_arc
+            # Smooth bell-curve taper: 0.35x at ends -> 1.0x at center
+            taper = math.sin(u * math.pi) ** 0.55
+            rad = (2.2 + 4.4 * taper) * (s * 0.5)
+            d_sh.ellipse((px - rad, py + 2.5 - rad, px + rad, py + 2.5 + rad), fill=sh_rgb + (90,))
+            d_line.ellipse((px - rad, py - rad, px + rad, py + rad), fill=stroke_rgb + (248,))
+
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=3.5))
+    line_layer = line_layer.filter(ImageFilter.GaussianBlur(radius=0.8))
+    hi = Image.alpha_composite(hi, shadow_layer)
+    hi = Image.alpha_composite(hi, line_layer)
+    eyes_closed = hi.resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
+
+    return eyes_closed, eyes_doze
 
 
 def make_thumb(im: Image.Image, size: int = 256) -> Image.Image:
@@ -475,6 +504,8 @@ def main() -> None:
         },
         "earL": {"x": lm["earL"]["x"] + BASE_DX, "y": lm["earL"]["y"] + BASE_DY},
         "earR": {"x": lm["earR"]["x"] + BASE_DX, "y": lm["earR"]["y"] + BASE_DY},
+        "eyeL": {"x": round(ref_eye_l[0], 2), "y": round(ref_eye_l[1], 2), "rx": 56.0, "ry": 54.0},
+        "eyeR": {"x": round(ref_eye_r[0], 2), "y": round(ref_eye_r[1], 2), "rx": 56.0, "ry": 54.0},
         "bodyY": lm["bodyY"] + BASE_DY,
         "bbox": [
             lm["bbox"][0] + BASE_DX,
