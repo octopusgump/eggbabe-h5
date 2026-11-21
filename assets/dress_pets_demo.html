@@ -124,19 +124,26 @@
 
     view.addEventListener("load", applyBgToFrame);
 
+    function syncTopBgStrip(src) {
+      strip.style.display = src.indexOf("koi_mesh_demo.html") >= 0 ? "none" : "flex";
+      fit();
+    }
+
     document.querySelectorAll(".pill").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const src = btn.getAttribute("data-src");
         if (view.getAttribute("src") === src) return;
         document.querySelectorAll(".pill").forEach(function (b) { b.classList.toggle("active", b === btn); });
         view.setAttribute("src", src);
+        syncTopBgStrip(src);
       });
     });
     function fit() {
       const h = innerHeight - document.getElementById("bar").offsetHeight - 8;
       view.style.height = Math.max(480, h) + "px";
     }
-    fit(); addEventListener("resize", fit);
+    syncTopBgStrip(view.getAttribute("src") || "");
+    addEventListener("resize", fit);
   </script>
 </body>
 </html>

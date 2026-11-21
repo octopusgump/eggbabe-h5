@@ -65,7 +65,7 @@ for s in sets_meta:
 cards = []
 for it in items:
     cards.append(
-        f'<button class="card" type="button" data-id="{it["id"]}" data-slot="set">'
+        f'<button class="card" type="button" data-id="{it["id"]}" data-slot="set" data-tab="set">'
         f'<div class="thumb-wrap"><img alt="{it["name"]}"></div>'
         f'<div class="card-name">{it["name"]}</div>'
         f'<div class="card-price">★ {it["price"]}</div>'
@@ -73,23 +73,77 @@ for it in items:
         f"</button>"
     )
 
+BGS = [
+    dict(id="room_bg", name="奶油暖屋", src="../shared/room_bg.jpg", stageBg="#f0e2cc",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(86,52,28,.32) 0%, rgba(92,58,32,.19) 28%, rgba(110,72,40,.09) 52%, rgba(120,80,46,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(52,32,16,.46) 0%, rgba(62,38,20,.2) 42%, rgba(62,38,20,0) 74%)"),
+    dict(id="bg_winter_blue", name="冬日蓝菱格", src="../shared/bgs/bg_winter_blue.jpg", stageBg="#5b7996",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(36,52,72,.32) 0%, rgba(44,62,84,.18) 30%, rgba(56,74,96,.08) 54%, rgba(56,74,96,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(26,38,54,.46) 0%, rgba(34,48,66,.2) 42%, rgba(34,48,66,0) 74%)"),
+    dict(id="bg_mint_room", name="复古薄荷房", src="../shared/bgs/bg_mint_room.jpg", stageBg="#b8c7b3",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(78,58,34,.30) 0%, rgba(88,66,40,.17) 30%, rgba(102,78,48,.08) 54%, rgba(102,78,48,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(50,36,20,.44) 0%, rgba(60,44,24,.19) 42%, rgba(60,44,24,0) 74%)"),
+    dict(id="bg_moon_courtyard", name="桂月亭台夜", src="../shared/bgs/bg_moon_courtyard.jpg", stageBg="#27335c",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(20,24,48,.42) 0%, rgba(28,32,62,.24) 30%, rgba(36,42,74,.10) 54%, rgba(36,42,74,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(14,16,34,.56) 0%, rgba(22,26,48,.26) 42%, rgba(22,26,48,0) 74%)"),
+    dict(id="bg_lotus_pond", name="荷灯锦鲤池", src="../shared/bgs/bg_lotus_pond.jpg", stageBg="#16384c",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(20,30,46,.42) 0%, rgba(28,40,58,.24) 30%, rgba(38,52,72,.10) 54%, rgba(38,52,72,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(14,22,34,.56) 0%, rgba(22,32,48,.26) 42%, rgba(22,32,48,0) 74%)"),
+    dict(id="bg_plush_meadow", name="星夜绒花坡", src="../shared/bgs/bg_plush_meadow.jpg", stageBg="#2b2566",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(68,36,56,.36) 0%, rgba(82,46,68,.20) 30%, rgba(96,58,80,.09) 54%, rgba(96,58,80,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(44,22,38,.50) 0%, rgba(56,30,48,.22) 42%, rgba(56,30,48,0) 74%)"),
+    dict(id="bg_sunset_meadow", name="晚霞云朵坡", src="../shared/bgs/bg_sunset_meadow.jpg", stageBg="#8e6d88",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(76,58,44,.34) 0%, rgba(88,68,52,.19) 30%, rgba(104,82,64,.08) 54%, rgba(104,82,64,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(50,36,26,.48) 0%, rgba(62,46,34,.22) 42%, rgba(62,46,34,0) 74%)"),
+    dict(id="bg_deep_sea", name="幻光深海屋", src="../shared/bgs/bg_deep_sea.jpg", stageBg="#1c6392",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(56,36,78,.34) 0%, rgba(68,46,92,.19) 30%, rgba(84,58,108,.08) 54%, rgba(84,58,108,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(38,24,56,.48) 0%, rgba(50,32,72,.22) 42%, rgba(50,32,72,0) 74%)"),
+    dict(id="bg_autumn_cabin", name="秋日暖炉屋", src="../shared/bgs/bg_autumn_cabin.jpg", stageBg="#5b321a",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(46,22,10,.44) 0%, rgba(58,28,14,.25) 30%, rgba(72,38,18,.11) 54%, rgba(72,38,18,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(28,12,6,.58) 0%, rgba(40,18,8,.28) 42%, rgba(40,18,8,0) 74%)"),
+    dict(id="bg_candy_hearth", name="甜梦糖果屋", src="../shared/bgs/bg_candy_hearth.jpg", stageBg="#2d6f82",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(92,42,42,.34) 0%, rgba(108,52,52,.19) 30%, rgba(124,64,64,.08) 54%, rgba(124,64,64,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(62,26,28,.48) 0%, rgba(76,34,36,.22) 42%, rgba(76,34,36,0) 74%)"),
+    dict(id="bg_pink_cloud", name="暮粉祥云境", src="../shared/bgs/bg_pink_cloud.jpg", stageBg="#b38fa3",
+         soft="radial-gradient(ellipse at 48% 46%, rgba(86,52,74,.32) 0%, rgba(98,62,86,.18) 30%, rgba(114,76,100,.08) 54%, rgba(114,76,100,0) 76%)",
+         con="radial-gradient(ellipse at 50% 50%, rgba(58,34,50,.46) 0%, rgba(72,44,62,.20) 42%, rgba(72,44,62,0) 74%)"),
+]
+
+bg_cards = []
+for idx_b, b in enumerate(BGS):
+    sel_cls = " selected" if idx_b == 0 else ""
+    bg_cards.append(
+        f'<button class="card bg-card hidden{sel_cls}" type="button" data-bg="{b["id"]}" data-tab="bg">'
+        f'<div class="thumb-wrap"><img loading="lazy" alt="{b["name"]}" src="{b["src"]}"></div>'
+        f'<div class="card-name">{b["name"]}</div>'
+        f'<span class="badge"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.2l2.6 2.6L10 3.4" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>'
+        f"</button>"
+    )
+
 sheet = (
     '<div id="sheet">'
     '<div class="handle"></div>'
-    f'<div class="sheet-title">套装 ({len(sets_meta)})</div>'
-    '<div id="grid">' + "".join(cards) + "</div>"
+    '<div class="tabs">'
+    f'<button type="button" class="tab active" data-tab="set">套装 ({len(sets_meta)})</button>'
+    f'<button type="button" class="tab" data-tab="bg">背景 ({len(BGS)})</button>'
+    "</div>"
+    '<div id="grid">' + "".join(cards) + "".join(bg_cards) + "</div>"
     "</div>"
 )
 
 css = r"""
   #sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 410px; z-index: 10; background: #fbf4ea; border-radius: 24px 24px 0 0; box-shadow: 0 -8px 26px rgba(80,50,20,.14); padding: 8px 14px calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-  #sheet .handle { width: 38px; height: 4px; background: #e4d3bf; border-radius: 99px; margin: 2px auto 6px; flex-shrink: 0; }
-  .sheet-title { text-align: center; margin-bottom: 8px; font: 600 12.5px/1.2 system-ui, sans-serif; color: #7a634d; flex-shrink: 0; }
+  #sheet .handle { width: 38px; height: 4px; background: #e4d3bf; border-radius: 99px; margin: 2px auto 8px; flex-shrink: 0; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 10px; flex-shrink: 0; }
+  .tab { flex: 1; padding: 6px 10px; border-radius: 999px; border: 1.5px solid #e6d5c1; background: #fffdf9; color: #7a634d; font: 600 12px/1.2 system-ui, sans-serif; cursor: pointer; transition: all .15s ease; }
+  .tab.active { background: #c9955a; border-color: #c9955a; color: #fff; }
   #grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: max-content; align-content: start; gap: 9px 8px; overflow-y: auto; overscroll-behavior: contain; padding: 2px 1px 18px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   #grid::-webkit-scrollbar { display: none; }
   .card { position: relative; background: #fffdf9; border-radius: 14px; border: 2px solid rgba(201,149,90,0); box-shadow: 0 1px 3px rgba(80,50,20,.08); display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 7px 4px 6px; cursor: pointer; appearance: none; -webkit-appearance: none; }
-  .card .thumb-wrap { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .card.hidden { display: none; }
+  .card .thumb-wrap { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 10px; }
   .card img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+  .card.bg-card img { object-fit: cover; object-position: center 68%; }
   .card-name { margin-top: 4px; font: 600 11px/1.15 system-ui, sans-serif; color: #4f3d2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .card-price { margin-top: 3px; font: 600 10.5px/1 system-ui, sans-serif; color: #c48840; }
   .card.selected { border-color: #c9955a; box-shadow: 0 0 0 1.5px #c9955a, 0 2px 6px rgba(201,149,90,.2); }
@@ -111,7 +165,7 @@ t = t.replace(
 )
 t = t.replace(
     '  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%" };',
-    '  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%", eyesClosed: "%%EYES_CLOSED%%", eyesDoze: "%%EYES_DOZE%%" };\n  const ITEMS = %%ITEMS%%;',
+    '  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%", eyesClosed: "%%EYES_CLOSED%%", eyesDoze: "%%EYES_DOZE%%" };\n  const ITEMS = %%ITEMS%%;\n  const BGS = %%BGS%%;',
 )
 
 set_init = r"""
@@ -237,14 +291,40 @@ dress_js = r"""
     const img = card.querySelector("img");
     if (it && img) img.src = it.thumb;
   });
+  const bgImg = document.getElementById("bg");
+  let currentBgId = BGS[0] ? BGS[0].id : null;
+  function setBg(id) {
+    const b = BGS.filter(function (x) { return x.id === id; })[0];
+    if (!b) return;
+    currentBgId = b.id;
+    if (bgImg) bgImg.src = b.src;
+    stage.style.background = b.stageBg;
+    shSoft.style.background = b.soft;
+    shCon.style.background = b.con;
+    document.querySelectorAll("#grid .bg-card").forEach(function (c) {
+      c.classList.toggle("selected", c.getAttribute("data-bg") === b.id);
+    });
+  }
   const sheet = document.getElementById("sheet");
   // Only stopPropagation (never preventDefault) so mobile browsers synthesize click cleanly
   ["pointerdown", "pointermove", "pointerup", "pointercancel"].forEach(function (tp) {
     sheet.addEventListener(tp, function (ev) { ev.stopPropagation(); }, true);
   });
   sheet.addEventListener("click", function (ev) {
+    const tab = ev.target.closest(".tab");
+    if (tab) {
+      const targetTab = tab.getAttribute("data-tab");
+      document.querySelectorAll("#sheet .tab").forEach(function (b) { b.classList.toggle("active", b === tab); });
+      document.querySelectorAll("#grid .card").forEach(function (c) { c.classList.toggle("hidden", c.getAttribute("data-tab") !== targetTab); });
+      const g = document.getElementById("grid"); if (g) g.scrollTop = 0;
+      return;
+    }
     const card = ev.target.closest(".card"); if (!card) return;
     ev.stopPropagation();
+    if (card.classList.contains("bg-card")) {
+      setBg(card.getAttribute("data-bg"));
+      return;
+    }
     wearItem(card.getAttribute("data-id"), true);
   });
   function minihop(u) {
@@ -311,6 +391,7 @@ rep = {
     "SH_CON_X": f"{FEET[0] + 3}",
     "SH_CON_Y": f"{FEET[1] + 1}",
     "ITEMS": json.dumps(items, ensure_ascii=False),
+    "BGS": json.dumps(BGS, ensure_ascii=False),
     "FEET_Y": str(ext_lm["feetY"]),
     "CX": str(ext_lm["cx"]),
     "NECK": json.dumps(ext_lm["neck"]),
