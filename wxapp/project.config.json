@@ -1,0 +1,22 @@
+{
+  "description": "蛋宝宝装扮屋 · 原生微信小程序（玉兔 & 锦鲤 WebGL 换装 + 11 套场景背景 + 高清壁纸导出）",
+  "packOptions": {
+    "ignore": [
+      { "type": "file", "value": "README.md" }
+    ]
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "compileHotReLoad": true,
+    "checkSiteMap": false
+  },
+  "compileType": "miniprogram",
+  "libVersion": "3.4.0",
+  "appid": "touristappid",
+  "projectname": "eggbabe-wxapp",
+  "condition": {}
+}

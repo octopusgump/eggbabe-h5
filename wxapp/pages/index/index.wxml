@@ -1,0 +1,92 @@
+<view class="page" style="background: {{currentBg.stageBg}};">
+  <!-- 1. 全屏背景图 -->
+  <image class="stage-bg" src="{{currentBg.url}}" mode="aspectFill" />
+
+  <!-- 2. 顶部安全区：宠物切换 + 分享/存壁纸 + 11 套背景滑条 -->
+  <view class="top-bar" style="padding-top: {{safeTop}}px;">
+    <view class="top-row" style="padding-right: {{capsuleRightPad}}px;">
+      <view class="pet-switch">
+        <button
+          class="pet-pill {{petId === 'koi' ? 'active' : ''}}"
+          data-pet="koi"
+          bindtap="onSwitchPet"
+        >锦鲤</button>
+        <button
+          class="pet-pill {{petId === 'yutu' ? 'active' : ''}}"
+          data-pet="yutu"
+          bindtap="onSwitchPet"
+        >玉兔</button>
+      </view>
+      <view class="action-group">
+        <button class="act-btn" bindtap="onSaveWallpaper" loading="{{exporting}}" disabled="{{exporting}}">存壁纸</button>
+        <button class="act-btn share-btn" open-type="share">分享</button>
+      </view>
+    </view>
+
+    <scroll-view class="bg-strip" scroll-x="true" enable-flex="true" show-scrollbar="false">
+      <view class="bg-strip-inner">
+        <view
+          wx:for="{{backgrounds}}"
+          wx:key="id"
+          class="bg-chip {{currentBg.id === item.id ? 'active' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onSelectBg"
+        >
+          <image class="bg-thumb" src="{{item.url}}" mode="aspectFill" lazy-load="true" />
+          <text class="bg-label">{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 3. 宠物互动舞台（脚底投影 + WebGL 画布 + 打盹 Zzz） -->
+  <view
+    id="stage-box"
+    class="stage-box"
+    bindtouchstart="onStageTouchStart"
+    bindtouchmove="onStageTouchMove"
+    bindtouchend="onStageTouchEnd"
+    bindtouchcancel="onStageTouchEnd"
+  >
+    <view
+      class="shadow-soft"
+      style="background: {{currentBg.shadowSoft}}; transform: translate(-50%,-50%) scale({{shadow.softS}}); opacity: {{shadow.softO}};"
+    ></view>
+    <view
+      class="shadow-contact"
+      style="background: {{currentBg.shadowContact}}; transform: translate(-50%,-50%) scale({{shadow.conS}}); opacity: {{shadow.conO}};"
+    ></view>
+    <canvas type="webgl" id="pet-gl" class="pet-gl"></canvas>
+    <view wx:if="{{sleeping}}" class="sleep-zz">Zzz</view>
+    <view wx:if="{{loadingPet}}" class="stage-loading">加载宠物中...</view>
+  </view>
+
+  <!-- 4. 底部衣橱抽屉（锦鲤 12 套全身套装 / 玉兔 8 配饰） -->
+  <view class="sheet">
+    <view class="sheet-handle"></view>
+    <view class="sheet-header">
+      <text class="sheet-title">{{drawerTitle}}</text>
+      <text class="sheet-tip">点宠物跳一跳 · 按住摸摸头</text>
+    </view>
+    <scroll-view class="grid-scroll" scroll-y="true" show-scrollbar="false">
+      <view class="card-grid">
+        <view
+          wx:for="{{items}}"
+          wx:key="id"
+          class="card {{item.selected ? 'selected' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onTapItem"
+        >
+          <view class="thumb-wrap">
+            <image class="card-img" src="{{item.thumbUrl}}" mode="aspectFit" lazy-load="true" />
+          </view>
+          <text class="card-name">{{item.name}}</text>
+          <view wx:if="{{item.selected}}" class="card-badge">✓</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 5. 隐藏 2D 画布：用于合成 780x1688 高清壁纸 -->
+  <canvas type="2d" id="export-canvas" class="export-canvas"></canvas>
+</view>
