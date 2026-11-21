@@ -275,6 +275,64 @@ body {
   transform: translate(-50%, calc(-100% - 4px)) scale(1);
 }
 
+/* ── Pure-Code 2.5D Miniature Dollhouse Stage ── */
+#room25d-host {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  background: radial-gradient(circle at 38% 34%, #f7efe2 0%, #eadac4 56%, #dec9ae 100%);
+  transition: background 0.65s ease;
+}
+
+#cozy-frame.night #room25d-host {
+  background: radial-gradient(circle at 46% 36%, #313854 0%, #22263b 62%, #181b2b 100%);
+}
+
+.room25d-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.room25d-canvas:active {
+  cursor: grabbing;
+}
+
+#cozy-frame.mode-25d #room-bg,
+#cozy-frame.mode-25d #night-tint,
+#cozy-frame.mode-25d #lamp-halo,
+#cozy-frame.mode-25d #bunny-wrap {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#mode-toast {
+  position: absolute;
+  left: 50%;
+  top: 62px;
+  transform: translate(-50%, -6px);
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: rgba(255, 252, 246, 0.94);
+  color: #6b4e2e;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid rgba(212, 184, 146, 0.65);
+  box-shadow: 0 6px 18px rgba(72, 48, 22, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  z-index: 24;
+}
+
+#mode-toast.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
 /* ── Minimal Floating Top Controls ── */
 #hud-top {
   position: absolute;
@@ -288,16 +346,33 @@ body {
   z-index: 25;
 }
 
-#room-pill {
-  padding: 6px 13px;
-  border-radius: 16px;
-  background: rgba(255, 251, 245, 0.78);
+#mode-switch {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 251, 245, 0.82);
   backdrop-filter: blur(8px);
-  color: #6c4d2a;
-  font-size: 13px;
+  border: 1px solid rgba(226, 206, 178, 0.65);
+  box-shadow: 0 2px 10px rgba(72, 48, 22, 0.12);
+  pointer-events: auto;
+}
+
+.mode-btn {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #7c6246;
+  font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.4px;
-  box-shadow: 0 2px 10px rgba(72, 48, 22, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-btn.on {
+  background: #c2925e;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(194, 146, 94, 0.35);
 }
 
 .top-btns {

@@ -9,8 +9,11 @@ import {
 import { sound } from '../shared/sound'
 import { VW, VH } from '../house/constants'
 
+import type { CozyRoom25D } from './CozyRoom25D'
+
 type Theme = 'day' | 'night'
 type DrawerTab = 'rooms' | 'acc' | 'actions'
+type ViewMode = 'close' | '25d'
 
 type CozySave = {
   room: CozyRoomId
@@ -18,6 +21,7 @@ type CozySave = {
   neck: string | null
   theme: Theme
   muted: boolean
+  mode: ViewMode
 }
 
 const SAVE_KEY = 'yutu-cozy-room-save-v1'
@@ -29,6 +33,7 @@ function loadSave(): CozySave {
     neck: null,
     theme: 'day',
     muted: false,
+    mode: 'close',
   }
   try {
     const raw = localStorage.getItem(SAVE_KEY)
@@ -40,6 +45,7 @@ function loadSave(): CozySave {
       neck: typeof parsed.neck === 'string' ? parsed.neck : null,
       theme: parsed.theme === 'night' ? 'night' : 'day',
       muted: Boolean(parsed.muted),
+      mode: parsed.mode === '25d' ? '25d' : 'close',
     }
   } catch {
     return def
@@ -68,6 +74,11 @@ export class CozyRoomApp {
   private save: CozySave
   private tab: DrawerTab = 'rooms'
   private drawerCollapsed = false
+  private room25d: CozyRoom25D | null = null
+  private room25dHost!: HTMLElement
+  private modeSwitchEl!: HTMLElement
+  private modeToastEl!: HTMLElement
+  private modeToastTimer = 0
 
   // Bunny kinematic & emote state
   private bx = 50 // % of scene width (24..76)
@@ -89,7 +100,6 @@ export class CozyRoomApp {
   private lampHalo!: HTMLElement
   private steamHost!: HTMLElement
   private fxHost!: HTMLElement
-  private roomPill!: HTMLElement
   private bunnyWrap!: HTMLElement
   private bunnyBody!: HTMLElement
   private bunnyImg!: HTMLImageElement
@@ -115,6 +125,10 @@ export class CozyRoomApp {
     const th = q.get('theme')
     if (th === 'night' || th === 'day') {
       this.save.theme = th
+    }
+    const m = q.get('mode')
+    if (m === '25d' || m === 'close') {
+      this.save.mode = m
     }
     sound.setMuted(this.save.muted)
   }
@@ -202,15 +216,29 @@ export class CozyRoomApp {
     this.bunnyWrap.append(this.bunnyShadow, this.bunnyBody, this.bubbleEl)
     this.sceneEl.appendChild(this.bunnyWrap)
 
+    // Pure-code 2.5D miniature room container (lazy-initialized on demand)
+    this.room25dHost = document.createElement('div')
+    this.room25dHost.id = 'room25d-host'
+    this.room25dHost.hidden = true
+    this.sceneEl.appendChild(this.room25dHost)
+
     this.fxHost = document.createElement('div')
     this.fxHost.id = 'fx-host'
     this.sceneEl.appendChild(this.fxHost)
 
-    // Minimal floating top controls
+    // Floating speech / status pill for 2.5D mode
+    this.modeToastEl = document.createElement('div')
+    this.modeToastEl.id = 'mode-toast'
+    this.sceneEl.appendChild(this.modeToastEl)
+
+    // Minimal floating top controls with Close-up | 2.5D pill switch
     this.hudTop = document.createElement('div')
     this.hudTop.id = 'hud-top'
     this.hudTop.innerHTML = `
-      <div id="room-pill">阳光客厅</div>
+      <div id="mode-switch" role="tablist">
+        <button class="mode-btn on" data-mode="close" type="button">近景</button>
+        <button class="mode-btn" data-mode="25d" type="button">2.5D</button>
+      </div>
       <div class="top-btns">
         <button id="btn-theme" class="top-btn" type="button" title="晴朗午后 / 暖灯星夜">${this.save.theme === 'night' ? '🌙' : '☀️'}</button>
         <button id="btn-mute" class="top-btn" type="button" title="音效">${this.save.muted ? '🔇' : '🔊'}</button>
@@ -218,7 +246,19 @@ export class CozyRoomApp {
       </div>
     `
     this.sceneEl.appendChild(this.hudTop)
-    this.roomPill = this.hudTop.querySelector('#room-pill') as HTMLElement
+    this.modeSwitchEl = this.hudTop.querySelector('#mode-switch') as HTMLElement
+
+    this.modeSwitchEl.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation()
+        const m = btn.dataset.mode as ViewMode
+        if (m === this.save.mode) return
+        sound.toggle()
+        this.save.mode = m
+        writeSave(this.save)
+        void this.applyMode(true)
+      }
+    })
 
     const themeBtn = this.hudTop.querySelector('#btn-theme') as HTMLButtonElement
     themeBtn.onclick = (e) => {
@@ -282,6 +322,7 @@ export class CozyRoomApp {
       sound.toggle()
       this.drawerCollapsed = !this.drawerCollapsed
       this.frame.classList.toggle('collapsed', this.drawerCollapsed)
+      setTimeout(() => this.room25d?.resize(), 360)
     }
 
     this.tabsEl.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn) => {
@@ -306,6 +347,7 @@ export class CozyRoomApp {
     })
 
     this.sceneEl.addEventListener('click', (e) => {
+      if (this.save.mode === '25d') return
       this.noteUser()
       const rect = this.sceneEl.getBoundingClientRect()
       const pctX = ((e.clientX - rect.left) / rect.width) * 100
@@ -328,9 +370,48 @@ export class CozyRoomApp {
     this.applyTheme()
     this.renderGrid()
     this.setSprite(BUNNY_SPRITES.base)
+    void this.applyMode(false)
     setTimeout(() => this.say('欢迎来到我的奶油小屋 ✨', 2600), 650)
 
     this.loop()
+  }
+
+  private async applyMode(announce: boolean) {
+    const is25d = this.save.mode === '25d'
+    this.frame.classList.toggle('mode-25d', is25d)
+    this.modeSwitchEl.querySelectorAll<HTMLButtonElement>('.mode-btn').forEach((b) => {
+      b.classList.toggle('on', b.dataset.mode === this.save.mode)
+    })
+
+    if (is25d) {
+      this.room25dHost.hidden = false
+      if (!this.room25d) {
+        const { CozyRoom25D } = await import('./CozyRoom25D')
+        this.room25d = new CozyRoom25D(this.room25dHost, {
+          onPet: () => {
+            this.noteUser()
+            sound.pet()
+            this.burst('heart', 10)
+            const line = PET_LINES[Math.floor(Math.random() * PET_LINES.length)]
+            this.say(line, 2200)
+          },
+          onFloorTap: (px, py) => {
+            this.noteUser()
+            this.spawnRipple(px, py)
+            sound.tap()
+          },
+        })
+      }
+      this.room25d.setRoom(this.save.room)
+      this.room25d.setAccessories(this.save.head, this.save.neck)
+      this.room25d.setTheme(this.save.theme)
+      this.room25d.setActive(true)
+      if (announce) this.say('点地板自由走动 · 左右拖拽可旋转 2.5D 小屋 ✨', 2600)
+    } else {
+      this.room25d?.setActive(false)
+      this.room25dHost.hidden = true
+      if (announce) this.say('已切回实拍近景模式 ✨', 1800)
+    }
   }
 
   private noteUser() {
@@ -343,6 +424,7 @@ export class CozyRoomApp {
     this.hudTop.hidden = on
     this.drawerEl.hidden = on
     this.photoExitBtn.hidden = !on
+    setTimeout(() => this.room25d?.resize(), 360)
   }
 
   private applyRoom(announce: boolean) {
@@ -356,7 +438,7 @@ export class CozyRoomApp {
     next.src = def.bg
     if (!this.bgImg.src) this.bgImg.src = def.bg
 
-    this.roomPill.textContent = def.name
+    this.room25d?.setRoom(this.save.room)
 
     // Warm night lamp halo position
     if (def.lamp) {
@@ -400,10 +482,12 @@ export class CozyRoomApp {
     } else {
       this.neckImg.hidden = true
     }
+    this.room25d?.setAccessories(this.save.head, this.save.neck)
   }
 
   private applyTheme() {
     this.frame.classList.toggle('night', this.save.theme === 'night')
+    this.room25d?.setTheme(this.save.theme)
   }
 
   private renderGrid() {
@@ -516,9 +600,19 @@ export class CozyRoomApp {
   private playEmote(kind: 'pet' | 'nap' | 'happy' | 'sway', durationMs: number) {
     const t = performance.now()
     this.emote = { kind, start: t, end: t + durationMs }
+    this.room25d?.playEmote(kind, durationMs)
   }
 
   private say(text: string, durationMs = 2400) {
+    if (this.save.mode === '25d') {
+      this.modeToastEl.textContent = text
+      this.modeToastEl.classList.add('on')
+      clearTimeout(this.modeToastTimer)
+      this.modeToastTimer = window.setTimeout(() => {
+        this.modeToastEl.classList.remove('on')
+      }, durationMs)
+      return
+    }
     this.bubbleEl.textContent = text
     this.bubbleEl.classList.add('on')
     clearTimeout(this.bubbleTimer)
