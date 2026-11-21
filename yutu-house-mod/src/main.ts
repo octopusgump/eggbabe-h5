@@ -1,17 +1,13 @@
 import './style.css'
-import type { HouseGeom } from './types/geom'
-import { HouseApp } from './HouseApp'
+import { CozyRoomApp } from './cozy/CozyRoomApp'
 
-async function boot() {
-  const res = await fetch(`${import.meta.env.BASE_URL}geom.json`)
-  const geom = (await res.json()) as HouseGeom
+function main() {
   const stage = document.getElementById('stage')
-  if (!stage) throw new Error('#stage missing')
-
-  const app = new HouseApp(stage, geom)
+  if (!stage) return
+  const app = new CozyRoomApp(stage)
   app.mount()
-  HouseApp.fit()
-  addEventListener('resize', () => HouseApp.fit())
+  CozyRoomApp.fit()
+  addEventListener('resize', () => CozyRoomApp.fit())
 }
 
-boot()
+main()
