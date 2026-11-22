@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "updatedAt": "2026-11-21",
+  "version": "1.1.0",
+  "updatedAt": "2026-11-22",
   "backgrounds": [
     {
       "id": "room_bg",
@@ -140,16 +140,16 @@
       "earAmp": 0.35,
       "useEyeShader": true,
       "eyeLUV": [
-        0.386859375,
-        0.48123076923076924,
-        0.0875,
-        0.06923076923076923
+        0.385984,
+        0.475,
+        0.099719,
+        0.079372
       ],
       "eyeRUV": [
-        0.619890625,
-        0.48366666666666663,
-        0.0875,
-        0.06923076923076923
+        0.6215,
+        0.475115,
+        0.098344,
+        0.078269
       ],
       "textures": {
         "base": "assets/koi-v2b/work/sets/tex_base_ext.png",
@@ -163,7 +163,19 @@
           "name": "小黄鸭雨衣",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_duck.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_duck.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_duck.png",
+          "eyeLUV": [
+            0.3925,
+            0.476295,
+            0.095469,
+            0.075987
+          ],
+          "eyeRUV": [
+            0.615469,
+            0.475526,
+            0.096578,
+            0.076872
+          ]
         },
         {
           "id": "set_yukata",
@@ -171,7 +183,19 @@
           "name": "夏日祭浴衣",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_yukata.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_yukata.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_yukata.png",
+          "eyeLUV": [
+            0.390781,
+            0.476167,
+            0.097312,
+            0.077449
+          ],
+          "eyeRUV": [
+            0.617547,
+            0.476436,
+            0.096828,
+            0.077064
+          ]
         },
         {
           "id": "set_sailor",
@@ -179,7 +203,19 @@
           "name": "小海军水手",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_sailor.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_sailor.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_sailor.png",
+          "eyeLUV": [
+            0.396422,
+            0.476026,
+            0.093406,
+            0.074346
+          ],
+          "eyeRUV": [
+            0.612672,
+            0.476051,
+            0.092828,
+            0.073885
+          ]
         },
         {
           "id": "set_strawberry_pj",
@@ -187,7 +223,19 @@
           "name": "草莓睡衣",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_strawberry_pj.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_strawberry_pj.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_strawberry_pj.png",
+          "eyeLUV": [
+            0.393859,
+            0.476385,
+            0.094219,
+            0.074987
+          ],
+          "eyeRUV": [
+            0.613531,
+            0.476077,
+            0.093719,
+            0.07459
+          ]
         },
         {
           "id": "set_mushroom",
@@ -195,7 +243,19 @@
           "name": "森林小蘑菇",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_mushroom.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_mushroom.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_mushroom.png",
+          "eyeLUV": [
+            0.387172,
+            0.475128,
+            0.0995,
+            0.079192
+          ],
+          "eyeRUV": [
+            0.619906,
+            0.475141,
+            0.098547,
+            0.078436
+          ]
         },
         {
           "id": "set_baker",
@@ -203,7 +263,19 @@
           "name": "小厨师烘焙",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_baker.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_baker.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_baker.png",
+          "eyeLUV": [
+            0.386766,
+            0.475154,
+            0.0985,
+            0.078397
+          ],
+          "eyeRUV": [
+            0.620844,
+            0.475256,
+            0.098125,
+            0.078103
+          ]
         },
         {
           "id": "set_astronaut",
@@ -211,7 +283,19 @@
           "name": "复古宇航员",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_astronaut.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_astronaut.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_astronaut.png",
+          "eyeLUV": [
+            0.404734,
+            0.475718,
+            0.083266,
+            0.066269
+          ],
+          "eyeRUV": [
+            0.603625,
+            0.476295,
+            0.082703,
+            0.065821
+          ]
         },
         {
           "id": "set_lion",
@@ -219,7 +303,19 @@
           "name": "新年小醒狮",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_lion.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_lion.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_lion.png",
+          "eyeLUV": [
+            0.395891,
+            0.475436,
+            0.089766,
+            0.071449
+          ],
+          "eyeRUV": [
+            0.610812,
+            0.474974,
+            0.08975,
+            0.071436
+          ]
         },
         {
           "id": "set_trex",
@@ -227,7 +323,19 @@
           "name": "暴走霸王龙",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_trex.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_trex.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_trex.png",
+          "eyeLUV": [
+            0.391531,
+            0.475359,
+            0.096828,
+            0.077064
+          ],
+          "eyeRUV": [
+            0.617172,
+            0.474846,
+            0.096859,
+            0.07709
+          ]
         },
         {
           "id": "set_triceratops",
@@ -235,7 +343,19 @@
           "name": "针织三角龙",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_triceratops.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_triceratops.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_triceratops.png",
+          "eyeLUV": [
+            0.389422,
+            0.475821,
+            0.09625,
+            0.076603
+          ],
+          "eyeRUV": [
+            0.616656,
+            0.475551,
+            0.096172,
+            0.076538
+          ]
         },
         {
           "id": "set_eggshell_dino",
@@ -243,7 +363,19 @@
           "name": "破壳小恐龙",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_eggshell_dino.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_eggshell_dino.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_eggshell_dino.png",
+          "eyeLUV": [
+            0.391219,
+            0.475372,
+            0.097234,
+            0.077385
+          ],
+          "eyeRUV": [
+            0.615953,
+            0.475423,
+            0.094047,
+            0.074846
+          ]
         },
         {
           "id": "set_stego",
@@ -251,15 +383,27 @@
           "name": "粉黄小剑龙",
           "price": 20,
           "tex": "assets/koi-v2b/work/sets/tex_set_stego.png",
-          "thumb": "assets/koi-v2b/work/sets/thumb_set_stego.png"
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_stego.png",
+          "eyeLUV": [
+            0.387562,
+            0.476026,
+            0.098844,
+            0.078667
+          ],
+          "eyeRUV": [
+            0.620594,
+            0.47491,
+            0.099937,
+            0.079538
+          ]
         }
       ]
     },
     "yutu": {
       "id": "yutu",
       "label": "玉兔",
-      "drawerTitle": "配饰 (8)",
-      "mode": "accessories",
+      "drawerTitle": "套装",
+      "mode": "sets",
       "canvasW": 600,
       "canvasH": 1119,
       "scale": 0.295,
@@ -308,96 +452,7 @@
         "closed": "assets/v2b/work/tex_closed.png",
         "doze": "assets/v2b/work/tex_doze.png"
       },
-      "items": [
-        {
-          "id": "strawberry",
-          "slot": "head",
-          "name": "草莓针织帽",
-          "x": 126,
-          "y": 176,
-          "w": 349,
-          "h": 276,
-          "tex": "assets/v2b/work/dress/extract/acc_strawberry.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_strawberry.png"
-        },
-        {
-          "id": "crown",
-          "slot": "head",
-          "name": "小皇冠",
-          "x": 156,
-          "y": 187,
-          "w": 288,
-          "h": 288,
-          "tex": "assets/v2b/work/dress/extract/acc_crown.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_crown.png"
-        },
-        {
-          "id": "beanie",
-          "slot": "head",
-          "name": "暖绒毛线帽",
-          "x": 141,
-          "y": 117,
-          "w": 319,
-          "h": 337,
-          "tex": "assets/v2b/work/dress/extract/acc_beanie.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_beanie.png"
-        },
-        {
-          "id": "bow",
-          "slot": "head",
-          "name": "甜心蝴蝶结",
-          "x": 236,
-          "y": 228,
-          "w": 280,
-          "h": 304,
-          "tex": "assets/v2b/work/dress/extract/acc_bow.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_bow.png"
-        },
-        {
-          "id": "flower",
-          "slot": "head",
-          "name": "春日花环",
-          "x": 79,
-          "y": 279,
-          "w": 443,
-          "h": 231,
-          "tex": "assets/v2b/work/dress/extract/acc_flower.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_flower.png"
-        },
-        {
-          "id": "straw",
-          "slot": "head",
-          "name": "田园小草帽",
-          "x": 151,
-          "y": 187,
-          "w": 298,
-          "h": 308,
-          "tex": "assets/v2b/work/dress/extract/acc_straw.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_straw.png"
-        },
-        {
-          "id": "scarf_stripe",
-          "slot": "neck",
-          "name": "条纹围巾",
-          "x": 60,
-          "y": 560,
-          "w": 486,
-          "h": 267,
-          "tex": "assets/v2b/work/dress/extract/acc_scarf_stripe.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_scarf_stripe.png"
-        },
-        {
-          "id": "scarf_caramel",
-          "slot": "neck",
-          "name": "焦糖围巾",
-          "x": 51,
-          "y": 588,
-          "w": 482,
-          "h": 328,
-          "tex": "assets/v2b/work/dress/extract/acc_scarf_caramel.png",
-          "thumb": "assets/v2b/work/dress/extract/thumb_scarf_caramel.png"
-        }
-      ]
+      "items": []
     }
   }
 }

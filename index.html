@@ -63,7 +63,7 @@
     .world-dock {
       position: absolute;
       right: 10px;
-      top: calc(114px + env(safe-area-inset-top, 0px));
+      top: calc(68px + env(safe-area-inset-top, 0px));
       z-index: 30;
       display: flex;
       flex-direction: column;
@@ -114,6 +114,11 @@
 <body>
   <div id="app-shell">
     <iframe id="uni-frame" title="蛋宝宝装扮屋" src="./eggbabe-uni/site/"></iframe>
+    <script>
+      if (location.search) {
+        document.getElementById("uni-frame").src = "./eggbabe-uni/site/" + location.search;
+      }
+    </script>
 
     <nav class="world-dock" aria-label="扩展场景入口">
       <a class="world-btn" href="./yutu-house-mod.html" title="进入玉兔小屋">

@@ -4,7 +4,7 @@
       <!-- 1. 全屏背景图 -->
       <image class="stage-bg" :src="currentBg.url" mode="aspectFill" />
 
-      <!-- 2. 顶部安全区：宠物切换 + 存壁纸/分享 + 11 套背景滑条 -->
+      <!-- 2. 顶部安全区：宠物切换 + 存壁纸/分享 -->
       <view class="top-bar" :style="{ paddingTop: safeTop + 'px' }">
         <view class="top-row" :style="{ paddingRight: capsuleRightPad + 'px' }">
           <view class="pet-switch">
@@ -26,21 +26,6 @@
             <!-- #endif -->
           </view>
         </view>
-
-        <scroll-view class="bg-strip" scroll-x="true" enable-flex="true" show-scrollbar="false">
-          <view class="bg-strip-inner">
-            <view
-              v-for="bg in backgrounds"
-              :key="bg.id"
-              class="bg-chip"
-              :class="{ active: currentBg.id === bg.id }"
-              @tap="onSelectBg(bg)"
-            >
-              <image class="bg-thumb" :src="bg.url" mode="aspectFill" lazy-load="true" />
-              <text class="bg-label">{{ bg.name }}</text>
-            </view>
-          </view>
-        </scroll-view>
       </view>
 
       <!-- 3. 宠物互动舞台 -->
@@ -83,15 +68,23 @@
         <view v-if="loadingPet" class="stage-loading">加载宠物中...</view>
       </view>
 
-      <!-- 4. 底部衣橱抽屉 -->
+      <!-- 4. 底部衣橱抽屉：套装 / 背景 双 Tab -->
       <view class="sheet">
         <view class="sheet-handle"></view>
-        <view class="sheet-header">
-          <text class="sheet-title">{{ currentPet.drawerTitle }}</text>
-          <text class="sheet-tip">点宠物跳一跳 · 按住摸摸头</text>
+        <view class="sheet-tabs">
+          <button
+            class="sheet-tab"
+            :class="{ active: activeTab === 'items' }"
+            @tap="activeTab = 'items'"
+          >{{ currentPet.drawerTitle }}</button>
+          <button
+            class="sheet-tab"
+            :class="{ active: activeTab === 'bg' }"
+            @tap="activeTab = 'bg'"
+          >背景 ({{ backgrounds.length }})</button>
         </view>
         <scroll-view class="grid-scroll" scroll-y="true" show-scrollbar="false">
-          <view class="card-grid">
+          <view v-if="activeTab === 'items' && drawerItems.length > 0" class="card-grid">
             <view
               v-for="item in drawerItems"
               :key="item.id"
@@ -104,6 +97,26 @@
               </view>
               <text class="card-name">{{ item.name }}</text>
               <view v-if="item.selected" class="card-badge">✓</view>
+            </view>
+          </view>
+          <view v-else-if="activeTab === 'items'" class="empty-sets">
+            <text class="empty-title">{{ currentPet.label }}全身套装筹备中</text>
+            <text class="empty-sub">旧款小饰品已下线，敬请期待 2×2 全新套装</text>
+            <button class="empty-btn" @tap="activeTab = 'bg'">先去换小屋背景 →</button>
+          </view>
+          <view v-else class="card-grid">
+            <view
+              v-for="bg in backgrounds"
+              :key="bg.id"
+              class="card bg-card"
+              :class="{ selected: currentBg.id === bg.id }"
+              @tap="onSelectBg(bg)"
+            >
+              <view class="thumb-wrap">
+                <image class="card-img bg-img" :src="bg.url" mode="aspectFill" lazy-load="true" />
+              </view>
+              <text class="card-name">{{ bg.name }}</text>
+              <view v-if="currentBg.id === bg.id" class="card-badge">✓</view>
             </view>
           </view>
         </scroll-view>
@@ -668,23 +681,73 @@ onShareTimeline(() => ({
   flex-shrink: 0;
 }
 
-.sheet-header {
+.sheet-tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 4px 8px;
+  gap: 8px;
+  margin-bottom: 10px;
   flex-shrink: 0;
 }
 
-.sheet-title {
+.sheet-tab {
+  flex: 1;
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1.5px solid #e6d5c1;
+  background: #fffdf9;
+  color: #7a634d;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sheet-tab::after {
+  border: none;
+}
+
+.sheet-tab.active {
+  background: #c9955a;
+  border-color: #c9955a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(201, 149, 90, 0.24);
+}
+
+.empty-sets {
+  padding: 28px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.empty-title {
   font-size: 14px;
   font-weight: 700;
   color: #5a4636;
 }
 
-.sheet-tip {
-  font-size: 11px;
-  color: #9b846d;
+.empty-sub {
+  font-size: 12px;
+  color: #937b63;
+}
+
+.empty-btn {
+  margin-top: 6px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  background: #c9955a;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.empty-btn::after {
+  border: none;
 }
 
 .grid-scroll {
@@ -724,11 +787,18 @@ onShareTimeline(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border-radius: 9px;
 }
 
 .card-img {
   width: 100%;
   height: 100%;
+}
+
+.bg-card .bg-img {
+  object-fit: cover;
+  object-position: center 68%;
 }
 
 .card-name {
