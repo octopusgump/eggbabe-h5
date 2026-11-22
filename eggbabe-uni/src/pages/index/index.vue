@@ -58,7 +58,7 @@
         ></view>
 
         <!-- #ifdef H5 -->
-        <canvas ref="h5CanvasRef" id="pet-gl-h5" class="pet-gl"></canvas>
+        <view id="pet-gl-host" class="pet-gl"></view>
         <!-- #endif -->
         <!-- #ifndef H5 -->
         <canvas type="webgl" id="pet-gl" class="pet-gl"></canvas>
@@ -193,13 +193,19 @@ function updateSafeArea() {
 
 function initStage() {
   // #ifdef H5
-  const el = document.getElementById("pet-gl-h5");
+  const host = document.getElementById("pet-gl-host");
   const box = document.getElementById("stage-box");
   if (box) {
     const r = box.getBoundingClientRect();
     stageRect = { left: r.left, top: r.top, width: r.width, height: r.height };
   }
-  if (!el) return;
+  if (!host) return;
+  host.innerHTML = "";
+  const el = document.createElement("canvas");
+  el.style.width = "100%";
+  el.style.height = "100%";
+  el.style.display = "block";
+  host.appendChild(el);
   try {
     stage = new PetStage(el, {
       dpr: window.devicePixelRatio || 2,
@@ -209,7 +215,7 @@ function initStage() {
     });
     stage.setPet(currentPet.value, wornByPet[petId.value]);
   } catch (err) {
-    console.error(err);
+    console.error("[PetStage init]", err);
     loadingPet.value = false;
     uni.showToast({ title: "当前设备不支持 WebGL", icon: "none" });
   }

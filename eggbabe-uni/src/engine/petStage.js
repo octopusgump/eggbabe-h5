@@ -223,11 +223,14 @@ export class PetStage {
     this.canvas.width = Math.round(390 * this.dpr);
     this.canvas.height = Math.round(844 * this.dpr);
 
-    const gl = this.canvas.getContext("webgl", {
+    const glOpts = {
       alpha: true,
       premultipliedAlpha: true,
       antialias: true
-    });
+    };
+    const gl =
+      this.canvas.getContext("webgl", glOpts) ||
+      this.canvas.getContext("experimental-webgl", glOpts);
     if (!gl) {
       throw new Error("当前设备暂不支持 WebGL");
     }
