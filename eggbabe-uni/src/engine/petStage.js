@@ -465,6 +465,16 @@ export class PetStage {
     this._loadTexture(it.texUrl).catch((err) => {
       console.error("[PetStage] failed to load item texture:", it.id, err);
     });
+    if (it.closedTexUrl) {
+      this._loadTexture(it.closedTexUrl).catch((err) => {
+        console.error("[PetStage] failed to load item closed texture:", it.id, err);
+      });
+    }
+    if (it.dozeTexUrl) {
+      this._loadTexture(it.dozeTexUrl).catch((err) => {
+        console.error("[PetStage] failed to load item doze texture:", it.id, err);
+      });
+    }
   }
 
   setWorn(nextWorn, triggerHop) {
@@ -558,8 +568,8 @@ export class PetStage {
     const pet = this.pet;
     const h = pet.head;
     const hd = Math.sqrt(Math.pow((x - h.x) / h.rx, 2) + Math.pow((y - h.y) / h.ry, 2));
-    const earTop = pet.id === "yutu" ? 430 : pet.earL.y + 24;
-    const earBot = pet.id === "yutu" ? 330 : pet.earL.y - 70;
+    const earTop = pet.id === "yutu" ? pet.earL.y + 82 : pet.earL.y + 24;
+    const earBot = pet.id === "yutu" ? pet.earL.y - 18 : pet.earL.y - 70;
     const out = sstep(0.9, 1.04, hd) * sstep(earTop, earBot, y);
     if (out > 0) {
       const side = sstep(pet.cx - 30, pet.cx + 30, x);
@@ -575,13 +585,13 @@ export class PetStage {
     x += (x - pet.cx) * p.breath * bw;
 
     const wBody = pet.id === "yutu"
-      ? sstep(600, 740, y)
+      ? sstep(pet.neck.y - 68, pet.neck.y + 72, y)
       : sstep(pet.neck.y - 70, pet.neck.y + 24, y);
     const neckY = pet.feetY + (pet.neck.y - pet.feetY) * p.sy;
     const yBody = pet.feetY + (y - pet.feetY) * p.sy;
     const yHead = y + (neckY - pet.neck.y);
     const feetPin = pet.id === "yutu"
-      ? sstep(960, 1080, y)
+      ? sstep(pet.feetY - 145, pet.feetY - 25, y)
       : sstep(pet.feetY - 130, pet.feetY - 12, y);
     const kx = lerp(p.sx, 1 + (p.sx - 1) * 0.12, 1 - wBody);
     const kx2 = lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
@@ -589,7 +599,7 @@ export class PetStage {
     y = lerp(yHead, yBody, wBody);
 
     const wh = pet.id === "yutu"
-      ? sstep(820, 620, y)
+      ? sstep(pet.neck.y + 152, pet.neck.y - 48, y)
       : sstep(pet.neck.y + 36, pet.neck.y - 80, y);
     if (wh > 0) {
       const r = rot2d(x, y, pet.neck.x, neckY, p.headRot * wh);
@@ -597,7 +607,7 @@ export class PetStage {
       y = r[1] + p.headTy * wh;
     }
     const leanAmp = pet.id === "yutu" ? 20 : 16;
-    const leanTop = pet.id === "yutu" ? 560 : h.y;
+    const leanTop = pet.id === "yutu" ? pet.neck.y - 108 : h.y;
     x += p.lean * leanAmp * sstep(pet.feetY, leanTop, y);
     return [x, y];
   }
@@ -748,19 +758,25 @@ export class PetStage {
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     let t0 = this.bodyTextures.base;
+    let t1 = this.bodyTextures.closed;
+    let t2 = this.bodyTextures.doze;
     let activeItem = null;
     if (pet.mode === "sets" && this.worn.set) {
       const it = pet.items.find((x) => x.id === this.worn.set);
       if (it && this.texCache.has(it.texUrl)) {
         t0 = this.texCache.get(it.texUrl);
         activeItem = it;
+        if (!pet.useEyeShader) {
+          t1 = (it.closedTexUrl && this.texCache.has(it.closedTexUrl)) ? this.texCache.get(it.closedTexUrl) : t0;
+          t2 = (it.dozeTexUrl && this.texCache.has(it.dozeTexUrl)) ? this.texCache.get(it.dozeTexUrl) : t0;
+        }
       }
     }
 
     gl.useProgram(this.prog);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t0); gl.uniform1i(this.uT0, 0);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.bodyTextures.closed); gl.uniform1i(this.uT1, 1);
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, this.bodyTextures.doze); gl.uniform1i(this.uT2, 2);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, t1); gl.uniform1i(this.uT1, 1);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, t2); gl.uniform1i(this.uT2, 2);
 
     gl.uniform1f(this.uW1, clamp(p.wClosed, 0, 1));
     gl.uniform1f(this.uW2, clamp(p.wDoze, 0, pet.useEyeShader ? 1 : 1 - clamp(p.wClosed, 0, 1)));

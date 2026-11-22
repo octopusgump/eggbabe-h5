@@ -33,6 +33,8 @@ export function hydrateCatalog(raw) {
       items: p.items.map((it) => ({
         ...it,
         texUrl: assetUrl(it.tex),
+        closedTexUrl: it.closedTex ? assetUrl(it.closedTex) : "",
+        dozeTexUrl: it.dozeTex ? assetUrl(it.dozeTex) : "",
         thumbUrl: assetUrl(it.thumb)
       }))
     };

@@ -616,10 +616,11 @@ onShareTimeline(() => ({
   position: absolute;
   left: 53%;
   top: 48.2%;
-  width: 160px;
-  height: 44px;
+  width: 172px;
+  height: 46px;
   border-radius: 50%;
   filter: blur(7px);
+  mix-blend-mode: multiply;
   z-index: 1;
   pointer-events: none;
 }
@@ -628,10 +629,11 @@ onShareTimeline(() => ({
   position: absolute;
   left: 50.8%;
   top: 48.9%;
-  width: 110px;
-  height: 15px;
+  width: 122px;
+  height: 17px;
   border-radius: 50%;
   filter: blur(2px);
+  mix-blend-mode: multiply;
   z-index: 1;
   pointer-events: none;
 }

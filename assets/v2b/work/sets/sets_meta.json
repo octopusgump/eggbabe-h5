@@ -1,0 +1,82 @@
+[
+  {
+    "id": "cozy_knit",
+    "name": "奶油针织",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1643,
+      "eye_dx": -0.5,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "moon_palace",
+    "name": "广寒桂月",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1458,
+      "eye_dx": 0.0,
+      "eye_dy": 0.5,
+      "feet_dy": 1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "moss_gardener",
+    "name": "苔藓园丁",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.0558,
+      "eye_dx": 0.5,
+      "eye_dy": 0.0,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "astro_bubble",
+    "name": "泡泡宇航",
+    "key": "blue",
+    "translucent_dome": true,
+    "align_error": {
+      "scale": 1.0825,
+      "eye_dx": 0.0,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  }
+]

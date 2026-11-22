@@ -404,35 +404,35 @@
       "label": "玉兔",
       "drawerTitle": "套装",
       "mode": "sets",
-      "canvasW": 600,
-      "canvasH": 1119,
+      "canvasW": 840,
+      "canvasH": 1179,
       "scale": 0.295,
       "feetStageX": 195,
       "feetStageY": 412,
       "exportScale": 0.7,
       "exportFeetX": 390,
       "exportFeetY": 1312,
-      "cx": 301,
-      "feetY": 1105,
+      "cx": 421,
+      "feetY": 1135,
       "neck": {
-        "x": 301,
-        "y": 668
+        "x": 421,
+        "y": 698
       },
       "head": {
-        "x": 301,
-        "y": 520,
+        "x": 421,
+        "y": 550,
         "rx": 215,
         "ry": 200
       },
       "earL": {
-        "x": 205,
-        "y": 348
+        "x": 325,
+        "y": 378
       },
       "earR": {
-        "x": 405,
-        "y": 348
+        "x": 525,
+        "y": 378
       },
-      "bodyY": 870,
+      "bodyY": 900,
       "earAmp": 1,
       "useEyeShader": false,
       "eyeLUV": [
@@ -448,11 +448,52 @@
         1
       ],
       "textures": {
-        "base": "assets/v2b/work/tex_base.png",
-        "closed": "assets/v2b/work/tex_closed.png",
-        "doze": "assets/v2b/work/tex_doze.png"
+        "base": "assets/v2b/work/sets/tex_base_exp.png",
+        "closed": "assets/v2b/work/sets/tex_closed_exp.png",
+        "doze": "assets/v2b/work/sets/tex_doze_exp.png"
       },
-      "items": []
+      "items": [
+        {
+          "id": "set_cozy_knit",
+          "slot": "set",
+          "name": "奶油针织",
+          "price": 20,
+          "tex": "assets/v2b/work/sets/set_cozy_knit.png",
+          "closedTex": "assets/v2b/work/sets/set_cozy_knit_closed.png",
+          "dozeTex": "assets/v2b/work/sets/set_cozy_knit_doze.png",
+          "thumb": "assets/v2b/work/sets/thumb_set_cozy_knit.png"
+        },
+        {
+          "id": "set_moon_palace",
+          "slot": "set",
+          "name": "广寒桂月",
+          "price": 20,
+          "tex": "assets/v2b/work/sets/set_moon_palace.png",
+          "closedTex": "assets/v2b/work/sets/set_moon_palace_closed.png",
+          "dozeTex": "assets/v2b/work/sets/set_moon_palace_doze.png",
+          "thumb": "assets/v2b/work/sets/thumb_set_moon_palace.png"
+        },
+        {
+          "id": "set_moss_gardener",
+          "slot": "set",
+          "name": "苔藓园丁",
+          "price": 20,
+          "tex": "assets/v2b/work/sets/set_moss_gardener.png",
+          "closedTex": "assets/v2b/work/sets/set_moss_gardener_closed.png",
+          "dozeTex": "assets/v2b/work/sets/set_moss_gardener_doze.png",
+          "thumb": "assets/v2b/work/sets/thumb_set_moss_gardener.png"
+        },
+        {
+          "id": "set_astro_bubble",
+          "slot": "set",
+          "name": "泡泡宇航",
+          "price": 20,
+          "tex": "assets/v2b/work/sets/set_astro_bubble.png",
+          "closedTex": "assets/v2b/work/sets/set_astro_bubble_closed.png",
+          "dozeTex": "assets/v2b/work/sets/set_astro_bubble_doze.png",
+          "thumb": "assets/v2b/work/sets/thumb_set_astro_bubble.png"
+        }
+      ]
     }
   }
 }
