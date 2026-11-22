@@ -2,17 +2,196 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>正在跳转到 锦鲤 · 玉兔 自由试衣…</title>
-  <meta http-equiv="refresh" content="0; url=../">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#fbf4ea">
+  <title>锦鲤 · 玉兔 自由试衣（历史基线版）</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #2a2118;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    #shell {
+      width: 100%;
+      max-width: 414px;
+      height: 100%;
+      max-height: 896px;
+      display: flex;
+      flex-direction: column;
+      background: #fbf4ea;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 20px 56px rgba(0, 0, 0, .42);
+    }
+    @media (max-width: 520px) {
+      html, body { background: #fbf4ea; }
+      body { padding: 0; }
+      #shell {
+        max-width: none;
+        max-height: none;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+    /* 历史基线提示条：一键前往 Uni-app 新版 */
+    #notice {
+      flex-shrink: 0;
+      background: #f3e4cf;
+      border-bottom: 1px solid #e4d0b5;
+      padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11.5px;
+      color: #6d5339;
+    }
+    #notice .actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    #notice a {
+      text-decoration: none;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+    #notice a.go-new {
+      background: #c9955a;
+      color: #fff;
+    }
+    #notice a.go-hub {
+      background: #fffdf9;
+      border: 1px solid #dec9ae;
+      color: #7a634d;
+    }
+    #topbar {
+      flex-shrink: 0;
+      z-index: 20;
+      background: #fbf4ea;
+      border-bottom: 1px solid #eadcc9;
+      padding: 7px 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .pet-tabs {
+      width: 100%;
+      max-width: 240px;
+      display: flex;
+      gap: 8px;
+    }
+    .pet-tab {
+      flex: 1;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1.5px solid #e6d5c1;
+      background: #fffdf9;
+      color: #7a634d;
+      font: 600 13px/1.2 system-ui, -apple-system, sans-serif;
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .pet-tab.active {
+      background: #c9955a;
+      border-color: #c9955a;
+      color: #fff;
+    }
+    #stage-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      background: #fbf4ea;
+      overflow: hidden;
+    }
+    .pet-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fbf4ea;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .16s ease;
+    }
+    .pet-frame.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+  <div id="shell">
+    <div id="notice">
+      <span>历史基线版 · 新版支持壁纸导出与热更新</span>
+      <div class="actions">
+        <a class="go-new" href="../eggbabe-uni/site/">前往新版 →</a>
+        <a class="go-hub" href="../">总入口</a>
+      </div>
+    </div>
+    <header id="topbar">
+      <div class="pet-tabs" role="tablist" aria-label="切换宠物">
+        <button type="button" class="pet-tab active" role="tab" aria-selected="true" data-pet="koi">锦鲤</button>
+        <button type="button" class="pet-tab" role="tab" aria-selected="false" data-pet="yutu">玉兔</button>
+      </div>
+    </header>
+    <main id="stage-wrap">
+      <iframe id="frame-koi" class="pet-frame" title="锦鲤自由试衣（基线）" data-src="koi-v2b/koi_mesh_demo.html"></iframe>
+      <iframe id="frame-yutu" class="pet-frame" title="玉兔自由试衣（基线）" data-src="v2b/yutu_mesh_demo.html"></iframe>
+    </main>
+  </div>
   <script>
     (function () {
-      var target = "../" + (location.search || "") + (location.hash || "");
-      location.replace(target);
+      const frames = {
+        koi: document.getElementById("frame-koi"),
+        yutu: document.getElementById("frame-yutu")
+      };
+      const tabs = Array.prototype.slice.call(document.querySelectorAll(".pet-tab"));
+      let activePet = null;
+
+      function selectPet(pet) {
+        if (!frames[pet]) pet = "koi";
+        if (activePet === pet) return;
+        activePet = pet;
+        tabs.forEach(function (btn) {
+          const isCur = btn.getAttribute("data-pet") === pet;
+          btn.classList.toggle("active", isCur);
+          btn.setAttribute("aria-selected", isCur ? "true" : "false");
+        });
+        const target = frames[pet];
+        if (!target.getAttribute("src")) target.setAttribute("src", target.getAttribute("data-src"));
+        Object.keys(frames).forEach(function (k) {
+          frames[k].classList.toggle("active", k === pet);
+        });
+      }
+
+      tabs.forEach(function (btn) {
+        btn.addEventListener("click", function () { selectPet(btn.getAttribute("data-pet")); });
+      });
+      selectPet(new URLSearchParams(location.search).get("pet") === "yutu" ? "yutu" : "koi");
     })();
   </script>
-</head>
-<body style="margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#fbf4ea;color:#7a634d;font:600 14px/1.5 system-ui,sans-serif;">
-  <p>已升级至统一入口，正在跳转… 如未自动跳转，请点击 <a href="../" style="color:#c9955a;">进入试衣间</a>。</p>
 </body>
 </html>
