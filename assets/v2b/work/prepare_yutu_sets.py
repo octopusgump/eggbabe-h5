@@ -66,20 +66,6 @@ SETS = [
         "raw": "set_wolf_hood.jpg",
     },
     {
-        "id": "berry_pancake",
-        "name": "松饼甜心",
-        "key": "blue",
-        "translucent_dome": False,
-        "raw": "set_berry_pancake.jpg",
-    },
-    {
-        "id": "lion_tanghulu",
-        "name": "瑞雪醒狮",
-        "key": "blue",
-        "translucent_dome": False,
-        "raw": "set_lion_tanghulu.jpg",
-    },
-    {
         "id": "duck_bathrobe",
         "name": "泡泡浴袍",
         "key": "blue",

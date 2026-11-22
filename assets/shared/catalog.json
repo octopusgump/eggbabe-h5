@@ -504,26 +504,6 @@
           "thumb": "assets/shared/webp/thumbs/yutu_set_wolf_hood.webp"
         },
         {
-          "id": "set_berry_pancake",
-          "slot": "set",
-          "name": "松饼甜心",
-          "price": 20,
-          "tex": "assets/shared/webp/yutu_set_berry_pancake.webp",
-          "closedTex": "assets/shared/webp/yutu_set_berry_pancake_closed.webp",
-          "dozeTex": "assets/shared/webp/yutu_set_berry_pancake_doze.webp",
-          "thumb": "assets/shared/webp/thumbs/yutu_set_berry_pancake.webp"
-        },
-        {
-          "id": "set_lion_tanghulu",
-          "slot": "set",
-          "name": "瑞雪醒狮",
-          "price": 20,
-          "tex": "assets/shared/webp/yutu_set_lion_tanghulu.webp",
-          "closedTex": "assets/shared/webp/yutu_set_lion_tanghulu_closed.webp",
-          "dozeTex": "assets/shared/webp/yutu_set_lion_tanghulu_doze.webp",
-          "thumb": "assets/shared/webp/thumbs/yutu_set_lion_tanghulu.webp"
-        },
-        {
           "id": "set_duck_bathrobe",
           "slot": "set",
           "name": "泡泡浴袍",
