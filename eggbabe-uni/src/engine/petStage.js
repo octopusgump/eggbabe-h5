@@ -448,23 +448,57 @@ export class PetStage {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuf);
     gl.bufferData(gl.ARRAY_BUFFER, this.pos, gl.DYNAMIC_DRAW);
 
-    Promise.all([
-      this._loadTexture(petConfig.textures.base),
-      this._loadTexture(petConfig.textures.closed),
-      this._loadTexture(petConfig.textures.doze)
-    ])
-      .then(([tBase, tClosed, tDoze]) => {
+    this.hasDoze = false;
+    this.hasClosed = false;
+
+    // 首帧渐进加载：仅等 base 一张图到位即立刻出宠物，doze/closed 后台静默补齐
+    this._loadTexture(petConfig.textures.base)
+      .then((tBase) => {
         if (this.destroyed || token !== this.loadToken) return;
-        this.bodyTextures = { base: tBase, closed: tClosed, doze: tDoze };
+        this.bodyTextures = { base: tBase, closed: tBase, doze: tBase };
         this.petReady = true;
         this._resetIdle(Date.now());
         if (this.worn.set) this._preloadWornItem(this.worn.set);
         if (this.worn.head) this._preloadWornItem(this.worn.head);
         if (this.worn.neck) this._preloadWornItem(this.worn.neck);
         if (this.onReady) this.onReady(petConfig.id);
+
+        if (petConfig.textures.doze) {
+          this._loadTexture(petConfig.textures.doze)
+            .then((tDoze) => {
+              if (this.destroyed || token !== this.loadToken) return;
+              this.bodyTextures.doze = tDoze;
+              this.hasDoze = true;
+            })
+            .catch(() => {});
+        }
+        // 锦鲤启用动态着色器时无需下载 closed 贴图，直接省去一次网络请求
+        if (!petConfig.useEyeShader && petConfig.textures.closed) {
+          this._loadTexture(petConfig.textures.closed)
+            .then((tClosed) => {
+              if (this.destroyed || token !== this.loadToken) return;
+              this.bodyTextures.closed = tClosed;
+              this.hasClosed = true;
+            })
+            .catch(() => {});
+        } else {
+          this.hasClosed = true;
+        }
+
+        // 首帧稳定后后台静默预热前 4 套常用套装，点击换装零等待
+        setTimeout(() => {
+          if (this.destroyed || token !== this.loadToken || !petConfig.items) return;
+          const warmCount = Math.min(4, petConfig.items.length);
+          for (let i = 0; i < warmCount; i++) {
+            const it = petConfig.items[i];
+            if (it && it.texUrl && !this.texCache.has(it.texUrl)) {
+              this._loadTexture(it.texUrl).catch(() => {});
+            }
+          }
+        }, 600);
       })
       .catch((err) => {
-        console.error("[PetStage] failed to load pet textures:", err);
+        console.error("[PetStage] failed to load pet base texture:", err);
       });
   }
 
@@ -927,8 +961,12 @@ export class PetStage {
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, t1); gl.uniform1i(this.uT1, 1);
     gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, t2); gl.uniform1i(this.uT2, 2);
 
-    gl.uniform1f(this.uW1, clamp(p.wClosed, 0, 1));
-    gl.uniform1f(this.uW2, clamp(p.wDoze, 0, pet.useEyeShader ? 1 : 1 - clamp(p.wClosed, 0, 1)));
+    const rawW1 = clamp(p.wClosed, 0, 1);
+    const rawW2 = clamp(p.wDoze, 0, pet.useEyeShader ? 1 : 1 - rawW1);
+    const safeW1 = pet.useEyeShader ? (this.hasDoze ? rawW1 : 0) : (this.hasClosed ? rawW1 : 0);
+    const safeW2 = this.hasDoze ? rawW2 : 0;
+    gl.uniform1f(this.uW1, safeW1);
+    gl.uniform1f(this.uW2, safeW2);
     gl.uniform1f(this.uEye, pet.useEyeShader ? 1.0 : 0.0);
     gl.uniform4fv(this.uEyeL, (activeItem && activeItem.eyeLUV) ? activeItem.eyeLUV : pet.eyeLUV);
     gl.uniform4fv(this.uEyeR, (activeItem && activeItem.eyeRUV) ? activeItem.eyeRUV : pet.eyeRUV);

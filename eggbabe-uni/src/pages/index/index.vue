@@ -316,7 +316,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { onLoad, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
 import { getDefaultCatalog, fetchRemoteCatalog } from "../../config/catalogLoader";
 import { PetStage } from "../../engine/petStage";
@@ -679,10 +679,10 @@ onMounted(() => {
   }
   // #endif
 
-  setTimeout(initStage, 50);
+  nextTick(initStage);
 
   fetchRemoteCatalog().then((remote) => {
-    if (!remote) return;
+    if (!remote || remote.version === catalog.version) return;
     catalog.version = remote.version;
     catalog.backgrounds = remote.backgrounds;
     catalog.pets = remote.pets;
