@@ -12,11 +12,15 @@ const ACC_ROWS = 12;
 const JUMP_MS = 1100;
 const TILT_MS = 950;
 const MINI_MS = 620;
+const EAT_MS = 1080;
+const RINSE_MS = 960;
 const BLINK_MS = 200;
 const SLEEP_ENTER_MS = 850;
 const WAKE_MS = 680;
 const PET_RELEASE_MS = 380;
 const SLEEP_DELAY_MS = 6500;
+const HOME_OFFSET_Y = 245;
+const HOME_SCALE_MUL = 1.08;
 
 const VS_BODY =
   "attribute vec2 aPos; attribute vec2 aUv; uniform vec2 uView; varying vec2 vUv;" +
@@ -254,6 +258,13 @@ export class PetStage {
     this.fromPose = makePose();
     this.lastPose = makePose();
     this.spring = { r: 0, vr: 0, y: 0, vy: 0, t: -1 };
+    this.mood = "normal";
+    this.drawerOpen = Boolean(opts && opts.drawerOpen);
+    this.offsetY = this.drawerOpen ? 0 : HOME_OFFSET_Y;
+    this.targetOffsetY = this.offsetY;
+    this.scaleMul = this.drawerOpen ? 1 : HOME_SCALE_MUL;
+    this.targetScaleMul = this.scaleMul;
+    this.scrubLean = 0;
     this.sleepingNotified = false;
     this.lastShadowKey = "";
 
@@ -509,6 +520,83 @@ export class PetStage {
     }
   }
 
+  _currentTransform() {
+    const pet = this.pet;
+    const s = pet.scale * this.scaleMul;
+    const fx = pet.feetStageX;
+    const fy = pet.feetStageY + this.offsetY;
+    return {
+      s,
+      fx,
+      fy,
+      ox: fx - pet.cx * s,
+      oy: fy - pet.feetY * s
+    };
+  }
+
+  setDrawerOpen(open) {
+    this.drawerOpen = Boolean(open);
+    this.targetOffsetY = this.drawerOpen ? 0 : HOME_OFFSET_Y;
+    this.targetScaleMul = this.drawerOpen ? 1 : HOME_SCALE_MUL;
+  }
+
+  setMood(mood) {
+    this.mood = mood || "normal";
+  }
+
+  playEat() {
+    if (!this.pet || !this.petReady) return;
+    this._begin("eat", Date.now());
+  }
+
+  startScrub(stageX) {
+    if (!this.pet || !this.petReady) return;
+    const now = Date.now();
+    this.scrubLean = clamp((stageX - 195) / 90, -1, 1);
+    if (this.mode !== "scrub") {
+      this._begin("scrub", now);
+    } else {
+      this.sleepAt = now + SLEEP_DELAY_MS;
+    }
+  }
+
+  stopScrub() {
+    if (this.mode === "scrub") {
+      this._resetIdle(Date.now());
+    }
+  }
+
+  playRinse() {
+    if (!this.pet || !this.petReady) return;
+    this._begin("rinse", Date.now());
+  }
+
+  getPetAnchor() {
+    if (!this.pet) return { x: 195, mouthY: 500, topY: 360, feetY: 657 };
+    const tr = this._currentTransform();
+    const h = this.pet.head;
+    return {
+      x: tr.ox + this.pet.cx * tr.s,
+      mouthY: tr.oy + (h.y + h.ry * 0.45) * tr.s,
+      topY: tr.oy + Math.max(0, h.y - h.ry * 1.45) * tr.s,
+      feetY: tr.fy
+    };
+  }
+
+  isPointOnPet(stageX, stageY, pad = 28) {
+    if (!this.pet || !this.petReady) return false;
+    const tr = this._currentTransform();
+    const sx = (stageX - tr.ox) / tr.s;
+    const sy = (stageY - tr.oy) / tr.s;
+    const padSrc = pad / tr.s;
+    return (
+      sx >= -padSrc &&
+      sx <= this.pet.canvasW + padSrc &&
+      sy >= -padSrc &&
+      sy <= this.pet.canvasH + padSrc
+    );
+  }
+
   onTap(stageX, stageY) {
     if (!this.pet || !this.petReady) return;
     const now = Date.now();
@@ -517,8 +605,9 @@ export class PetStage {
       this._begin("wake", now);
       return;
     }
-    const sx = (stageX - this.ox) / this.pet.scale;
-    const sy = (stageY - this.oy) / this.pet.scale;
+    const tr = this._currentTransform();
+    const sx = (stageX - tr.ox) / tr.s;
+    const sy = (stageY - tr.oy) / tr.s;
     const h = this.pet.head;
     const hd = Math.pow((sx - h.x) / h.rx, 2) + Math.pow((sy - h.y) / h.ry, 2);
     if (hd <= 1.05 || sy < this.pet.neck.y) {
@@ -562,6 +651,9 @@ export class PetStage {
       sp.vy += (-(sp.y - p.hopY) * 140 - sp.vy * 9) * h;
       sp.y += sp.vy * h;
     }
+    const k = 1 - Math.exp(-dt * 11.5);
+    this.offsetY += (this.targetOffsetY - this.offsetY) * k;
+    this.scaleMul += (this.targetScaleMul - this.scaleMul) * k;
   }
 
   _deform(x, y, p, eL, eR) {
@@ -613,17 +705,20 @@ export class PetStage {
   }
 
   _idlePose(t, blink) {
-    const b = Math.sin((t / 2600) * Math.PI * 2);
+    const lowMood = this.mood === "hungry" || this.mood === "dirty";
+    const speed = lowMood ? 3500 : 2600;
+    const b = Math.sin((t / speed) * Math.PI * 2);
     const tw = (t % 4300) / 4300;
-    const twitch = tw > 0.9 ? Math.sin(((tw - 0.9) / 0.1) * Math.PI * 2) * 6 : 0;
+    const twitch = !lowMood && tw > 0.9 ? Math.sin(((tw - 0.9) / 0.1) * Math.PI * 2) * 6 : 0;
     const isKoi = this.pet && this.pet.id === "koi";
     return makePose({
       sx: 1 - 0.006 * b,
-      sy: 1 + 0.012 * b,
+      sy: (lowMood ? 0.985 : 1) + 0.012 * b,
       breath: (isKoi ? 0.014 : 0.018) * b,
-      headRot: (isKoi ? 6.5 : 0.8) * Math.sin((t / 3600) * Math.PI * 2),
-      earL: -0.9 + 1.8 * Math.sin((t / 2500) * Math.PI * 2 + 0.3),
-      earR: 0.9 + 1.8 * Math.sin((t / 2800) * Math.PI * 2 + 1.4) + twitch * (isKoi ? 0.5 : 1),
+      headRot: (lowMood ? 3.5 : isKoi ? 6.5 : 0.8) * Math.sin((t / 3600) * Math.PI * 2),
+      headTy: lowMood ? 5 : 0,
+      earL: (lowMood ? -7 : -0.9) + 1.8 * Math.sin((t / 2500) * Math.PI * 2 + 0.3),
+      earR: (lowMood ? (isKoi ? 6 : 16) : 0.9) + 1.8 * Math.sin((t / 2800) * Math.PI * 2 + 1.4) + twitch * (isKoi ? 0.5 : 1),
       wDoze: blink || 0
     });
   }
@@ -684,6 +779,59 @@ export class PetStage {
       if (t >= MINI_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
       return kf(MINI_KFS, t / MINI_MS);
     }
+    if (this.mode === "eat") {
+      if (t >= EAT_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
+      return kf([
+        { o: 0,    e: "out", sx: 1,    sy: 1,    wClosed: 0 },
+        { o: 0.14, e: "io",  sx: 1.09, sy: 0.91, headTy: 5,  headRot: -4, wClosed: 0.95, earL: -10, earR: 10, shS: 1.09 },
+        { o: 0.30, e: "io",  sx: 0.96, sy: 1.06, headTy: -3, headRot: 4,  wClosed: 1,    earL: 5,   earR: -5, hopY: -6 },
+        { o: 0.46, e: "io",  sx: 1.09, sy: 0.91, headTy: 5,  headRot: -4, wClosed: 1,    earL: -10, earR: 10, shS: 1.09 },
+        { o: 0.64, e: "io",  sx: 0.96, sy: 1.07, headTy: -4, headRot: 3,  wClosed: 1,    earL: 6,   earR: -6, hopY: -12 },
+        { o: 0.82, e: "back", sx: 1.05, sy: 0.95, headTy: 1, headRot: 0,  wClosed: 0.55, hopY: 0 },
+        { o: 1,    e: "out", sx: 1,    sy: 1,    wClosed: 0 }
+      ], t / EAT_MS);
+    }
+    if (this.mode === "scrub") {
+      const w = Math.sin((now / 210) * Math.PI * 2);
+      return makePose({
+        sx: 1.03 + 0.025 * w,
+        sy: 0.97 - 0.025 * w,
+        headRot: this.scrubLean * 8 + w * 4.5,
+        headTx: this.scrubLean * 5,
+        headTy: 4,
+        rot: w * 1.8,
+        earL: -9 + w * 6,
+        earR: 9 - w * 6,
+        lean: this.scrubLean * 0.75,
+        wClosed: 0.92,
+        shS: 1.05
+      });
+    }
+    if (this.mode === "rinse") {
+      if (t >= RINSE_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
+      const u = t / RINSE_MS;
+      if (u < 0.62) {
+        const shake = Math.sin((u / 0.62) * Math.PI * 6);
+        const env = Math.sin((u / 0.62) * Math.PI);
+        return makePose({
+          sx: 1 + 0.06 * Math.abs(shake) * env,
+          sy: 1 - 0.05 * Math.abs(shake) * env,
+          rot: shake * 6.5 * env,
+          headRot: shake * 12 * env,
+          earL: -18 * shake * env,
+          earR: 18 * shake * env,
+          wClosed: 0.85 * env,
+          shS: 1.08
+        });
+      }
+      const hu = (u - 0.62) / 0.38;
+      return kf([
+        { o: 0,    e: "out", sx: 1.08, sy: 0.9,  hopY: 0,   wClosed: 0.6 },
+        { o: 0.42, e: "out", sx: 0.95, sy: 1.08, hopY: -36, wClosed: 1, earL: -12, earR: 12, shS: 0.68, shO: 0.45 },
+        { o: 0.78, e: "back", sx: 1.08, sy: 0.91, hopY: 0,  wClosed: 0.4, shS: 1.12 },
+        { o: 1,    e: "out", sx: 1,    sy: 1,    hopY: 0,   wClosed: 0 }
+      ], hu);
+    }
     if (this.mode === "tilt") {
       if (t >= TILT_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
       const s = this.tiltDir;
@@ -737,6 +885,7 @@ export class PetStage {
     this.lastPose = p;
     this._stepSpring(p, now);
 
+    const tr = this._currentTransform();
     const lagR = clamp(this.spring.r - p.headRot, -25, 25);
     const lagY = clamp((this.spring.y - p.hopY) * 0.6, -18, 28);
     const eL = p.earL + lagR * 1.1 - lagY;
@@ -750,8 +899,8 @@ export class PetStage {
       const dy = d[1] - pet.feetY;
       const rx = pet.cx + dx * cr - dy * sr;
       const ry = pet.feetY + dx * sr + dy * cr;
-      this.pos[i * 2] = this.ox + rx * pet.scale;
-      this.pos[i * 2 + 1] = this.oy + ry * pet.scale + p.hopY;
+      this.pos[i * 2] = tr.ox + rx * tr.s;
+      this.pos[i * 2 + 1] = tr.oy + ry * tr.s + p.hopY;
     }
 
     gl.clearColor(0, 0, 0, 0);
@@ -811,8 +960,8 @@ export class PetStage {
           const dy = d[1] - pet.feetY;
           const rx = pet.cx + dx * cr - dy * sr;
           const ry = pet.feetY + dx * sr + dy * cr;
-          mesh.pos[i * 2] = this.ox + rx * pet.scale;
-          mesh.pos[i * 2 + 1] = this.oy + ry * pet.scale + p.hopY;
+          mesh.pos[i * 2] = tr.ox + rx * tr.s;
+          mesh.pos[i * 2 + 1] = tr.oy + ry * tr.s + p.hopY;
         }
         gl.useProgram(this.progA);
         gl.activeTexture(gl.TEXTURE0);
@@ -832,9 +981,9 @@ export class PetStage {
 
     if (this.onShadowUpdate) {
       const air = clamp(-p.hopY / 70, 0, 1);
-      const softS = +(p.shS * (1 - 0.5 * air)).toFixed(2);
+      const softS = +(p.shS * this.scaleMul * (1 - 0.5 * air)).toFixed(2);
       const softO = +(p.shO * (1 - 0.7 * air)).toFixed(2);
-      const conS = +(p.shS * (1 - 0.6 * air)).toFixed(2);
+      const conS = +(p.shS * this.scaleMul * (1 - 0.6 * air)).toFixed(2);
       const conO = +(1 - 0.85 * air).toFixed(2);
       const key = `${softS}|${softO}|${conS}|${conO}`;
       if (key !== this.lastShadowKey) {
