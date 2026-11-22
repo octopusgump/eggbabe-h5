@@ -21,7 +21,6 @@
           </view>
           <view class="action-group">
             <button class="icon-btn" @tap="onToggleMute">{{ muted ? '🔇' : '🔊' }}</button>
-            <button class="act-btn" :loading="exporting" :disabled="exporting" @tap="onSaveWallpaper">存壁纸</button>
             <!-- #ifdef MP-WEIXIN -->
             <button class="act-btn share-btn" open-type="share">分享</button>
             <!-- #endif -->
@@ -312,9 +311,6 @@
         </scroll-view>
       </view>
 
-      <!-- #ifndef H5 -->
-      <canvas type="2d" id="export-canvas" class="export-canvas"></canvas>
-      <!-- #endif -->
     </view>
   </view>
 </template>
@@ -324,7 +320,6 @@ import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { onLoad, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
 import { getDefaultCatalog, fetchRemoteCatalog } from "../../config/catalogLoader";
 import { PetStage } from "../../engine/petStage";
-import { exportWallpaper } from "../../engine/wallpaperExporter";
 import {
   SNACKS_BY_PET,
   loadCareAll,
@@ -364,7 +359,6 @@ const activeTab = ref("items");
 const currentBgId = ref(initial.backgrounds[0].id);
 const loadingPet = ref(true);
 const sleeping = ref(false);
-const exporting = ref(false);
 const muted = ref(isMuted());
 const shadow = reactive({ softS: 1, softO: 1, conS: 1, conO: 1 });
 
@@ -573,7 +567,6 @@ function initStage() {
   const query = uni.createSelectorQuery();
   query.select("#stage-box").boundingClientRect();
   query.select("#pet-gl").node();
-  query.select("#export-canvas").node();
   query.exec((res) => {
     if (!res || !res[1] || !res[1].node) {
       uni.showToast({ title: "画布初始化失败", icon: "none" });
@@ -581,7 +574,6 @@ function initStage() {
     }
     if (res[0]) stageRect = res[0];
     const glCanvas = res[1].node;
-    exportCanvas = res[2] ? res[2].node : null;
     const win = uni.getWindowInfo ? uni.getWindowInfo() : uni.getSystemInfoSync();
     try {
       stage = new PetStage(glCanvas, {
@@ -1122,40 +1114,6 @@ function onMouseUp() {
   // #ifdef H5
   endPointer();
   // #endif
-}
-
-async function onSaveWallpaper() {
-  if (exporting.value) return;
-  exporting.value = true;
-  uni.showLoading({ title: "生成高清壁纸...", mask: true });
-  try {
-    await exportWallpaper({
-      canvas: exportCanvas,
-      bg: currentBg.value,
-      pet: currentPet.value,
-      worn: wornByPet[petId.value]
-    });
-    uni.hideLoading();
-    uni.showToast({ title: "壁纸已保存", icon: "success" });
-  } catch (err) {
-    uni.hideLoading();
-    console.error("[exportWallpaper]", err);
-    const msg = (err && err.errMsg) || "";
-    if (msg.indexOf("auth deny") >= 0 || msg.indexOf("authorize") >= 0) {
-      uni.showModal({
-        title: "需要相册权限",
-        content: "请在设置中允许保存到相册，即可一键保存高清萌宠壁纸。",
-        confirmText: "去设置",
-        success: (r) => {
-          if (r.confirm && uni.openSetting) uni.openSetting();
-        }
-      });
-    } else {
-      uni.showToast({ title: "保存失败，请重试", icon: "none" });
-    }
-  } finally {
-    exporting.value = false;
-  }
 }
 
 onShareAppMessage(() => ({
@@ -2185,14 +2143,5 @@ onShareTimeline(() => ({
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.export-canvas {
-  position: fixed;
-  left: -9999px;
-  top: -9999px;
-  width: 780px;
-  height: 1688px;
-  pointer-events: none;
 }
 </style>
