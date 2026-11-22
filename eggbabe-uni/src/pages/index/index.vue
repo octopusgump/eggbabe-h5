@@ -75,12 +75,12 @@
           <button
             class="sheet-tab"
             :class="{ active: activeTab === 'items' }"
-            @tap="activeTab = 'items'"
+            @tap="onSelectTab('items')"
           >{{ currentPet.drawerTitle }}</button>
           <button
             class="sheet-tab"
             :class="{ active: activeTab === 'bg' }"
-            @tap="activeTab = 'bg'"
+            @tap="onSelectTab('bg')"
           >背景 ({{ backgrounds.length }})</button>
         </view>
         <scroll-view class="grid-scroll" scroll-y="true" show-scrollbar="false">
@@ -102,7 +102,7 @@
           <view v-else-if="activeTab === 'items'" class="empty-sets">
             <text class="empty-title">{{ currentPet.label }}全身套装筹备中</text>
             <text class="empty-sub">旧款小饰品已下线，敬请期待 2×2 全新套装</text>
-            <button class="empty-btn" @tap="activeTab = 'bg'">先去换小屋背景 →</button>
+            <button class="empty-btn" @tap="onSelectTab('bg')">先去换小屋背景 →</button>
           </view>
           <view v-else class="card-grid">
             <view
@@ -146,6 +146,7 @@ const catalog = reactive({
 const safeTop = ref(16);
 const capsuleRightPad = ref(12);
 const petId = ref("koi");
+const activeTab = ref("items");
 const currentBgId = ref(initial.backgrounds[0].id);
 const loadingPet = ref(true);
 const sleeping = ref(false);
@@ -155,8 +156,12 @@ const h5CanvasRef = ref(null);
 
 const wornByPet = reactive({
   koi: { set: null },
-  yutu: { head: null, neck: null }
+  yutu: { set: null, head: null, neck: null }
 });
+
+function onSelectTab(tab) {
+  activeTab.value = tab;
+}
 
 const backgrounds = computed(() => catalog.backgrounds);
 const currentBg = computed(
