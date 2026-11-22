@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#fbf4ea">
+  <title>锦鲤 · 玉兔 自由试衣</title>
+  <meta name="description" content="BOON KOI 锦鲤与玉兔的互动毛绒换装小屋，支持套装、配饰与小屋背景自由搭配。">
+  <meta property="og:title" content="锦鲤 · 玉兔 自由试衣">
+  <meta property="og:description" content="BOON KOI 锦鲤与玉兔的互动毛绒换装小屋，点击即可为它们换装与互动。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://octopusgump.github.io/eggbabe-h5/">
+  <meta property="og:image" content="https://octopusgump.github.io/eggbabe-h5/assets/koi-v2b/work/sets/tex_base_ext.png">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #2a2118;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    #shell {
+      width: 100%;
+      max-width: 414px;
+      height: 100%;
+      max-height: 896px;
+      display: flex;
+      flex-direction: column;
+      background: #fbf4ea;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 20px 56px rgba(0, 0, 0, .42);
+    }
+    @media (max-width: 520px) {
+      html, body { background: #fbf4ea; }
+      body { padding: 0; }
+      #shell {
+        max-width: none;
+        max-height: none;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+    /* 独立顶栏：与换装面板 #sheet .tabs 100% 统一视觉 */
+    #topbar {
+      flex-shrink: 0;
+      z-index: 20;
+      background: #fbf4ea;
+      border-bottom: 1px solid #eadcc9;
+      padding: calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .pet-tabs {
+      width: 100%;
+      max-width: 240px;
+      display: flex;
+      gap: 8px;
+    }
+    .pet-tab {
+      flex: 1;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1.5px solid #e6d5c1;
+      background: #fffdf9;
+      color: #7a634d;
+      font: 600 13px/1.2 system-ui, -apple-system, sans-serif;
+      cursor: pointer;
+      transition: all .15s ease;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .pet-tab.active {
+      background: #c9955a;
+      border-color: #c9955a;
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(201, 149, 90, .24);
+    }
+    #stage-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      background: #fbf4ea;
+      overflow: hidden;
+    }
+    .pet-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #fbf4ea;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .16s ease;
+    }
+    .pet-frame.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      z-index: 2;
+    }
+    #loading {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fbf4ea;
+      color: #8c7258;
+      font: 600 13px/1.4 system-ui, sans-serif;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    #loading.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="shell">
+    <header id="topbar">
+      <div class="pet-tabs" role="tablist" aria-label="切换宠物">
+        <button type="button" class="pet-tab active" role="tab" aria-selected="true" data-pet="koi">锦鲤</button>
+        <button type="button" class="pet-tab" role="tab" aria-selected="false" data-pet="yutu">玉兔</button>
+      </div>
+    </header>
+    <main id="stage-wrap">
+      <div id="loading" aria-live="polite">正在呼唤小伙伴…</div>
+      <iframe id="frame-koi" class="pet-frame" title="锦鲤自由试衣" data-src="assets/koi-v2b/koi_mesh_demo.html"></iframe>
+      <iframe id="frame-yutu" class="pet-frame" title="玉兔自由试衣" data-src="assets/v2b/yutu_mesh_demo.html"></iframe>
+    </main>
+  </div>
+  <script>
+    (function () {
+      const frames = {
+        koi: document.getElementById("frame-koi"),
+        yutu: document.getElementById("frame-yutu")
+      };
+      const loaded = { koi: false, yutu: false };
+      const loadingEl = document.getElementById("loading");
+      const tabs = Array.prototype.slice.call(document.querySelectorAll(".pet-tab"));
+      let activePet = null;
+
+      function syncUrl(pet) {
+        try {
+          const url = new URL(location.href);
+          if (pet === "koi") url.searchParams.delete("pet");
+          else url.searchParams.set("pet", pet);
+          const next = url.pathname + (url.searchParams.toString() ? "?" + url.searchParams.toString() : "") + url.hash;
+          history.replaceState(null, "", next);
+        } catch (e) {}
+      }
+
+      function selectPet(pet, updateUrl) {
+        if (!frames[pet]) pet = "koi";
+        if (activePet === pet) return;
+        activePet = pet;
+
+        tabs.forEach(function (btn) {
+          const isCur = btn.getAttribute("data-pet") === pet;
+          btn.classList.toggle("active", isCur);
+          btn.setAttribute("aria-selected", isCur ? "true" : "false");
+        });
+
+        const target = frames[pet];
+        if (!target.getAttribute("src")) {
+          loadingEl.classList.add("show");
+          target.addEventListener("load", function onLoad() {
+            target.removeEventListener("load", onLoad);
+            loaded[pet] = true;
+            if (activePet === pet) loadingEl.classList.remove("show");
+          });
+          target.setAttribute("src", target.getAttribute("data-src"));
+        } else {
+          loadingEl.classList.toggle("show", !loaded[pet]);
+        }
+
+        Object.keys(frames).forEach(function (k) {
+          frames[k].classList.toggle("active", k === pet);
+        });
+
+        if (updateUrl !== false) syncUrl(pet);
+      }
+
+      tabs.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          selectPet(btn.getAttribute("data-pet"), true);
+        });
+      });
+
+      const initPet = new URLSearchParams(location.search).get("pet") === "yutu" ? "yutu" : "koi";
+      selectPet(initPet, false);
+    })();
+  </script>
+</body>
+</html>
