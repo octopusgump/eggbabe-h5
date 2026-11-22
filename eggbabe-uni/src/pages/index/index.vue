@@ -213,6 +213,7 @@ function initStage() {
       onSleepChange: (v) => { sleeping.value = v; },
       onReady: () => { loadingPet.value = false; }
     });
+    stage.setViewport(stageRect.width, stageRect.height);
     stage.setPet(currentPet.value, wornByPet[petId.value]);
   } catch (err) {
     console.error("[PetStage init]", err);
@@ -242,6 +243,7 @@ function initStage() {
         onSleepChange: (v) => { sleeping.value = v; },
         onReady: () => { loadingPet.value = false; }
       });
+      stage.setViewport(stageRect.width, stageRect.height);
       stage.setPet(currentPet.value, wornByPet[petId.value]);
     } catch (err) {
       console.error(err);
@@ -258,6 +260,9 @@ function refreshStageRectH5() {
   if (box) {
     const r = box.getBoundingClientRect();
     stageRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+    if (stage && r.width > 0 && r.height > 0) {
+      stage.setViewport(r.width, r.height);
+    }
   }
   // #endif
 }
@@ -334,9 +339,12 @@ function onTapItem(item) {
 function toStageCoord(clientX, clientY) {
   refreshStageRectH5();
   const r = stageRect;
+  const w = r.width || 390;
+  const h = r.height || 844;
+  const viewW = 844 * (w / h);
   return {
-    x: ((clientX - r.left) / (r.width || 390)) * 390,
-    y: ((clientY - r.top) / (r.height || 844)) * 844
+    x: 195 + ((clientX - r.left) / w - 0.5) * viewW,
+    y: ((clientY - r.top) / h) * 844
   };
 }
 
@@ -456,14 +464,13 @@ onShareTimeline(() => ({
   position: relative;
   width: 100%;
   height: 100%;
-  max-width: 430px;
   overflow: hidden;
 }
 
 .stage-bg {
   position: absolute;
   left: 0;
-  top: 0;
+  top: -29.03%;
   width: 100%;
   height: 100%;
   z-index: 0;
@@ -666,8 +673,7 @@ onShareTimeline(() => ({
   left: 0;
   right: 0;
   bottom: 0;
-  height: 45vh;
-  max-height: 390px;
+  height: 48.58%;
   min-height: 270px;
   z-index: 15;
   background: rgba(251, 244, 234, 0.97);

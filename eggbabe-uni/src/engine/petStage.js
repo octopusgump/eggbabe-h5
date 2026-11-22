@@ -19,8 +19,8 @@ const PET_RELEASE_MS = 380;
 const SLEEP_DELAY_MS = 6500;
 
 const VS_BODY =
-  "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;" +
-  "void main(){ vUv = aUv; gl_Position = vec4(aPos.x / 195.0 - 1.0, 1.0 - aPos.y / 422.0, 0.0, 1.0); }";
+  "attribute vec2 aPos; attribute vec2 aUv; uniform vec2 uView; varying vec2 vUv;" +
+  "void main(){ vUv = aUv; gl_Position = vec4((aPos.x - 195.0) / (uView.x * 0.5), 1.0 - aPos.y / (uView.y * 0.5), 0.0, 1.0); }";
 
 const FS_BODY =
   "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2;" +
@@ -291,6 +291,7 @@ export class PetStage {
     this.uEye = gl.getUniformLocation(prog, "uEye");
     this.uEyeL = gl.getUniformLocation(prog, "uEyeL");
     this.uEyeR = gl.getUniformLocation(prog, "uEyeR");
+    this.uView = gl.getUniformLocation(prog, "uView");
 
     const progA = gl.createProgram();
     gl.attachShader(progA, this._compile(gl.VERTEX_SHADER, VS_BODY));
@@ -300,6 +301,14 @@ export class PetStage {
     this.aPosA = gl.getAttribLocation(progA, "aPos");
     this.aUvA = gl.getAttribLocation(progA, "aUv");
     this.uT0A = gl.getUniformLocation(progA, "t0");
+    this.uViewA = gl.getUniformLocation(progA, "uView");
+
+    this.viewW = 390.0;
+    this.viewH = 844.0;
+    gl.useProgram(this.prog);
+    gl.uniform2f(this.uView, this.viewW, this.viewH);
+    gl.useProgram(this.progA);
+    gl.uniform2f(this.uViewA, this.viewW, this.viewH);
 
     this.nv = (COLS + 1) * (ROWS + 1);
     this.rest = new Float32Array(this.nv * 2);
@@ -385,6 +394,24 @@ export class PetStage {
     const mesh = { rest, pos, nv, idxCount: idx.length, uvBuf, posBuf, idxBuf, slot: it.slot, texUrl: it.texUrl };
     this.accMeshes.set(key, mesh);
     return mesh;
+  }
+
+  setViewport(cssW, cssH) {
+    if (!cssW || !cssH || cssW <= 0 || cssH <= 0) return;
+    const gl = this.gl;
+    this.viewH = 844.0;
+    this.viewW = 844.0 * (cssW / cssH);
+    const pw = Math.max(1, Math.round(cssW * this.dpr));
+    const ph = Math.max(1, Math.round(cssH * this.dpr));
+    if (this.canvas.width !== pw || this.canvas.height !== ph) {
+      this.canvas.width = pw;
+      this.canvas.height = ph;
+    }
+    gl.viewport(0, 0, pw, ph);
+    gl.useProgram(this.prog);
+    gl.uniform2f(this.uView, this.viewW, this.viewH);
+    gl.useProgram(this.progA);
+    gl.uniform2f(this.uViewA, this.viewW, this.viewH);
   }
 
   setPet(petConfig, initialWorn) {

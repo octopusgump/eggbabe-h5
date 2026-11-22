@@ -29,9 +29,7 @@
     #app-shell {
       position: relative;
       width: 100%;
-      max-width: 430px;
       height: 100dvh;
-      max-height: 932px;
       background: #fbf4ea;
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
@@ -39,7 +37,10 @@
     @media (min-width: 521px) {
       #app-shell {
         border-radius: 24px;
-        height: min(94dvh, 896px);
+        height: min(94dvh, 864px);
+        width: auto;
+        aspect-ratio: 9 / 16;
+        max-width: 94vw;
       }
     }
     @media (max-width: 520px) {
