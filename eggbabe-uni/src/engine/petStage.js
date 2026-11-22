@@ -107,6 +107,152 @@ const FS_ACC =
   "precision mediump float; varying vec2 vUv; uniform sampler2D t0;" +
   "void main(){ gl_FragColor = texture2D(t0, vUv); }";
 
+const FS_FACE =
+  "precision mediump float; varying vec2 vUv; uniform sampler2D tF; uniform float uA;" +
+  "void main(){ gl_FragColor = texture2D(tF, vUv) * uA; }";
+
+const EMO_KINDS = ["laugh", "sad", "think", "cute"];
+const EMO_REPICK_MS = 650;
+const BLEND_MS = 140;
+
+const EMO_FACES = {
+  yutu: {
+    rect: [230, 425, 620, 680], closedTex: true, stalk: false, stalkK: 1,
+    eyes: [
+      { x: 341, y: 553, r: 27, ex: 327, ey: 549, erx: 43, ery: 52 },
+      { x: 503, y: 554, r: 27, ex: 521, ey: 549, erx: 44, ery: 51 }
+    ],
+    mouth: { x: 421, y: 620, w: 46, h: 30 }, eraseMouth: null,
+    browLen: 46, browGap: 6, gloom: { x: 421, y: 432, w: 54, h: 44 },
+    lookUp: [4, -11], bubble: { x: 421, y: 16 },
+    anchors: { L: [248, 485], R: [594, 485], top: [421, 315] },
+    lines: {
+      laugh: ["哈哈哈，好痒呀～", "嘿嘿，再来一次！", "笑得耳朵都抖啦"],
+      sad: ["呜…胡萝卜掉了", "没人陪我玩…", "心里空空的…"],
+      think: ["嗯…月亮上有什么呢？", "让我想想哦…", "今天吃什么好呢？"],
+      cute: ["抱抱我嘛～", "人家最可爱啦♡", "眯眯眼，看不见你啦"]
+    }
+  },
+  koi: {
+    rect: [156, 252, 506, 532], closedTex: false, stalk: true, stalkK: 1.5,
+    eyes: [
+      { x: 247, y: 371, r: 27, ex: 243, ey: 368, erx: 51, ery: 57 },
+      { x: 398, y: 371, r: 27, ex: 398, ey: 369, erx: 52, ery: 56 }
+    ],
+    mouth: { x: 324, y: 448, w: 96, h: 40 },
+    eraseMouth: { x0: 248, y0: 420, x1: 400, y1: 478, dy: 54 },
+    browLen: 46, browGap: 8, gloom: { x: 324, y: 258, w: 54, h: 38 },
+    lookUp: [5, -14], bubble: { x: 328, y: 82 },
+    anchors: { L: [134, 327], R: [522, 327], top: [410, 204] },
+    lines: {
+      laugh: ["咕噜噜，笑出泡泡啦！", "哈哈，好运来啦～", "痒痒的，嘻嘻"],
+      sad: ["呜…泡泡破掉了", "鳍鳍好累哦…", "今天运气有点差…"],
+      think: ["咦？水面上是什么？", "让我咕噜一下…", "嗯…好运藏在哪？"],
+      cute: ["摸摸我，好运加倍♡", "转个圈给你看～", "嘿嘿，我最锦鲤啦"]
+    }
+  }
+};
+
+function earSide(s, v) { return s > 0 ? { earL: 0, earR: v } : { earL: -v, earR: 0 }; }
+function K(o, e, pose, extra) { return Object.assign({ o, e }, pose, extra || {}); }
+
+const EMO_DEFS = {
+  laugh: {
+    ms: 2400,
+    keys(s) {
+      const hop = (o, d) => K(o, "in", { hopY: -10, sy: 1.03, sx: 0.98, headRot: 5 * d, earL: d > 0 ? -14 : -5, earR: d > 0 ? 5 : 14, stalk: 16 * d, wClosed: 1, shS: 0.92 });
+      const land = (o, d) => K(o, "out", { hopY: 0, sy: 0.95, sx: 1.05, headRot: 2 * d, earL: -8, earR: 8, stalk: 4 * d, wClosed: 1, shS: 1.08 });
+      return [
+        K(0, "in", {}),
+        K(0.08, "out", { sx: 1.08, sy: 0.88, earL: 12, earR: -12, wClosed: 1, shS: 1.12, stalk: -8 }),
+        K(0.18, "out", { hopY: -34, sy: 1.10, sx: 0.94, earL: -20, earR: 20, rot: -2, wClosed: 1, shS: 0.9, stalk: -18 }),
+        K(0.28, "in", { hopY: -42, sy: 1.02, sx: 0.99, headRot: 6, earL: -8, earR: 8, rot: -1, wClosed: 1, stalk: -12 }),
+        K(0.38, "back", { hopY: 0, sx: 1.12, sy: 0.86, earL: -18, earR: 18, wClosed: 1, shS: 1.16, stalk: 10 }),
+        hop(0.46, 1), land(0.515, 1), hop(0.57, -1), land(0.625, -1), hop(0.68, 1),
+        K(0.735, "out", { hopY: 0, sy: 0.95, sx: 1.05, headRot: 1, wClosed: 1, shS: 1.08 }),
+        K(0.78, "io", { sy: 1.0, wClosed: 1 }),
+        K(0.84, "io", { headRot: -4, rot: -1.5, sy: 1.02, earL: -6, earR: 6, wClosed: 1, stalk: -6 }),
+        K(0.92, "out", { headRot: -1, wClosed: 0.5 }),
+        K(1, "out", {})
+      ];
+    },
+    faces: [["laughEyes", 0.07, 0.88, 140, 260], ["laugh", 0.27, 0.88, 160, 260]],
+    beats: [{ u: 0.3, fx: "haha", t: "哈", at: "L" }, { u: 0.46, fx: "haha", t: "哈哈", at: "R" }, { u: 0.57, fx: "haha", t: "嘻", at: "L" }, { u: 0.68, fx: "haha", t: "哈", at: "R" }]
+  },
+  sad: {
+    ms: 2600, lag: { earR: 0.05 },
+    keys(s) {
+      const base = { sy: 0.94, sx: 1.03, headTy: 12, headRot: -5 * s, earL: -50, earR: 50, stalk: 40 * s };
+      const sniff = (o) => K(o, "out", Object.assign({}, base, { sy: 0.965, hopY: -3, headRot: -5 * s + 1.5, stalk: 40 * s + 4 }));
+      return [
+        K(0, "io", {}),
+        K(0.10, "io", { sy: 1.02, earL: -4, earR: 4, stalk: -6 * s }),
+        K(0.30, "lin", base), K(0.42, "in", base), sniff(0.443), K(0.466, "out", Object.assign({}, base, { stalk: 40 * s - 4 })),
+        K(0.52, "in", base), sniff(0.543), K(0.566, "io", Object.assign({}, base, { stalk: 40 * s - 4 })),
+        K(0.62, "io", base),
+        K(0.71, "io", Object.assign({}, base, { sy: 0.97, breath: 0.04, headTy: 10 })),
+        K(0.80, "io", Object.assign({}, base, { sy: 0.92, breath: -0.02, headTy: 16 })),
+        K(0.88, "io", Object.assign({}, base, { sy: 0.93, headTy: 15, lean: 0.25 * s, rot: 0.8 * s })),
+        K(0.92, "io", Object.assign({}, base, { sy: 0.97, headTy: 6, headRot: -2 * s, lean: 0.1 * s, earL: -46, earR: 46 })),
+        K(0.96, "io", { earL: -30, earR: 30, stalk: 22 * s }),
+        K(1, "out", {})
+      ];
+    },
+    faces: [["sad", 0.12, 0.9, 320, 220]],
+    beats: [{ u: 0.36, fx: "tear", eye: 0 }, { u: 0.50, fx: "tear", eye: 1 }]
+  },
+  think: {
+    ms: 2500,
+    add(u, ms) {
+      const w = sstep(0.15, 0.22, u) * (1 - sstep(0.5, 0.55, u));
+      const shk = u > 0.8 && u < 0.92 ? Math.sin(((u - 0.8) / 0.12) * Math.PI * 4) * (1 - (u - 0.8) / 0.12) : 0;
+      return {
+        headRot: 2.5 * w * Math.sin((ms / 1000) * Math.PI * 2 * 0.7),
+        lean: 0.15 * w * Math.sin((ms / 1000) * Math.PI * 2 * 0.5),
+        stalk: 10 * shk
+      };
+    },
+    keys(s) {
+      const tilt = Object.assign({ headRot: 11 * s, rot: 1.5 * s, headTy: 3, stalk: 20 * s }, earSide(s, 24));
+      return [
+        K(0, "out", {}),
+        K(0.15, "lin", tilt), K(0.33, "out", tilt), K(0.345, "in", Object.assign({}, tilt, { hopY: -3 })), K(0.36, "out", tilt),
+        K(0.375, "in", Object.assign({}, tilt, { hopY: -3 })), K(0.39, "io", tilt), K(0.5, "io", tilt),
+        K(0.62, "io", Object.assign({ headRot: -6 * s, rot: -0.5 * s, headTy: 2, stalk: -12 * s }, earSide(-s, 14))),
+        K(0.72, "out", { sy: 0.9, sx: 1.06, headRot: -2 * s, earL: 6, earR: -6, shS: 1.1 }),
+        K(0.80, "in", { hopY: -18, sy: 1.08, sx: 0.95, earL: -14, earR: 14, shS: 0.9 }),
+        K(0.88, "back", { hopY: 0, sx: 1.08, sy: 0.9, earL: -8, earR: 8, shS: 1.1 }),
+        K(0.95, "io", { sy: 1.02 }),
+        K(1, "out", {})
+      ];
+    },
+    faces(s) { return [[s > 0 ? "thinkR" : "thinkL", 0.04, 0.72, 220, 120]]; },
+    beats: [{ u: 0.08, fx: "q", big: true }, { u: 0.56, fx: "q", big: false, flip: true }, { u: 0.78, fx: "bang" }]
+  },
+  cute: {
+    ms: 2400,
+    keys(s) {
+      const sw = (o, d) => K(o, "io", Object.assign({ headRot: 10 * d, lean: 0.45 * d, rot: 2 * d, headTy: 3, wClosed: 1, stalk: 14 * d }, d > 0 ? { earL: 8, earR: 10 } : { earL: -10, earR: -8 }));
+      const pose = Object.assign({ headRot: 12 * s, rot: 3 * s, headTy: 2, wClosed: 1, stalk: 22 * s }, s > 0 ? { earL: -2, earR: 26 } : { earL: -26, earR: 2 });
+      return [
+        K(0, "out", {}),
+        K(0.10, "io", { sy: 0.95, sx: 1.04, headTy: 4, earL: 8, earR: -8, wClosed: 1 }),
+        sw(0.2, 1), sw(0.3, -1), sw(0.4, 1),
+        K(0.50, "out", { wClosed: 1 }),
+        K(0.55, "in", { hopY: -14, sy: 1.06, sx: 0.96, earL: -10, earR: 10, wClosed: 1, shS: 0.9 }),
+        K(0.60, "out", { hopY: 0, sy: 0.9, sx: 1.08, earL: -6, earR: 6, wClosed: 1, shS: 1.1 }),
+        K(0.65, "in", { hopY: -14, sy: 1.06, sx: 0.96, earL: -10, earR: 10, wClosed: 1, shS: 0.9 }),
+        K(0.70, "back", { hopY: 0, sy: 0.92, sx: 1.07, wClosed: 1, shS: 1.08 }),
+        K(0.74, "lin", pose), K(0.865, "io", pose),
+        K(0.92, "io", { sy: 1.03, headRot: 3 * s, wClosed: 0.6 }),
+        K(1, "out", {})
+      ];
+    },
+    faces: [["cute", 0.04, 0.88, 200, 260]],
+    beats: [{ u: 0.2, fx: "heart", at: "R" }, { u: 0.3, fx: "heart", at: "L" }, { u: 0.4, fx: "heart", at: "R" }, { u: 0.76, fx: "star", at: "S" }, { u: 0.8, fx: "star", at: "S2" }]
+  }
+};
+
 const KEYS = [
   "hopY", "rot", "sx", "sy", "breath", "headRot", "headTx", "headTy",
   "earL", "earR", "lean", "wClosed", "wDoze", "shS", "shO"
@@ -242,12 +388,23 @@ export class PetStage {
     this._initGL();
 
     this.texCache = new Map();
+    this.imgCache = new Map();
     this.accMeshes = new Map();
     this.pet = null;
     this.worn = { set: null, head: null, neck: null };
     this.bodyTextures = { base: null, closed: null, doze: null };
     this.petReady = false;
     this.loadToken = 0;
+
+    this.hitCanvas = typeof document !== "undefined" ? document.createElement("canvas") : null;
+    this.hitCtx = this.hitCanvas ? this.hitCanvas.getContext("2d", { willReadFrequently: true }) : null;
+    this.hitTexUrl = "";
+    this.faceGrid = null;
+    this.faceTexCache = {};
+    this.emoKeyCache = {};
+    this.fxNodes = [];
+    this.emo = { kind: null, side: 1, t0: 0, u: 0, beat: 0, last: null, seek: false, active: false, endAt: 0, snap: {}, prevSnap: null, prevAt: 0 };
+    this.live = true;
 
     this.mode = "idle";
     this.modeStart = Date.now();
@@ -257,6 +414,8 @@ export class PetStage {
     this.petLean = 0;
     this.fromPose = makePose();
     this.lastPose = makePose();
+    this.blendFrom = null;
+    this.blendUntil = 0;
     this.spring = { r: 0, vr: 0, y: 0, vy: 0, t: -1 };
     this.mood = "normal";
     this.drawerOpen = Boolean(opts && opts.drawerOpen);
@@ -267,6 +426,8 @@ export class PetStage {
     this.scrubLean = 0;
     this.sleepingNotified = false;
     this.lastShadowKey = "";
+    this.cssW = 390;
+    this.cssH = 844;
 
     this.rafId = null;
     this.destroyed = false;
@@ -314,12 +475,25 @@ export class PetStage {
     this.uT0A = gl.getUniformLocation(progA, "t0");
     this.uViewA = gl.getUniformLocation(progA, "uView");
 
+    const progF = gl.createProgram();
+    gl.attachShader(progF, this._compile(gl.VERTEX_SHADER, VS_BODY));
+    gl.attachShader(progF, this._compile(gl.FRAGMENT_SHADER, FS_FACE));
+    gl.linkProgram(progF);
+    this.progF = progF;
+    this.aPosF = gl.getAttribLocation(progF, "aPos");
+    this.aUvF = gl.getAttribLocation(progF, "aUv");
+    this.uTF = gl.getUniformLocation(progF, "tF");
+    this.uAF = gl.getUniformLocation(progF, "uA");
+    this.uViewF = gl.getUniformLocation(progF, "uView");
+
     this.viewW = 390.0;
     this.viewH = 844.0;
     gl.useProgram(this.prog);
     gl.uniform2f(this.uView, this.viewW, this.viewH);
     gl.useProgram(this.progA);
     gl.uniform2f(this.uViewA, this.viewW, this.viewH);
+    gl.useProgram(this.progF);
+    gl.uniform2f(this.uViewF, this.viewW, this.viewH);
 
     this.nv = (COLS + 1) * (ROWS + 1);
     this.rest = new Float32Array(this.nv * 2);
@@ -362,6 +536,7 @@ export class PetStage {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         this.texCache.set(url, t);
+        this.imgCache.set(url, img);
         resolve(t);
       };
       img.onerror = (err) => reject(err);
@@ -407,8 +582,39 @@ export class PetStage {
     return mesh;
   }
 
+  _initFaceGrid(petId) {
+    const faceCfg = EMO_FACES[petId];
+    if (!faceCfg) { this.faceGrid = null; return; }
+    const FR = faceCfg.rect;
+    this.faceGrid = this._getAccMesh({
+      id: `__face_${petId}`,
+      x: FR[0],
+      y: FR[1],
+      w: FR[2] - FR[0],
+      h: FR[3] - FR[1],
+      slot: "head",
+      texUrl: ""
+    });
+    this.faceTexCache = {};
+    this.emoKeyCache = {};
+    this.hitTexUrl = "";
+  }
+
+  _syncHitCanvas(texUrl) {
+    if (!this.hitCtx || !this.pet || !texUrl || this.hitTexUrl === texUrl) return;
+    const img = this.imgCache.get(texUrl);
+    if (!img) return;
+    this.hitCanvas.width = this.pet.canvasW;
+    this.hitCanvas.height = this.pet.canvasH;
+    this.hitCtx.clearRect(0, 0, this.pet.canvasW, this.pet.canvasH);
+    this.hitCtx.drawImage(img, 0, 0, this.pet.canvasW, this.pet.canvasH);
+    this.hitTexUrl = texUrl;
+  }
+
   setViewport(cssW, cssH) {
     if (!cssW || !cssH || cssW <= 0 || cssH <= 0) return;
+    this.cssW = cssW;
+    this.cssH = cssH;
     const gl = this.gl;
     this.viewH = 844.0;
     this.viewW = 844.0 * (cssW / cssH);
@@ -423,6 +629,8 @@ export class PetStage {
     gl.uniform2f(this.uView, this.viewW, this.viewH);
     gl.useProgram(this.progA);
     gl.uniform2f(this.uViewA, this.viewW, this.viewH);
+    gl.useProgram(this.progF);
+    gl.uniform2f(this.uViewF, this.viewW, this.viewH);
   }
 
   setPet(petConfig, initialWorn) {
@@ -432,6 +640,12 @@ export class PetStage {
     this.worn = Object.assign({ set: null, head: null, neck: null }, initialWorn || {});
     this.ox = petConfig.feetStageX - petConfig.cx * petConfig.scale;
     this.oy = petConfig.feetStageY - petConfig.feetY * petConfig.scale;
+    this._clearFx();
+    this.emo.active = false;
+    this.emo.endAt = 0;
+    this.emo.prevSnap = null;
+    this.emo.seek = false;
+    this._initFaceGrid(petConfig.id);
 
     for (let r = 0, i = 0; r <= ROWS; r++) {
       for (let c = 0; c <= COLS; c++, i++) {
@@ -456,6 +670,7 @@ export class PetStage {
       .then((tBase) => {
         if (this.destroyed || token !== this.loadToken) return;
         this.bodyTextures = { base: tBase, closed: tBase, doze: tBase };
+        this._syncHitCanvas(petConfig.textures.base);
         this.petReady = true;
         this._resetIdle(Date.now());
         if (this.worn.set) this._preloadWornItem(this.worn.set);
@@ -535,16 +750,28 @@ export class PetStage {
   _begin(nextMode, now) {
     this.mode = nextMode;
     this.modeStart = now;
+    this.fromPose = this.lastPose;
+    this.blendFrom = this.lastPose;
+    this.blendUntil = now + BLEND_MS;
     this.sleepAt = now + SLEEP_DELAY_MS;
+    this.live = true;
     this._notifySleep(nextMode === "doze" || nextMode === "doze-enter");
   }
 
   _resetIdle(now) {
     this.mode = "idle";
     this.modeStart = now;
+    this.blendFrom = this.lastPose;
+    this.blendUntil = now + 260;
     this.sleepAt = now + SLEEP_DELAY_MS;
     this.blinkAt = now + 1800 + Math.random() * 2400;
     this._notifySleep(false);
+  }
+
+  _blend(p, now) {
+    if (!this.blendFrom || now >= this.blendUntil) return p;
+    const span = this.mode === "idle" ? 260 : BLEND_MS;
+    return mixPose(this.blendFrom, p, easeOutCubic(clamp(1 - (this.blendUntil - now) / span, 0, 1)));
   }
 
   _notifySleep(flag) {
@@ -631,25 +858,213 @@ export class PetStage {
     );
   }
 
+  _emoKeys(kind, s) {
+    const faceCfg = EMO_FACES[this.pet.id];
+    const id = `${this.pet.id}:${kind}${s > 0 ? "+" : "-"}`;
+    if (!this.emoKeyCache[id]) {
+      const stalkK = (faceCfg && faceCfg.stalkK) || 1.5;
+      this.emoKeyCache[id] = EMO_DEFS[kind].keys(s).map((k) => {
+        const copy = Object.assign({}, k);
+        if (faceCfg && faceCfg.stalk) {
+          const v = (copy.stalk || 0) * stalkK;
+          copy.earL = v;
+          copy.earR = v;
+        }
+        if (faceCfg && !faceCfg.closedTex && copy.wClosed) copy.wClosed = 0;
+        return copy;
+      });
+    }
+    return this.emoKeyCache[id];
+  }
+
+  _emotePose(kind, u, s, ms) {
+    const faceCfg = EMO_FACES[this.pet.id];
+    const stalkK = (faceCfg && faceCfg.stalkK) || 1.5;
+    const def = EMO_DEFS[kind];
+    const list = this._emoKeys(kind, s);
+    const p = kf(list, u);
+    if (def.lag && !(faceCfg && faceCfg.stalk)) {
+      for (const k in def.lag) p[k] = kf(list, u - def.lag[k])[k];
+    }
+    if (def.add) {
+      const a = def.add(u, ms, s);
+      for (const k in a) {
+        if (k === "stalk") {
+          if (faceCfg && faceCfg.stalk) {
+            p.earL += a[k] * stalkK;
+            p.earR += a[k] * stalkK;
+          }
+        } else {
+          p[k] += a[k];
+        }
+      }
+    }
+    return p;
+  }
+
+  _headStageCss(x, y, pose) {
+    const p = pose || this.lastPose;
+    const pet = this.pet;
+    const tr = this._currentTransform();
+    const cr = Math.cos((p.rot * Math.PI) / 180);
+    const sr = Math.sin((p.rot * Math.PI) / 180);
+    const d = this._deform(x, y, p, 0, 0);
+    const dx = d[0] - pet.cx;
+    const dy = d[1] - pet.feetY;
+    const stX = tr.ox + (pet.cx + dx * cr - dy * sr) * tr.s;
+    const stY = tr.oy + (pet.feetY + dx * sr + dy * cr) * tr.s + p.hopY;
+    return [
+      ((stX - 195.0) / this.viewW + 0.5) * this.cssW,
+      (stY / this.viewH) * this.cssH
+    ];
+  }
+
+  _clearFx() {
+    while (this.fxNodes.length) {
+      const n = this.fxNodes.pop();
+      if (n && n.parentNode) n.parentNode.removeChild(n);
+    }
+  }
+
+  _spawnFx(b, s, elapsed, pose) {
+    if (typeof document === "undefined" || !this.canvas || !this.pet) return;
+    const faceCfg = EMO_FACES[this.pet.id];
+    if (!faceCfg) return;
+    const host = document.getElementById("stage-box") || this.canvas.parentElement;
+    if (!host) return;
+    const cx = this.pet.cx;
+    const A = faceCfg.anchors;
+    const topAnchor = (side) => [cx + (A.top[0] - cx) * (side || 1), A.top[1]];
+    const anchor = (at, side) => {
+      if (at === "L") return A.L;
+      if (at === "R") return A.R;
+      if (at === "S") return side > 0 ? A.R : A.L;
+      return topAnchor(side);
+    };
+    const n = document.createElement("div");
+    n.style.cssText = "position:absolute;left:0;top:0;z-index:10;pointer-events:none;opacity:0;font:800 18px/1 'PingFang SC','Noto Sans CJK SC',sans-serif;white-space:nowrap;text-shadow:0 1px 0 #fff,0 0 4px rgba(255,255,255,.85);will-change:transform,opacity;";
+    let src, frames, dur;
+    const rnd = ((b.u * 1000) % 7) / 7 - 0.5;
+    if (b.fx === "haha") {
+      src = anchor(b.at, s); n.textContent = b.t; n.style.color = "#e0785a"; n.style.fontSize = "17px";
+      const dx = (b.at === "L" ? -1 : 1) * 14; dur = 900;
+      frames = [[0, 0, 0.5, 0, -8 * rnd], [dx * 0.5, -12, 1.15, 1, 0], [dx, -34, 1, 0, 6 * rnd]];
+    } else if (b.fx === "tear") {
+      const e = faceCfg.eyes[b.eye];
+      const out = e.x < cx ? -1 : 1;
+      src = [e.ex + out * e.erx * 0.55, e.ey + e.ery * 0.58];
+      n.style.width = "9px"; n.style.height = "13px";
+      n.style.borderRadius = "50% 50% 50% 50% / 38% 38% 62% 62%";
+      n.style.background = "radial-gradient(circle at 36% 60%, #ffffff 0, #7cc6f8 42%, #2f80c8 100%)";
+      n.style.boxShadow = "0 1px 3px rgba(30,80,140,.38), 0 0 2px rgba(255,255,255,.9)";
+      dur = 1000;
+      frames = [[0, 0, 0.5, 0, 0], [out * 1, 2, 1.15, 1, 0], [out * 2.5, 16, 1.05, 1, 0], [out * 4, 34, 0.9, 0, 0]];
+    } else if (b.fx === "q") {
+      src = b.flip ? (s > 0 ? A.L : A.R) : topAnchor(s); n.textContent = "?";
+      n.style.color = "#6b8fc4"; n.style.fontSize = b.big ? "26px" : "18px"; dur = 1200;
+      frames = [[0, 0, 0.3, 0, -20], [0, -8, 1.1, 1, 8], [4, -18, 1, 1, -6], [6, -26, 1, 0, 4]];
+    } else if (b.fx === "bang") {
+      src = topAnchor(s); n.textContent = "!"; n.style.color = "#ef5b3f"; n.style.fontSize = "30px"; dur = 800;
+      frames = [[0, 4, 0.2, 0, 0], [0, -6, 1.35, 1, 0], [0, -8, 1, 1, 0], [0, -14, 1, 0, 0]];
+    } else if (b.fx === "heart") {
+      src = anchor(b.at, s); n.textContent = "♥"; n.style.color = "#ff6f91"; n.style.fontSize = "19px"; dur = 1300;
+      const d = b.at === "L" ? -1 : 1;
+      frames = [[0, 0, 0.3, 0, 0], [d * 6, -14, 1.1, 1, -10 * d], [-d * 4, -30, 1, 0.9, 8 * d], [d * 4, -46, 0.9, 0, 0]];
+    } else {
+      src = anchor(b.at, s); n.textContent = "✦"; n.style.color = "#ffc23d"; n.style.fontSize = b.at === "S2" ? "14px" : "20px"; dur = 900;
+      frames = [[0, 0, 0.2, 0, 0], [0, -4, 1.3, 1, 90], [0, -8, 0.6, 0, 180]];
+    }
+    const st = this._headStageCss(src[0], src[1], pose);
+    host.appendChild(n);
+    this.fxNodes.push(n);
+    const kfs = frames.map((f, i) => ({
+      transform: `translate(${(st[0] + f[0]).toFixed(1)}px,${(st[1] + f[1]).toFixed(1)}px) translate(-50%,-50%) scale(${f[2]}) rotate(${f[4]}deg)`,
+      opacity: f[3],
+      offset: i / (frames.length - 1)
+    }));
+    if (typeof n.animate === "function") {
+      const an = n.animate(kfs, { duration: dur, easing: b.fx === "tear" ? "cubic-bezier(.5,0,.9,.6)" : "ease-out", fill: "forwards" });
+      an.onfinish = () => {
+        if (n.parentNode) n.parentNode.removeChild(n);
+        const idx = this.fxNodes.indexOf(n);
+        if (idx >= 0) this.fxNodes.splice(idx, 1);
+      };
+      if (elapsed != null) {
+        an.pause();
+        an.currentTime = clamp(elapsed, 0, dur - 1);
+      }
+    }
+  }
+
+  triggerEmote(now, side, kind) {
+    if (!this.pet || !this.petReady) return null;
+    const faceCfg = EMO_FACES[this.pet.id];
+    if (!faceCfg) return null;
+    if (this.mode === "emote" && now - this.emo.t0 < EMO_REPICK_MS) return null;
+    if (this.emo.seek) {
+      this.emo.seek = false;
+      this._clearFx();
+    }
+    if (this.mode === "emote" && this.emo.active) {
+      this.emo.prevSnap = Object.assign({}, this.emo.snap);
+      this.emo.prevAt = now;
+    }
+    const candidates = EMO_KINDS.filter((k) => k !== this.emo.last);
+    const chosen = kind || candidates[Math.floor(Math.random() * candidates.length)];
+    this.emo.kind = chosen;
+    this.emo.last = chosen;
+    this.emo.side = side || (Math.random() < 0.5 ? -1 : 1);
+    this.emo.t0 = now;
+    this.emo.u = 0;
+    this.emo.beat = 0;
+    this.emo.seek = false;
+    this._begin("emote", now);
+    const lines = faceCfg.lines[chosen];
+    const speech = lines[Math.floor(Math.random() * lines.length)];
+    return { kind: chosen, side: this.emo.side, speech };
+  }
+
+  seekEmote(kind, ms, side) {
+    if (!this.pet || !this.petReady) return null;
+    const faceCfg = EMO_FACES[this.pet.id];
+    const def = EMO_DEFS[kind];
+    if (!faceCfg || !def) return null;
+    this.live = false;
+    const s = side || 1;
+    this.emo.kind = kind;
+    this.emo.side = s;
+    this.emo.seek = true;
+    this.emo.u = clamp(ms / def.ms, 0, 1);
+    this.emo.prevSnap = null;
+    this.emo.endAt = 0;
+    this._clearFx();
+    def.beats.forEach((b) => {
+      const bm = b.u * def.ms;
+      if (ms >= bm && ms - bm < 1400) {
+        const bp = this._emotePose(kind, b.u, s, bm);
+        this._spawnFx(b, s, ms - bm, bp);
+      }
+    });
+    const pose = this._emotePose(kind, this.emo.u, s, ms);
+    this._draw(pose, ms);
+    return { kind, ms, u: this.emo.u, dur: def.ms, speech: faceCfg.lines[kind][0] };
+  }
+
   onTap(stageX, stageY) {
-    if (!this.pet || !this.petReady) return;
+    if (!this.pet || !this.petReady) return null;
     const now = Date.now();
     if (this.mode === "doze" || this.mode === "doze-enter") {
       this.fromPose = this.lastPose;
       this._begin("wake", now);
-      return;
+      return null;
     }
     const tr = this._currentTransform();
     const sx = (stageX - tr.ox) / tr.s;
-    const sy = (stageY - tr.oy) / tr.s;
-    const h = this.pet.head;
-    const hd = Math.pow((sx - h.x) / h.rx, 2) + Math.pow((sy - h.y) / h.ry, 2);
-    if (hd <= 1.05 || sy < this.pet.neck.y) {
-      this.tiltDir = sx < this.pet.cx ? -1 : 1;
-      this._begin("tilt", now);
-    } else {
-      this._begin("jump", now);
+    const side = sx < this.pet.cx ? -1 : 1;
+    if (this.mode === "idle" || this.mode === "emote") {
+      return this.triggerEmote(now, side);
     }
+    return null;
   }
 
   onPetMove(stageX) {
@@ -803,11 +1218,26 @@ export class PetStage {
         if (u <= 1) bl = blinkAmt(u);
         else this.blinkAt = now + 2200 + Math.random() * 2600;
       }
-      return this._idlePose(now, bl);
+      return this._blend(this._idlePose(now, bl), now);
+    }
+    if (this.mode === "emote") {
+      const def = EMO_DEFS[this.emo.kind];
+      if (!def || t >= def.ms) {
+        this.emo.u = 1;
+        this._resetIdle(now);
+        return this._blend(this._idlePose(now, 0), now);
+      }
+      this.emo.u = t / def.ms;
+      const pose = this._blend(this._emotePose(this.emo.kind, this.emo.u, this.emo.side, t), now);
+      while (this.emo.beat < def.beats.length && def.beats[this.emo.beat].u <= this.emo.u) {
+        this._spawnFx(def.beats[this.emo.beat], this.emo.side, null, pose);
+        this.emo.beat++;
+      }
+      return pose;
     }
     if (this.mode === "jump") {
       if (t >= JUMP_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
-      return kf(JUMP_KFS, t / JUMP_MS);
+      return this._blend(kf(JUMP_KFS, t / JUMP_MS), now);
     }
     if (this.mode === "minihop") {
       if (t >= MINI_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
@@ -869,7 +1299,7 @@ export class PetStage {
     if (this.mode === "tilt") {
       if (t >= TILT_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
       const s = this.tiltDir;
-      return kf([
+      return this._blend(kf([
         { o: 0,    e: "out" },
         { o: 0.24, e: "io",  headRot: 13 * s, rot: 1.5 * s, headTy: 3, earL: -6 * s, earR: -6 * s },
         { o: 0.40, e: "io",  headRot: 12 * s, rot: 1.5 * s, headTy: 3, earL: 4 * s,  earR: 4 * s },
@@ -877,10 +1307,10 @@ export class PetStage {
         { o: 0.66, e: "out", headRot: 10 * s, rot: 1 * s,   headTy: 2, wDoze: 0 },
         { o: 0.84, e: "io",  headRot: 4 * s,  earL: 3 * s,  earR: 3 * s },
         { o: 1,    e: "out" }
-      ], t / TILT_MS);
+      ], t / TILT_MS), now);
     }
     if (this.mode === "pet") {
-      return this._petPose(this.petLean);
+      return this._blend(this._petPose(this.petLean), now);
     }
     if (this.mode === "pet-release") {
       if (t >= PET_RELEASE_MS) { this._resetIdle(now); return this._idlePose(now, 0); }
@@ -911,6 +1341,247 @@ export class PetStage {
       ], t / WAKE_MS);
     }
     return this._idlePose(now, 0);
+  }
+
+  _paintFaceTex(id) {
+    if (!this.hitCtx || !this.pet) return false;
+    const faceCfg = EMO_FACES[this.pet.id];
+    if (!faceCfg) return false;
+    const cacheKey = `${this.pet.id}:${id}`;
+    if (this.faceTexCache[cacheKey] !== undefined) return this.faceTexCache[cacheKey];
+
+    const FR = faceCfg.rect;
+    const FW = FR[2] - FR[0];
+    const FH = FR[3] - FR[1];
+    const cv = document.createElement("canvas");
+    cv.width = FW;
+    cv.height = FH;
+    const c = cv.getContext("2d");
+    c.translate(-FR[0], -FR[1]);
+
+    const S = this.pet.scale;
+    const CX = this.pet.cx;
+    const hitCtx = this.hitCtx;
+    const lw = (stagePx) => stagePx / S;
+    const sampleAvg = (x, y, w, h) => {
+      const d = hitCtx.getImageData(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h))).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 200 || (d[i] + d[i + 1] + d[i + 2]) / 3 < 120) continue;
+        r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+      }
+      return n ? [r / n | 0, g / n | 0, b / n | 0] : [230, 225, 215];
+    };
+    const rgb = (col, a) => `rgba(${col[0]},${col[1]},${col[2]},${a == null ? 1 : a})`;
+    const eyeClip = (ctx, e) => { ctx.beginPath(); ctx.ellipse(e.ex, e.ey, e.erx, e.ery, 0, 0, Math.PI * 2); ctx.clip(); };
+    const coverPupil = (ctx, e) => {
+      const top = sampleAvg(e.x - 8, e.y - e.r - 10, 16, 5);
+      const bot = sampleAvg(e.x - 8, e.y + e.r + 5, 16, 5);
+      const mid = sampleAvg(e.x + (e.x < CX ? -e.r - 9 : e.r + 4), e.y - 6, 5, 12);
+      ctx.save(); eyeClip(ctx, e);
+      const g = ctx.createLinearGradient(0, e.y - e.r - 4, 0, e.y + e.r + 4);
+      g.addColorStop(0, rgb(top)); g.addColorStop(0.5, rgb(mid)); g.addColorStop(1, rgb(bot));
+      ctx.filter = `blur(${lw(0.6).toFixed(2)}px)`;
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+    const movePupil = (ctx, e, dx, dy) => {
+      coverPupil(ctx, e);
+      const R = e.r + 3;
+      ctx.save(); eyeClip(ctx, e);
+      ctx.beginPath(); ctx.arc(e.x + dx, e.y + dy, e.r + 2, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(hitCtx.canvas, e.x - R, e.y - R, 2 * R, 2 * R, e.x - R + dx, e.y - R + dy, 2 * R, 2 * R);
+      ctx.restore();
+    };
+    const eraseMouth = (ctx) => {
+      const m = faceCfg.eraseMouth; if (!m) return;
+      const w = m.x1 - m.x0, h = m.y1 - m.y0, tc = document.createElement("canvas");
+      tc.width = w; tc.height = h;
+      const t = tc.getContext("2d");
+      t.filter = "blur(5px)";
+      t.lineCap = "round"; t.lineWidth = 26; t.strokeStyle = "#000"; t.fillStyle = "#000";
+      t.beginPath(); t.moveTo(16, 17); t.quadraticCurveTo(w / 2, h - 4, w - 18, 14); t.stroke();
+      t.beginPath(); t.ellipse(w / 2, h * 0.5, w * 0.36, h * 0.32, 0, 0, Math.PI * 2); t.fill();
+      t.filter = "none"; t.globalCompositeOperation = "source-in";
+      t.drawImage(hitCtx.canvas, m.x0, m.y0 + m.dy, w, h, 0, 0, w, h);
+      ctx.drawImage(tc, m.x0, m.y0);
+    };
+    const stroke = (ctx, color, wStage, fn) => {
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw(wStage); ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath(); fn(ctx); ctx.stroke(); ctx.restore();
+    };
+    const INK = "rgba(52,38,32,.92)";
+    const dMouth = (ctx, m) => {
+      const x0 = m.x - m.w / 2, x1 = m.x + m.w / 2, y0 = m.y - m.h / 2;
+      const path = () => {
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(m.x, y0 - m.h * 0.08, x1, y0);
+        ctx.bezierCurveTo(x1, y0 + m.h * 0.9, m.x + m.w * 0.22, y0 + m.h * 1.08, m.x, y0 + m.h * 1.08);
+        ctx.bezierCurveTo(m.x - m.w * 0.22, y0 + m.h * 1.08, x0, y0 + m.h * 0.9, x0, y0); ctx.closePath();
+      };
+      ctx.save(); path(); ctx.fillStyle = "#5b2a26"; ctx.fill(); ctx.clip();
+      ctx.fillStyle = "#ff8f8f"; ctx.beginPath(); ctx.ellipse(m.x, y0 + m.h * 1.0, m.w * 0.3, m.h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      ctx.save(); path(); ctx.strokeStyle = "#3a1c18"; ctx.lineWidth = lw(1.3); ctx.lineJoin = "round"; ctx.stroke(); ctx.restore();
+    };
+    const happyEyes = (ctx) => {
+      faceCfg.eyes.forEach((e) => {
+        coverPupil(ctx, e);
+        stroke(ctx, INK, 2.6, (cc) => { cc.moveTo(e.x - e.r * 0.95, e.y + e.r * 0.3); cc.quadraticCurveTo(e.x, e.y - e.r * 0.95, e.x + e.r * 0.95, e.y + e.r * 0.3); });
+      });
+    };
+    const squeezeEyes = (ctx) => {
+      faceCfg.eyes.forEach((e) => {
+        coverPupil(ctx, e); const d = e.x < CX ? 1 : -1, r = e.r;
+        stroke(ctx, INK, 2.6, (cc) => { cc.moveTo(e.x - d * r * 0.7, e.y - r * 0.62); cc.lineTo(e.x + d * r * 0.62, e.y); cc.lineTo(e.x - d * r * 0.7, e.y + r * 0.62); });
+      });
+    };
+    const brows = (ctx, kind, side) => {
+      faceCfg.eyes.forEach((e) => {
+        const isL = e.x < CX, inner = isL ? 1 : -1, L = faceCfg.browLen, bx = e.ex, by = e.ey - e.ery - faceCfg.browGap;
+        stroke(ctx, "rgba(78,60,50,.88)", 2.1, (cc) => {
+          if (kind === "sad") {
+            cc.moveTo(bx - inner * L * 0.5, by + L * 0.12); cc.quadraticCurveTo(bx, by + L * 0.02, bx + inner * L * 0.5, by - L * 0.28);
+          } else {
+            const up = (isL ? -1 : 1) === side;
+            if (up) { cc.moveTo(bx - L * 0.5, by - L * 0.05); cc.quadraticCurveTo(bx, by - L * 0.42, bx + L * 0.5, by - L * 0.05); }
+            else { cc.moveTo(bx - L * 0.45, by + L * 0.1); cc.lineTo(bx + L * 0.45, by + L * 0.06); }
+          }
+        });
+      });
+    };
+    const gloom = (ctx) => {
+      const g = faceCfg.gloom;
+      for (let i = 0; i < 4; i++) {
+        const x = g.x + ((i - 1.5) * g.w) / 3, h = g.h * (i % 2 ? 0.8 : 1);
+        const gr = ctx.createLinearGradient(0, g.y, 0, g.y + h);
+        gr.addColorStop(0, "rgba(96,124,210,.78)"); gr.addColorStop(1, "rgba(96,124,210,0)");
+        stroke(ctx, gr, 1.5, (cc) => { cc.moveTo(x, g.y); cc.lineTo(x, g.y + h); });
+      }
+    };
+    const paintThink = (ctx, side) => {
+      brows(ctx, "think", side);
+      faceCfg.eyes.forEach((e) => { movePupil(ctx, e, faceCfg.lookUp[0] * side, faceCfg.lookUp[1]); });
+      if (faceCfg.eraseMouth) {
+        eraseMouth(ctx); const m = faceCfg.mouth, w = m.w * 0.3;
+        stroke(ctx, INK, 2.1, (cc) => {
+          for (let i = 0; i <= 24; i++) {
+            const t = i / 24, x = m.x - w + 2 * w * t, y = m.y + Math.sin(t * Math.PI * 4) * 4.5;
+            if (i) cc.lineTo(x, y); else cc.moveTo(x, y);
+          }
+        });
+      }
+    };
+
+    if (id === "laughEyes") {
+      if (faceCfg.closedTex) { this.faceTexCache[cacheKey] = false; return false; }
+      happyEyes(c);
+    } else if (id === "laugh") {
+      eraseMouth(c); dMouth(c, faceCfg.mouth);
+    } else if (id === "sad") {
+      brows(c, "sad"); gloom(c);
+      if (faceCfg.eraseMouth) {
+        eraseMouth(c); const m = faceCfg.mouth, w = m.w * 0.36;
+        stroke(c, INK, 2.2, (cc) => { cc.moveTo(m.x - w, m.y + 6); cc.quadraticCurveTo(m.x, m.y - 12, m.x + w, m.y + 6); });
+      }
+    } else if (id === "thinkL") {
+      paintThink(c, -1);
+    } else if (id === "thinkR") {
+      paintThink(c, 1);
+    } else if (id === "cute") {
+      if (faceCfg.closedTex) { this.faceTexCache[cacheKey] = false; return false; }
+      squeezeEyes(c); eraseMouth(c); const m = faceCfg.mouth, r = m.w * 0.13;
+      stroke(c, INK, 2.2, (cc) => { cc.moveTo(m.x - 2 * r, m.y - 2); cc.quadraticCurveTo(m.x - r, m.y + r * 1.6, m.x, m.y - 2); cc.quadraticCurveTo(m.x + r, m.y + r * 1.6, m.x + 2 * r, m.y - 2); });
+    }
+
+    const gl = this.gl;
+    const t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.activeTexture(gl.TEXTURE0);
+    this.faceTexCache[cacheKey] = t;
+    return t;
+  }
+
+  _faceAlphas(kind, s, ms) {
+    const out = {};
+    const def = EMO_DEFS[kind];
+    if (!def) return out;
+    const dur = def.ms;
+    const faces = typeof def.faces === "function" ? def.faces(s) : def.faces;
+    faces.forEach((f) => {
+      const a = f[1] * dur, b = f[2] * dur, fi = f[3] || 120, fo = f[4] || 120;
+      out[f[0]] = ms < a ? 0 : ms < a + fi ? easeOutCubic((ms - a) / fi) : ms < b ? 1 : ms < b + fo ? 1 - (ms - b) / fo : 0;
+    });
+    return out;
+  }
+
+  _drawFace(p, tr, cr, sr, now) {
+    if (!this.faceGrid || !this.hitCtx || !this.pet) return;
+    let al = {};
+    if (this.emo.kind && (this.mode === "emote" || this.emo.seek)) {
+      const def = EMO_DEFS[this.emo.kind];
+      al = this._faceAlphas(this.emo.kind, this.emo.side, this.emo.u * def.ms);
+      if (this.emo.prevSnap && !this.emo.seek) {
+        const pk = 1 - (now - this.emo.prevAt) / BLEND_MS;
+        if (pk > 0) {
+          for (const id in this.emo.prevSnap) al[id] = Math.max(al[id] || 0, this.emo.prevSnap[id] * pk);
+        } else {
+          this.emo.prevSnap = null;
+        }
+      }
+      this.emo.active = true;
+      this.emo.snap = Object.assign({}, al);
+    } else if (this.emo.active || this.emo.endAt) {
+      if (this.emo.active) { this.emo.active = false; this.emo.endAt = now; }
+      const k = 1 - (now - this.emo.endAt) / 160;
+      if (k <= 0) { this.emo.endAt = 0; this.emo.prevSnap = null; return; }
+      for (const id in this.emo.snap) al[id] = this.emo.snap[id] * k;
+    }
+
+    const gl = this.gl;
+    const pet = this.pet;
+    const fg = this.faceGrid;
+    let any = false;
+    for (const id in al) {
+      if (al[id] <= 0.003) continue;
+      const tex = this._paintFaceTex(id);
+      if (!tex) continue;
+      if (!any) {
+        any = true;
+        for (let i = 0; i < fg.nv; i++) {
+          const d = this._deform(fg.rest[i * 2], fg.rest[i * 2 + 1], p, 0, 0);
+          const dx = d[0] - pet.cx;
+          const dy = d[1] - pet.feetY;
+          const rx = pet.cx + dx * cr - dy * sr;
+          const ry = pet.feetY + dx * sr + dy * cr;
+          fg.pos[i * 2] = tr.ox + rx * tr.s;
+          fg.pos[i * 2 + 1] = tr.oy + ry * tr.s + p.hopY;
+        }
+        gl.useProgram(this.progF);
+        gl.bindBuffer(gl.ARRAY_BUFFER, fg.uvBuf);
+        gl.enableVertexAttribArray(this.aUvF);
+        gl.vertexAttribPointer(this.aUvF, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, fg.posBuf);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, fg.pos);
+        gl.enableVertexAttribArray(this.aPosF);
+        gl.vertexAttribPointer(this.aPosF, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, fg.idxBuf);
+        gl.uniform1i(this.uTF, 3);
+      }
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.uniform1f(this.uAF, clamp(al[id], 0, 1));
+      gl.drawElements(gl.TRIANGLES, fg.idxCount, gl.UNSIGNED_SHORT, 0);
+    }
+    if (any) {
+      gl.activeTexture(gl.TEXTURE0);
+    }
   }
 
   _draw(p, now) {
@@ -981,6 +1652,8 @@ export class PetStage {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.idxBuf);
     gl.drawElements(gl.TRIANGLES, this.idxCount, gl.UNSIGNED_SHORT, 0);
 
+    this._drawFace(p, tr, cr, sr, now);
+
     if (pet.mode === "accessories") {
       const slots = [this.worn.neck, this.worn.head];
       for (let s = 0; s < slots.length; s++) {
@@ -1033,7 +1706,7 @@ export class PetStage {
 
   _loop() {
     if (this.destroyed) return;
-    if (this.pet && this.petReady) {
+    if (this.pet && this.petReady && this.live) {
       const now = Date.now();
       const pose = this._computePose(now);
       this._draw(pose, now);
@@ -1043,6 +1716,7 @@ export class PetStage {
 
   destroy() {
     this.destroyed = true;
+    this._clearFx();
     if (this.rafId) {
       this.adapter.cancelRaf(this.rafId);
     }

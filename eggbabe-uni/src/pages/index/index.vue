@@ -1083,7 +1083,10 @@ function endPointer() {
       showSpeech(res.speech, 2800);
     }
   } else if (Date.now() - touchState.startTime < 450) {
-    if (stage) stage.onTap(touchState.startX, touchState.startY);
+    if (stage) {
+      const res = stage.onTap(touchState.startX, touchState.startY);
+      if (res && res.speech) showSpeech(res.speech, 2100);
+    }
     playPop();
     haptic("light");
   }
