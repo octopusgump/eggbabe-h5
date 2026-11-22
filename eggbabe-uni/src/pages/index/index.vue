@@ -68,6 +68,13 @@
         <view v-if="loadingPet" class="stage-loading">加载宠物中...</view>
       </view>
 
+      <!-- 3.5. 2.5D 微侧视角切换胶囊（全套装通用） -->
+      <view class="angle-bar">
+        <button class="angle-pill" :class="{ active: yawMode === -1 }" @tap="onSetYaw(-1)">左微侧</button>
+        <button class="angle-pill" :class="{ active: yawMode === 0 }" @tap="onSetYaw(0)">正面</button>
+        <button class="angle-pill" :class="{ active: yawMode === 1 }" @tap="onSetYaw(1)">右微侧</button>
+      </view>
+
       <!-- 4. 底部衣橱抽屉：套装 / 背景 双 Tab -->
       <view class="sheet">
         <view class="sheet-handle"></view>
@@ -146,6 +153,7 @@ const catalog = reactive({
 const safeTop = ref(16);
 const capsuleRightPad = ref(12);
 const petId = ref("koi");
+const yawMode = ref(0);
 const activeTab = ref("items");
 const currentBgId = ref(initial.backgrounds[0].id);
 const loadingPet = ref(true);
@@ -312,6 +320,16 @@ function onSwitchPet(nextPet) {
 function onSelectBg(bg) {
   if (!bg || bg.id === currentBgId.value) return;
   currentBgId.value = bg.id;
+}
+
+function onSetYaw(mode) {
+  yawMode.value = mode;
+  if (stage) {
+    stage.setYaw(mode * 0.92);
+  }
+  // #ifndef H5
+  if (uni.vibrateShort) uni.vibrateShort({ type: "light" });
+  // #endif
 }
 
 function onTapItem(item) {
@@ -673,6 +691,38 @@ onShareTimeline(() => ({
   background: rgba(30, 24, 18, 0.56);
   color: #fff6ea;
   font-size: 12px;
+}
+
+.angle-bar {
+  position: absolute;
+  right: 12px;
+  bottom: calc(48.58% + 10px);
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(26, 22, 18, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.angle-pill {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 248, 238, 0.88);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.angle-pill.active {
+  background: #fbf4ea;
+  color: #5a4636;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
 .sheet {

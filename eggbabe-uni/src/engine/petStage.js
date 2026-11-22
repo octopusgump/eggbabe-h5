@@ -254,6 +254,8 @@ export class PetStage {
     this.fromPose = makePose();
     this.lastPose = makePose();
     this.spring = { r: 0, vr: 0, y: 0, vy: 0, t: -1 };
+    this.targetYaw = 0;
+    this.currentYaw = 0;
     this.sleepingNotified = false;
     this.lastShadowKey = "";
 
@@ -540,6 +542,11 @@ export class PetStage {
     }
   }
 
+  setYaw(yaw) {
+    this.targetYaw = clamp(Number(yaw) || 0, -1, 1);
+    this.sleepAt = Date.now() + SLEEP_DELAY_MS;
+  }
+
   onPetEnd() {
     if (this.mode === "pet") {
       this._begin("pet-release", Date.now());
@@ -562,6 +569,8 @@ export class PetStage {
       sp.vy += (-(sp.y - p.hopY) * 140 - sp.vy * 9) * h;
       sp.y += sp.vy * h;
     }
+    const yawK = 1 - Math.exp(-dt * 10.5);
+    this.currentYaw += (this.targetYaw - this.currentYaw) * yawK;
   }
 
   _deform(x, y, p, eL, eR) {
@@ -597,6 +606,25 @@ export class PetStage {
     const kx2 = lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
     x = pet.cx + (x - pet.cx) * kx2;
     y = lerp(yHead, yBody, wBody);
+
+    // 2.5D 球面伪 3/4 微侧形变（锦鲤 12 套 & 玉兔全身装均自动生效）
+    const yaw = this.currentYaw;
+    if (Math.abs(yaw) > 0.002) {
+      const rxRef = Math.max(180, h.rx * 0.94);
+      const ryRef = pet.id === "koi" ? 265 : 340;
+      const cyRef = (h.y + pet.bodyY) * 0.5;
+      const nx = clamp((x - pet.cx) / rxRef, -1.35, 1.35);
+      const ny = clamp((y - cyRef) / ryRef, -1.35, 1.35);
+      const z2 = Math.max(0, 1 - nx * nx * 0.68 - ny * ny * 0.36);
+      const z = Math.sqrt(z2);
+      const upperW = 1 - feetPin * 0.72;
+      const arcShift = yaw * z * rxRef * (pet.id === "koi" ? 0.23 : 0.19) * upperW;
+      const perspX = 1 - Math.abs(yaw) * 0.065 - yaw * nx * 0.085;
+      x = pet.cx + (x - pet.cx) * perspX + arcShift;
+      y += -yaw * nx * (pet.id === "koi" ? 11 : 9) * (1 - feetPin * 0.45);
+      const headFollow = sstep(pet.feetY, h.y, y);
+      x += yaw * 7 * headFollow;
+    }
 
     const wh = pet.id === "yutu"
       ? sstep(pet.neck.y + 152, pet.neck.y - 48, y)
