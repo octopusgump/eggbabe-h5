@@ -127,20 +127,106 @@ SET_SPECS = [
 ]
 
 
-def find_eyes(rgb: np.ndarray) -> tuple[tuple[float, float], tuple[float, float]]:
-    """Detect left and right pupil centers in a centered 1:1 front-facing BOON KOI portrait."""
+def find_eyes(rgb: np.ndarray, alpha: np.ndarray | None = None) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+    """Precisely detect BOON KOI's left & right button eyes as (x, y, outer_r)
+    using 4-connected dark pupil blobs verified by their surrounding bright
+    cream-white glossy button-eye ring (100% immune to dark collars, lion hood
+    eyes, mushroom shadows, and curved mouth lines).
+    """
+    from collections import deque
+
     h, w, _ = rgb.shape
-    ry0, ry1 = int(h * 0.30), int(h * 0.62)
-    rx0, rx1 = int(w * 0.28), int(w * 0.72)
-    roi = rgb[ry0:ry1, rx0:rx1].mean(axis=2)
-    ys, xs = np.where(roi < 42)
-    xs = xs.astype(np.float32) + rx0
-    ys = ys.astype(np.float32) + ry0
-    y_cut = np.percentile(ys, 65)
-    cx = w * 0.5
-    l = (xs < cx - 12) & (ys <= y_cut)
-    r = (xs > cx + 12) & (ys <= y_cut)
-    return (float(xs[l].mean()), float(ys[l].mean())), (float(xs[r].mean()), float(ys[r].mean()))
+    luma = rgb.mean(axis=2)
+    ry0, ry1 = int(h * 0.25), int(h * 0.62)
+    rx0, rx1 = int(w * 0.20), int(w * 0.80)
+
+    dark = luma[ry0:ry1, rx0:rx1] < 48.0
+    if alpha is not None:
+        dark = dark & (alpha[ry0:ry1, rx0:rx1] > 200)
+
+    rh, rw = dark.shape
+    visited = np.zeros((rh, rw), dtype=bool)
+    min_area = max(80, int(w * h * 0.0004))
+    max_area = int(w * h * 0.015)
+
+    candidates = []
+    ys_d, xs_d = np.where(dark)
+    for sy, sx in zip(ys_d, xs_d):
+        if visited[sy, sx]:
+            continue
+        q = deque([(int(sy), int(sx))])
+        visited[sy, sx] = True
+        pts_y, pts_x = [], []
+        while q:
+            cy, cx = q.popleft()
+            pts_y.append(cy)
+            pts_x.append(cx)
+            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+                if 0 <= ny < rh and 0 <= nx < rw and not visited[ny, nx] and dark[ny, nx]:
+                    visited[ny, nx] = True
+                    q.append((ny, nx))
+        area = len(pts_x)
+        if area < min_area or area > max_area:
+            continue
+        px = np.array(pts_x, dtype=np.float32) + rx0
+        py = np.array(pts_y, dtype=np.float32) + ry0
+        bw = float(px.max() - px.min() + 1)
+        bh = float(py.max() - py.min() + 1)
+        aspect = min(bw, bh) / max(bw, bh)
+        if aspect < 0.72:
+            continue
+        cx_c, cy_c = float(px.mean()), float(py.mean())
+        r_p = math.sqrt(area / math.pi)
+
+        # Verify bright cream-white glossy button-eye ring around pupil (1.35*r_p .. 2.15*r_p)
+        y0 = max(0, int(cy_c - r_p * 2.4))
+        y1 = min(h, int(cy_c + r_p * 2.4) + 1)
+        x0 = max(0, int(cx_c - r_p * 2.4))
+        x1 = min(w, int(cx_c + r_p * 2.4) + 1)
+        yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float32)
+        dist = np.hypot(xx - cx_c, yy - cy_c)
+        ring = (dist >= r_p * 1.35) & (dist <= r_p * 2.15)
+        if not ring.any():
+            continue
+        ring_luma = luma[y0:y1, x0:x1][ring]
+        med_luma = float(np.median(ring_luma))
+        bright_frac = float((ring_luma > 130.0).mean())
+        # Real button eyes have bright ivory sclera all around the pupil
+        if med_luma < 130.0 or bright_frac < 0.55:
+            continue
+
+        # Outer white button-eye radius is consistently ~2.25x pupil radius
+        outer_r = r_p * 2.25
+        # Score favors bright uniform sclera ring + roundness + proximity to face center Y
+        score = med_luma * bright_frac * aspect
+        candidates.append((cx_c, cy_c, outer_r, score, area))
+
+    mid_x = w * 0.5
+    lefts = [c for c in candidates if c[0] < mid_x - w * 0.03]
+    rights = [c for c in candidates if c[0] > mid_x + w * 0.03]
+    if not lefts or not rights:
+        raise RuntimeError(f"Failed to detect button-eye pair! candidates={candidates}")
+
+    best_pair = None
+    best_score = -1e9
+    for l in lefts:
+        for r in rights:
+            dy = abs(l[1] - r[1])
+            dx = r[0] - l[0]
+            if dy > h * 0.06 or dx < w * 0.11 or dx > w * 0.42:
+                continue
+            # Prefer symmetric Y, similar pupil radius, centered X, and high sclera ring score
+            sym_pen = dy * 4.0 + abs((l[0] + r[0]) * 0.5 - mid_x) * 1.5 + abs(l[2] - r[2]) * 3.0
+            # Slightly prefer lower of two high-scoring pairs if hood has decoy eyes above (lion/duck)
+            s = (l[3] + r[3]) - sym_pen
+            if s > best_score:
+                best_score = s
+                best_pair = (l, r)
+
+    if best_pair is None:
+        raise RuntimeError(f"No valid symmetric eye pair found! lefts={lefts}, rights={rights}")
+    l, r = best_pair
+    return (l[0], l[1], l[2]), (r[0], r[1], r[2])
 
 
 def chroma_key_matte(
@@ -318,17 +404,17 @@ def place_aligned(
     }
 
 
-def make_eye_overlays(base_ext: Image.Image, eye_l: tuple[float, float], eye_r: tuple[float, float]) -> tuple[Image.Image, Image.Image]:
-    """Create seamless real-plush eyelid overlays sampled directly from BOON KOI's
-    own terry-cloth forehead/cheek fur (zero flat sticker rim!):
-      - eyes_doze.png: pure seamless real-plush eyelid skin (driven by WebGL sliding eyelid shader)
-      - eyes_closed.png: seamless real-plush eyelid skin + tapered embroidered happy crescent eyes
+def make_plush_fur_texture(base_ext: Image.Image, eye_l: tuple[float, float, float], eye_r: tuple[float, float, float]) -> Image.Image:
+    """Create a seamless full-canvas real-plush terry-cloth fur texture sampled
+    directly from BOON KOI's own forehead fur (solid alpha=255 everywhere).
+    The WebGL shader dynamically masks and shades both sliding eyelids (w2) and
+    happy petting crescent eyes (w1) at each outfit's exact uEyeL / uEyeR!
     """
     arr = np.array(base_ext, dtype=np.float32)
     mx = int(round((eye_l[0] + eye_r[0]) * 0.5))
     my = int(round((eye_l[1] + eye_r[1]) * 0.5))
 
-    # 1. Harvest a clean 96x64 real cream terry-cloth plush patch from BOON KOI's forehead
+    # Harvest a clean 96x64 real cream terry-cloth plush patch from BOON KOI's forehead
     fy0 = max(0, my - 124)
     fy1 = fy0 + 64
     fx0 = max(0, mx - 48)
@@ -339,69 +425,34 @@ def make_eye_overlays(base_ext: Image.Image, eye_l: tuple[float, float], eye_r: 
     big_tile = np.concatenate([row_tile, row_tile[::-1, :, :]], axis=0)
     th, tw, _ = big_tile.shape
 
-    # Tile across full canvas
     reps_y = (CANVAS_H // th) + 2
     reps_x = (CANVAS_W // tw) + 2
     plush_full = np.tile(big_tile, (reps_y, reps_x, 1))[:CANVAS_H, :CANVAS_W, :].copy()
 
-    # Match local cheek luminance around each eye and add subtle 3D spherical shading
-    yy, xx = np.mgrid[0:CANVAS_H, 0:CANVAS_W].astype(np.float32)
-    alpha_mask = np.zeros((CANVAS_H, CANVAS_W), dtype=np.float32)
-    shade = np.ones((CANVAS_H, CANVAS_W), dtype=np.float32)
-
-    for ex, ey in (eye_l, eye_r):
-        # Slightly wider ellipse covering the glossy button eye + its thin outer shadow ring
-        dx = (xx - ex) / 62.0
-        dy = (yy - ey) / 60.0
-        r = np.hypot(dx, dy)
-        # Wide smooth radial feather: 100% solid inside r <= 0.78 (48px), smoothly fading to 0 at r = 1.08 (67px)
-        t = np.clip((1.08 - r) / 0.30, 0.0, 1.0)
-        smooth_m = t * t * (3.0 - 2.0 * t)
-        alpha_mask = np.maximum(alpha_mask, smooth_m)
-        # Subtle spherical face lighting: gently brighter upper-left, softly shaded lower-right
-        s_local = 1.0 + np.clip(-0.045 * dx - 0.055 * dy, -0.09, 0.07)
-        shade = np.where(smooth_m > 0.01, shade * (1.0 - smooth_m) + s_local * smooth_m, shade)
-
     warm = np.array([0.975, 0.96, 0.935], dtype=np.float32)[None, None, :]
-    plush_shaded = np.clip(plush_full * shade[:, :, None] * warm, 0.0, 255.0)
-    plush_rgba = np.dstack([plush_shaded, np.clip(alpha_mask * 255.0, 0.0, 255.0)]).astype(np.uint8)
-    eyes_doze = Image.fromarray(plush_rgba, "RGBA")
+    plush_rgb = np.clip(plush_full * warm, 0.0, 255.0)
+    alpha_full = np.full((CANVAS_H, CANVAS_W), 255.0, dtype=np.float32)
+    return Image.fromarray(np.dstack([plush_rgb, alpha_full]).astype(np.uint8), "RGBA")
 
-    # 2. Build eyes_closed.png (petting happy crescent eyes) on top of the seamless plush cover
-    s = 2
-    hi = eyes_doze.resize((CANVAS_W * s, CANVAS_H * s), Image.Resampling.LANCZOS)
-    line_layer = Image.new("RGBA", (CANVAS_W * s, CANVAS_H * s), (0, 0, 0, 0))
-    shadow_layer = Image.new("RGBA", (CANVAS_W * s, CANVAS_H * s), (0, 0, 0, 0))
-    d_line = ImageDraw.Draw(line_layer)
-    d_sh = ImageDraw.Draw(shadow_layer)
 
-    stroke_rgb = (36, 30, 25)
-    sh_rgb = (115, 98, 80)
+def eye_dict(eye: tuple[float, float, float]) -> dict[str, float]:
+    """Convert (x, y, outer_r) to shader-ready {x, y, rx, ry} dict."""
+    rx = round(min(max(eye[2] * 1.12, 44.0), 66.0), 2)
+    ry = round(rx * 0.97, 2)
+    return {"x": round(eye[0], 2), "y": round(eye[1], 2), "rx": rx, "ry": ry}
 
-    for ex, ey in (eye_l, eye_r):
-        cx, cy = ex * s, (ey + 2.0) * s
-        w_arc = 33.0 * s
-        h_arc = 19.0 * s
-        steps = 48
-        # Draw smooth tapered upward crescent arc (thick in center, gently tapered tips)
-        for i in range(steps + 1):
-            u = i / steps  # 0..1
-            ang = math.radians(205.0 + u * 130.0)
-            px = cx + math.cos(ang) * w_arc
-            py = (cy + h_arc * 0.55) + math.sin(ang) * h_arc
-            # Smooth bell-curve taper: 0.35x at ends -> 1.0x at center
-            taper = math.sin(u * math.pi) ** 0.55
-            rad = (2.2 + 4.4 * taper) * (s * 0.5)
-            d_sh.ellipse((px - rad, py + 2.5 - rad, px + rad, py + 2.5 + rad), fill=sh_rgb + (90,))
-            d_line.ellipse((px - rad, py - rad, px + rad, py + rad), fill=stroke_rgb + (248,))
 
-    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=3.5))
-    line_layer = line_layer.filter(ImageFilter.GaussianBlur(radius=0.8))
-    hi = Image.alpha_composite(hi, shadow_layer)
-    hi = Image.alpha_composite(hi, line_layer)
-    eyes_closed = hi.resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
-
-    return eyes_closed, eyes_doze
+def assert_eye_alignment(label: str, eye_l: dict[str, float], eye_r: dict[str, float], ref_eye_mid: tuple[float, float]) -> None:
+    dy = abs(eye_l["y"] - eye_r["y"])
+    mid_x = (eye_l["x"] + eye_r["x"]) * 0.5
+    mid_y = (eye_l["y"] + eye_r["y"]) * 0.5
+    err_x = abs(mid_x - ref_eye_mid[0])
+    err_y = abs(mid_y - ref_eye_mid[1])
+    if dy > 6.0 or err_x > 12.0 or err_y > 12.0:
+        raise AssertionError(
+            f"[{label}] eye alignment out of bounds: L={eye_l}, R={eye_r}, "
+            f"dy={dy:.2f}, err_x={err_x:.2f}, err_y={err_y:.2f}"
+        )
 
 
 def make_thumb(im: Image.Image, size: int = 256) -> Image.Image:
@@ -419,34 +470,42 @@ def make_thumb(im: Image.Image, size: int = 256) -> Image.Image:
 def main() -> None:
     SETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    base_orig = Image.open(WORK / "tex_base.png").convert("RGBA")
-    mint_orig = Image.open(WORK / "tex_boots_mint.png").convert("RGBA")
-    base_ext = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
-    base_ext.paste(base_orig, (BASE_DX, BASE_DY), base_orig)
-    mint_ext = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
-    mint_ext.paste(mint_orig, (BASE_DX, BASE_DY), mint_orig)
-
-    base_ext.save(SETS_DIR / "tex_base_ext.png")
-    mint_ext.save(SETS_DIR / "tex_boots_mint_ext.png")
-
-    b_arr = np.array(base_ext)
-    roi = b_arr[BASE_DY + 220 : BASE_DY + 360, BASE_DX + 140 : BASE_DX + 440]
-    dark = (roi[:, :, 3] > 200) & (roi[:, :, :3].mean(axis=2) < 40)
-    ys, xs = np.where(dark)
-    xs = xs.astype(np.float32) + BASE_DX + 140
-    ys = ys.astype(np.float32) + BASE_DY + 220
-    cx_split = BASE_DX + 300
-    ref_eye_l = (float(xs[xs < cx_split].mean()), float(ys[xs < cx_split].mean()))
-    ref_eye_r = (float(xs[xs >= cx_split].mean()), float(ys[xs >= cx_split].mean()))
-    ref_eye_mid = ((ref_eye_l[0] + ref_eye_r[0]) * 0.5, (ref_eye_l[1] + ref_eye_r[1]) * 0.5)
+    # Canonical reference frame from landmarks.json + legacy base eye height
     lm = json.loads((WORK / "landmarks.json").read_text())
     ref_feet_y = float(lm["feetY"] + BASE_DY)
 
-    eyes_closed, eyes_doze = make_eye_overlays(base_ext, ref_eye_l, ref_eye_r)
-    eyes_closed.save(SETS_DIR / "eyes_closed.png")
-    eyes_doze.save(SETS_DIR / "eyes_doze.png")
-    Image.alpha_composite(base_ext, eyes_closed).save(SETS_DIR / "tex_closed_ext.png")
-    Image.alpha_composite(base_ext, eyes_doze).save(SETS_DIR / "tex_doze_ext.png")
+    base_orig = Image.open(WORK / "tex_base.png").convert("RGBA")
+    legacy_ext = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
+    legacy_ext.paste(base_orig, (BASE_DX, BASE_DY), base_orig)
+    leg_arr = np.array(legacy_ext, dtype=np.float32)
+    leg_eye_l, leg_eye_r = find_eyes(leg_arr[:, :, :3], leg_arr[:, :, 3])
+    ref_eye_mid = ((leg_eye_l[0] + leg_eye_r[0]) * 0.5, (leg_eye_l[1] + leg_eye_r[1]) * 0.5)
+    print(f"[ref] eye_mid=({ref_eye_mid[0]:.2f}, {ref_eye_mid[1]:.2f}) feet_y={ref_feet_y:.2f}")
+
+    # Build HD tex_base_ext.png from chroma/base_front.jpg if present (never regress to low-res!)
+    hd_base_src = CHROMA_DIR / "base_front.jpg"
+    if hd_base_src.exists():
+        im_base = Image.open(hd_base_src).convert("RGB")
+        rgb_base = np.array(im_base, dtype=np.float32)
+        b_el, b_er = find_eyes(rgb_base)
+        base_cutout = chroma_key_matte(im_base, key="blue")
+        base_ext, base_stats = place_aligned(base_cutout, b_el, b_er, ref_eye_mid, ref_feet_y)
+        print(f"[base_hd] aligned from {hd_base_src.name}: {base_stats}")
+    else:
+        base_ext = legacy_ext
+
+    base_ext.save(SETS_DIR / "tex_base_ext.png")
+
+    b_arr = np.array(base_ext, dtype=np.float32)
+    base_eye_l, base_eye_r = find_eyes(b_arr[:, :, :3], b_arr[:, :, 3])
+    base_eye_l_d = eye_dict(base_eye_l)
+    base_eye_r_d = eye_dict(base_eye_r)
+    assert_eye_alignment("base", base_eye_l_d, base_eye_r_d, ref_eye_mid)
+    print(f"[base] eyes: L={base_eye_l_d} R={base_eye_r_d}")
+
+    # Full-canvas seamless real-plush fur texture for dynamic WebGL eyelid & happy-eye shader
+    eyes_plush = make_plush_fur_texture(base_ext, base_eye_l, base_eye_r)
+    eyes_plush.save(SETS_DIR / "eyes_doze.png")
 
     sets_meta = []
     for spec in SET_SPECS:
@@ -463,16 +522,25 @@ def main() -> None:
         )
         aligned, stats = place_aligned(cutout, eye_l, eye_r, ref_eye_mid, ref_feet_y)
 
+        # Re-measure exact eye coordinates on the final 640x780 aligned texture
+        a_arr = np.array(aligned, dtype=np.float32)
+        fin_l, fin_r = find_eyes(a_arr[:, :, :3], a_arr[:, :, 3])
+        fin_l_d = eye_dict(fin_l)
+        fin_r_d = eye_dict(fin_r)
+        assert_eye_alignment(spec["id"], fin_l_d, fin_r_d, ref_eye_mid)
+
         tex_path = SETS_DIR / f"tex_{spec['id']}.png"
         thumb_path = SETS_DIR / f"thumb_{spec['id']}.png"
         aligned.save(tex_path)
         make_thumb(aligned, 256).save(thumb_path)
 
-        a = np.array(aligned)[:, :, 3]
+        a = a_arr[:, :, 3]
         semi_count = int(((a > 15) & (a < 235)).sum())
         corners_max = int(max(a[0, 0], a[0, -1], a[-1, 0], a[-1, -1]))
         print(
-            f"[{spec['id']}] {spec['name']} ({spec['key']}-key): size={aligned.size} "
+            f"[{spec['id']}] {spec['name']} ({spec['key']}-key): "
+            f"L=({fin_l_d['x']},{fin_l_d['y']},r={fin_l_d['rx']}) "
+            f"R=({fin_r_d['x']},{fin_r_d['y']},r={fin_r_d['rx']}) "
             f"corners={corners_max} semi_px={semi_count} align={stats}"
         )
         sets_meta.append(
@@ -485,6 +553,8 @@ def main() -> None:
                 "tex": f"sets/tex_{spec['id']}.png",
                 "thumb": f"sets/thumb_{spec['id']}.png",
                 "translucent": spec["translucent_helmet"],
+                "eyeL": fin_l_d,
+                "eyeR": fin_r_d,
             }
         )
 
@@ -504,8 +574,8 @@ def main() -> None:
         },
         "earL": {"x": lm["earL"]["x"] + BASE_DX, "y": lm["earL"]["y"] + BASE_DY},
         "earR": {"x": lm["earR"]["x"] + BASE_DX, "y": lm["earR"]["y"] + BASE_DY},
-        "eyeL": {"x": round(ref_eye_l[0], 2), "y": round(ref_eye_l[1], 2), "rx": 56.0, "ry": 54.0},
-        "eyeR": {"x": round(ref_eye_r[0], 2), "y": round(ref_eye_r[1], 2), "rx": 56.0, "ry": 54.0},
+        "eyeL": base_eye_l_d,
+        "eyeR": base_eye_r_d,
         "bodyY": lm["bodyY"] + BASE_DY,
         "bbox": [
             lm["bbox"][0] + BASE_DX,
@@ -516,7 +586,7 @@ def main() -> None:
     }
     (SETS_DIR / "landmarks_ext.json").write_text(json.dumps(ext_lm, indent=2, ensure_ascii=False))
     (SETS_DIR / "sets_meta.json").write_text(json.dumps(sets_meta, indent=2, ensure_ascii=False))
-    print("Chroma-key pipeline complete!")
+    print("Chroma-key pipeline complete (all 13 textures verified)!")
 
 
 if __name__ == "__main__":

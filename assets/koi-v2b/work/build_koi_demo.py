@@ -48,6 +48,15 @@ def uri_path(p: Path) -> str:
     return uri_img(im)
 
 
+def eye_uv(e: dict) -> list[float]:
+    return [
+        round(float(e["x"]) / 1024.0, 6),
+        round(float(e["y"]) / 2048.0, 6),
+        round(float(e["rx"]) / 1024.0, 6),
+        round(float(e["ry"]) / 2048.0, 6),
+    ]
+
+
 items = []
 for s in sets_meta:
     items.append(
@@ -59,6 +68,8 @@ for s in sets_meta:
             price=s["price"],
             tex=uri_path(W / s["tex"]),
             thumb=uri_path(W / s["thumb"]),
+            eyeL=eye_uv(s["eyeL"]),
+            eyeR=eye_uv(s["eyeR"]),
         )
     )
 
@@ -165,7 +176,7 @@ t = t.replace(
 )
 t = t.replace(
     '  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%" };',
-    '  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%", eyesClosed: "%%EYES_CLOSED%%", eyesDoze: "%%EYES_DOZE%%" };\n  const ITEMS = %%ITEMS%%;\n  const BGS = %%BGS%%;',
+    '  const IMG = { base: "%%TEX_BASE%%", closed: "%%TEX_CLOSED%%", doze: "%%TEX_DOZE%%" };\n  const BASE_EYE_L = %%EYE_L_UV%%, BASE_EYE_R = %%EYE_R_UV%%;\n  const ITEMS = %%ITEMS%%;\n  const BGS = %%BGS%%;',
 )
 
 set_init = r"""
@@ -198,33 +209,16 @@ set_init = r"""
 early_worn = r"""
   const worn = { set: null };
   let texBodyDefault = null, texClosed = null, texDoze = null;
-  let texEyesClosed = null, texEyesDoze = null;
   function rebindBodyTex() {
     gl.useProgram(prog);
-    const t0 = (worn.set && setTextures[worn.set]) ? setTextures[worn.set] : texBodyDefault;
+    const curItem = worn.set ? ITEMS.filter(function (x) { return x.id === worn.set; })[0] : null;
+    const t0 = (curItem && setTextures[curItem.id]) ? setTextures[curItem.id] : texBodyDefault;
     if (t0) { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, t0); }
-    if (texEyesClosed && texEyesDoze) {
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texEyesClosed);
-      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texEyesDoze);
-      gl.uniform1f(uEye, 1.0);
-    } else {
-      if (texClosed) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texClosed); }
-      if (texDoze) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texDoze); }
-      gl.uniform1f(uEye, 0.0);
-    }
+    if (texDoze) { gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texDoze); }
+    gl.uniform1f(uEye, 1.0);
+    gl.uniform4fv(uEyeL, (curItem && curItem.eyeL) ? curItem.eyeL : BASE_EYE_L);
+    gl.uniform4fv(uEyeR, (curItem && curItem.eyeR) ? curItem.eyeR : BASE_EYE_R);
   }
-"""
-
-extra_loaders = r"""
-  (function loadExtraBodyTex() {
-    function loadPot(src, cb) {
-      const img = new Image();
-      img.onload = function () { cb(makePotTexture(img)); };
-      img.src = src;
-    }
-    loadPot(IMG.eyesClosed, function (t) { texEyesClosed = t; });
-    loadPot(IMG.eyesDoze, function (t) { texEyesDoze = t; });
-  })();
 """
 
 t = t.replace(
@@ -235,8 +229,7 @@ t = t.replace(
     "  loadTex(0, IMG.base, true); loadTex(1, IMG.closed); loadTex(2, IMG.doze);",
     early_worn
     + "  loadTex(0, IMG.base, true); loadTex(1, IMG.closed); loadTex(2, IMG.doze);\n"
-    + set_init
-    + extra_loaders,
+    + set_init,
 )
 
 t = t.replace(
@@ -374,6 +367,7 @@ t = t.replace(demo_old, demo_new)
 
 t = t.replace("锦鲤 BOON KOI 网格换装 Demo", "锦鲤 BOON KOI · 套装弹性透明换装 Demo")
 
+TINY_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 bg = (W.parents[2] / "assets/shared/room_bg.jpg").read_bytes()
 rep = {
     "TEX": json.dumps(TEX),
@@ -381,10 +375,8 @@ rep = {
     "OX": str(round(OX, 3)),
     "OY": str(round(OY, 3)),
     "TEX_BASE": uri_path(SETS / "tex_base_ext.png"),
-    "TEX_CLOSED": uri_path(SETS / "tex_closed_ext.png"),
-    "TEX_DOZE": uri_path(SETS / "tex_doze_ext.png"),
-    "EYES_CLOSED": uri_path(SETS / "eyes_closed.png"),
-    "EYES_DOZE": uri_path(SETS / "eyes_doze.png"),
+    "TEX_CLOSED": TINY_PNG,
+    "TEX_DOZE": uri_path(SETS / "eyes_doze.png"),
     "BG": "data:image/jpeg;base64," + base64.b64encode(bg).decode(),
     "SH_SOFT_X": f"{FEET[0] + 12}",
     "SH_SOFT_Y": f"{FEET[1] - 5}",
@@ -398,18 +390,8 @@ rep = {
     "HEAD": json.dumps(ext_lm["head"]),
     "EAR_L": json.dumps(ext_lm["earL"]),
     "EAR_R": json.dumps(ext_lm["earR"]),
-    "EYE_L_UV": json.dumps([
-        round(ext_lm["eyeL"]["x"] / 1024.0, 6),
-        round(ext_lm["eyeL"]["y"] / 2048.0, 6),
-        round(ext_lm["eyeL"]["rx"] / 1024.0, 6),
-        round(ext_lm["eyeL"]["ry"] / 2048.0, 6),
-    ]),
-    "EYE_R_UV": json.dumps([
-        round(ext_lm["eyeR"]["x"] / 1024.0, 6),
-        round(ext_lm["eyeR"]["y"] / 2048.0, 6),
-        round(ext_lm["eyeR"]["rx"] / 1024.0, 6),
-        round(ext_lm["eyeR"]["ry"] / 2048.0, 6),
-    ]),
+    "EYE_L_UV": json.dumps(eye_uv(ext_lm["eyeL"])),
+    "EYE_R_UV": json.dumps(eye_uv(ext_lm["eyeR"])),
     "BODY_Y": str(ext_lm["bodyY"]),
     "SHEET_HTML": sheet,
 }

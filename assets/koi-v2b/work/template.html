@@ -60,43 +60,70 @@
   const vs = "attribute vec2 aPos; attribute vec2 aUv; varying vec2 vUv;" +
     "void main(){ vUv = aUv; gl_Position = vec4(aPos.x / 195.0 - 1.0, 1.0 - aPos.y / 422.0, 0.0, 1.0); }";
   const fs = "precision mediump float; varying vec2 vUv; uniform sampler2D t0; uniform sampler2D t1; uniform sampler2D t2; uniform float w1; uniform float w2; uniform float uEye; uniform vec4 uEyeL; uniform vec4 uEyeR;" +
-    "vec2 eyeLid(vec2 uv, vec4 eye, float w){" +
-    "  if (w <= 0.004) return vec2(0.0);" +
+    "vec3 eyeLid(vec2 uv, vec4 eye, float w){" +
+    "  if (w <= 0.004) return vec3(0.0);" +
     "  vec2 d = (uv - eye.xy) / eye.zw;" +
-    "  if (dot(d, d) > 1.45) return vec2(0.0);" +
-    "  float curve = mix(-0.14, 0.28, w);" +
-    "  float lidY = mix(-1.12, 0.36, w) - curve * (d.x * d.x);" +
-    "  float lowY = mix(1.22, 0.36, smoothstep(0.25, 1.0, w)) - curve * (d.x * d.x);" +
+    "  float rad = length(d);" +
+    "  if (rad > 1.20) return vec3(0.0);" +
+    "  float mask = smoothstep(1.16, 0.78, rad);" +
+    "  float curve = mix(-0.12, 0.26, w);" +
+    "  float lidY = mix(-1.12, 0.34, w) - curve * (d.x * d.x);" +
+    "  float lowY = mix(1.22, 0.34, smoothstep(0.25, 1.0, w)) - curve * (d.x * d.x);" +
     "  float coverTop = smoothstep(lidY + 0.12, lidY - 0.08, d.y);" +
     "  float coverBot = smoothstep(lowY - 0.12, lowY + 0.08, d.y);" +
-    "  float cover = clamp(max(coverTop, coverBot), 0.0, 1.0);" +
-    "  float xTaper = smoothstep(0.84, 0.32, abs(d.x));" +
+    "  float cover = clamp(max(coverTop, coverBot), 0.0, 1.0) * mask;" +
+    "  float xTaper = smoothstep(0.78, 0.28, abs(d.x));" +
     "  float distLine = abs(d.y - lidY);" +
-    "  float thick = mix(0.055, 0.095, w) * xTaper;" +
-    "  float line = (1.0 - smoothstep(thick * 0.45, thick + 0.045, distLine)) * xTaper * smoothstep(0.10, 0.30, w);" +
-    "  float castSh = smoothstep(0.30, 0.0, d.y - lidY) * smoothstep(-0.04, 0.06, d.y - lidY) * (1.0 - w * 0.78) * 0.28 * xTaper;" +
-    "  return vec2(cover, clamp(line + castSh * (1.0 - cover), 0.0, 1.0));" +
+    "  float thick = mix(0.05, 0.09, w) * xTaper;" +
+    "  float line = (1.0 - smoothstep(thick * 0.45, thick + 0.045, distLine)) * xTaper * smoothstep(0.10, 0.30, w) * mask;" +
+    "  float castSh = smoothstep(0.30, 0.0, d.y - lidY) * smoothstep(-0.04, 0.06, d.y - lidY) * (1.0 - w * 0.78) * 0.28 * xTaper * mask;" +
+    "  float sh = 1.0 + clamp(-0.045 * d.x - 0.055 * d.y, -0.09, 0.07);" +
+    "  return vec3(cover, clamp(line + castSh * (1.0 - cover), 0.0, 1.0), sh);" +
+    "}" +
+    "vec4 happyEye(vec2 uv, vec4 eye, float w){" +
+    "  if (w <= 0.004) return vec4(0.0, 0.0, 0.0, 1.0);" +
+    "  vec2 d = (uv - eye.xy) / eye.zw;" +
+    "  float rad = length(d);" +
+    "  if (rad > 1.20) return vec4(0.0, 0.0, 0.0, 1.0);" +
+    "  float mask = smoothstep(1.16, 0.78, rad);" +
+    "  float cover = mask * w;" +
+    "  float xTaper = smoothstep(0.68, 0.22, abs(d.x));" +
+    "  float yArc = -0.20 + 0.62 * (d.x * d.x);" +
+    "  float thick = (0.042 + 0.068 * xTaper);" +
+    "  float stroke = (1.0 - smoothstep(thick * 0.48, thick + 0.036, abs(d.y - yArc))) * xTaper * w * mask;" +
+    "  float dropSh = (1.0 - smoothstep(thick * 0.55, thick + 0.09, abs(d.y - (yArc + 0.065)))) * xTaper * w * mask * 0.34;" +
+    "  float sh = 1.0 + clamp(-0.045 * d.x - 0.055 * d.y, -0.09, 0.07);" +
+    "  return vec4(cover, stroke, dropSh, sh);" +
     "}" +
     "void main(){" +
     "  vec4 a = texture2D(t0, vUv);" +
     "  if (uEye > 0.5) {" +
     "    vec4 col = a;" +
     "    float c2 = clamp(w2, 0.0, 1.0);" +
-    "    if (c2 > 0.004) {" +
-    "      vec4 plush = texture2D(t2, vUv);" +
-    "      vec2 lL = eyeLid(vUv, uEyeL, c2); vec2 lR = eyeLid(vUv, uEyeR, c2);" +
-    "      float cov = max(lL.x, lR.x) * plush.a;" +
-    "      vec3 lidRgb = plush.rgb / max(plush.a, 0.001);" +
-    "      vec3 baseRgb = col.rgb / max(col.a, 0.001);" +
-    "      vec3 mixed = mix(baseRgb, lidRgb, cov);" +
-    "      float lash = max(lL.y, lR.y) * smoothstep(0.05, 0.35, plush.a);" +
-    "      mixed = mix(mixed, vec3(0.14, 0.115, 0.098), lash);" +
-    "      col = vec4(mixed * col.a, col.a);" +
-    "    }" +
     "    float c1 = clamp(w1, 0.0, 1.0);" +
-    "    if (c1 > 0.004) {" +
-    "      vec4 happy = texture2D(t1, vUv) * c1;" +
-    "      col = happy + col * (1.0 - happy.a);" +
+    "    if (c2 > 0.004 || c1 > 0.004) {" +
+    "      vec4 plush = texture2D(t2, vUv);" +
+    "      vec3 furRgb = plush.rgb / max(plush.a, 0.001);" +
+    "      vec3 rgb = col.rgb / max(col.a, 0.001);" +
+    "      if (c2 > 0.004) {" +
+    "        vec3 lL = eyeLid(vUv, uEyeL, c2); vec3 lR = eyeLid(vUv, uEyeR, c2);" +
+    "        float cov = max(lL.x, lR.x);" +
+    "        float sh = lL.x >= lR.x ? (lL.x > 0.001 ? lL.z : 1.0) : lR.z;" +
+    "        rgb = mix(rgb, furRgb * sh, cov);" +
+    "        float lash = max(lL.y, lR.y);" +
+    "        rgb = mix(rgb, vec3(0.14, 0.115, 0.098), lash);" +
+    "      }" +
+    "      if (c1 > 0.004) {" +
+    "        vec4 hL = happyEye(vUv, uEyeL, c1); vec4 hR = happyEye(vUv, uEyeR, c1);" +
+    "        float covH = max(hL.x, hR.x);" +
+    "        float shH = hL.x >= hR.x ? (hL.x > 0.001 ? hL.w : 1.0) : hR.w;" +
+    "        rgb = mix(rgb, furRgb * shH, covH);" +
+    "        float dropH = max(hL.z, hR.z);" +
+    "        rgb = mix(rgb, vec3(0.45, 0.38, 0.31), dropH);" +
+    "        float stH = max(hL.y, hR.y);" +
+    "        rgb = mix(rgb, vec3(0.14, 0.115, 0.098), stH);" +
+    "      }" +
+    "      col = vec4(rgb * col.a, col.a);" +
     "    }" +
     "    gl_FragColor = col;" +
     "  } else {" +
