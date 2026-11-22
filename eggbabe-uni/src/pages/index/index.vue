@@ -245,11 +245,21 @@
         <text class="drag-ghost-emoji">{{ dragSnack.snack.emoji }}</text>
       </view>
 
-      <!-- 4B. 底部衣橱抽屉（点击「装扮」时平滑滑出，套装 / 背景 双 Tab） -->
-      <view class="sheet" :class="{ open: isDrawerOpen }">
-        <view class="sheet-top" @tap="onCloseMode">
+      <!-- 4B. 底部衣橱抽屉（点击「装扮」时平滑滑出，下拉顶部横条收起） -->
+      <view
+        class="sheet"
+        :class="{ open: isDrawerOpen, dragging: sheetDrag.active }"
+        :style="sheetDrag.active ? { transform: 'translateY(' + sheetDrag.dy + 'px)' } : null"
+      >
+        <view
+          class="sheet-top"
+          @touchstart.stop="onSheetTouchStart"
+          @touchmove.stop.prevent="onSheetTouchMove"
+          @touchend.stop="onSheetTouchEnd"
+          @touchcancel.stop="onSheetTouchCancel"
+          @mousedown.stop="onSheetMouseDown"
+        >
           <view class="sheet-handle"></view>
-          <text class="sheet-done">完成 ⌄</text>
         </view>
         <view class="sheet-tabs">
           <button
@@ -865,14 +875,74 @@ function onSnackMouseDown(e, sn) {
   startSnackDrag(e.clientX, e.clientY, sn);
   // #endif
 }
+const sheetDrag = reactive({
+  active: false,
+  startY: 0,
+  startTime: 0,
+  dy: 0,
+  moved: false
+});
+
+function startSheetDrag(clientY) {
+  if (!isDrawerOpen.value) return;
+  sheetDrag.active = true;
+  sheetDrag.startY = clientY;
+  sheetDrag.startTime = Date.now();
+  sheetDrag.dy = 0;
+  sheetDrag.moved = false;
+}
+
+function moveSheetDrag(clientY) {
+  if (!sheetDrag.active) return;
+  const delta = clientY - sheetDrag.startY;
+  if (Math.abs(delta) > 6) sheetDrag.moved = true;
+  sheetDrag.dy = Math.max(0, delta);
+}
+
+function endSheetDrag() {
+  if (!sheetDrag.active) return;
+  const dy = sheetDrag.dy;
+  const elapsed = Date.now() - sheetDrag.startTime;
+  const wasMoved = sheetDrag.moved;
+  sheetDrag.active = false;
+  sheetDrag.dy = 0;
+  // 向下拉超过 48px、快速下滑、或轻点横条均可收起抽屉
+  if (!wasMoved || dy >= 48 || (dy >= 24 && elapsed < 240)) {
+    onCloseMode();
+  }
+}
+
+function onSheetTouchStart(e) {
+  const t = e.touches && e.touches[0];
+  if (t) startSheetDrag(t.clientY);
+}
+function onSheetTouchMove(e) {
+  const t = e.touches && e.touches[0];
+  if (t) moveSheetDrag(t.clientY);
+}
+function onSheetTouchEnd() {
+  endSheetDrag();
+}
+function onSheetTouchCancel() {
+  sheetDrag.active = false;
+  sheetDrag.dy = 0;
+}
+function onSheetMouseDown(e) {
+  // #ifdef H5
+  startSheetDrag(e.clientY);
+  // #endif
+}
+
 function onWindowMouseMove(e) {
   // #ifdef H5
   if (dragSnack.active) moveSnackDrag(e.clientX, e.clientY);
+  if (sheetDrag.active) moveSheetDrag(e.clientY);
   // #endif
 }
 function onWindowMouseUp() {
   // #ifdef H5
   if (dragSnack.active) endSnackDrag(dragSnack.snack);
+  if (sheetDrag.active) endSheetDrag();
   // #endif
 }
 
@@ -1944,30 +2014,30 @@ onShareTimeline(() => ({
   pointer-events: auto;
 }
 
+.sheet.dragging {
+  transition: none;
+}
+
 .sheet-top {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 0 8px;
+  padding: 6px 0 12px;
   flex-shrink: 0;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sheet-top:active {
+  cursor: grabbing;
 }
 
 .sheet-handle {
-  width: 38px;
-  height: 4px;
+  width: 42px;
+  height: 4.5px;
   border-radius: 999px;
-  background: #e2d0bc;
-}
-
-.sheet-done {
-  position: absolute;
-  right: 4px;
-  top: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: #a67642;
+  background: #decab4;
 }
 
 .sheet-tabs {
