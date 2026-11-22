@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#fbf4ea">
-  <title>蛋宝宝 H5 · 线上展示总入口</title>
-  <meta name="description" content="蛋宝宝（Eggbabe）H5 线上唯一总入口：蛋宝宝装扮屋（Uni-app 一码双端）、玉兔小屋模块版、蛋宝宝牧场。">
-  <meta property="og:title" content="蛋宝宝 H5 · 线上展示总入口">
-  <meta property="og:description" content="BOON KOI 锦鲤 12 套装、玉兔 8 配饰、11 套小屋背景与一键导出高清壁纸，统一入口直达全部子项目。">
+  <title>蛋宝宝装扮屋</title>
+  <meta name="description" content="蛋宝宝（Eggbabe）互动毛绒装扮屋：锦鲤 12 套装、玉兔 8 配饰、11 套小屋背景、一键导出高清壁纸，内含玉兔小屋与蛋宝宝牧场入口。">
+  <meta property="og:title" content="蛋宝宝装扮屋">
+  <meta property="og:description" content="BOON KOI 锦鲤与玉兔的互动毛绒装扮屋，支持换装、换背景与导出高清壁纸。">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://octopusgump.github.io/eggbabe-h5/">
   <meta property="og:image" content="https://octopusgump.github.io/eggbabe-h5/assets/koi-v2b/work/sets/tex_base_ext.png">
@@ -15,346 +15,128 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       margin: 0;
-      min-height: 100%;
-      background: #f6ecde;
-      color: #4f3d2e;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", sans-serif;
+      height: 100%;
+      background: #231c15;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
     }
     body {
-      padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(36px + env(safe-area-inset-bottom, 0px));
+      min-height: 100dvh;
       display: flex;
+      align-items: center;
       justify-content: center;
     }
-    .wrap {
-      width: 100%;
-      max-width: 720px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-    .hero-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 4px 2px;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .brand-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      background: #fffdf9;
-      border: 1.5px solid #e6d5c1;
-      box-shadow: 0 4px 12px rgba(90, 62, 34, .08);
-      object-fit: contain;
-      padding: 3px;
-    }
-    .brand h1 {
-      margin: 0;
-      font-size: 20px;
-      line-height: 1.25;
-      color: #423123;
-    }
-    .brand p {
-      margin: 2px 0 0;
-      font-size: 12px;
-      color: #8b7259;
-    }
-    .branch-badge {
-      flex-shrink: 0;
-      padding: 5px 11px;
-      border-radius: 999px;
-      background: #fffdf9;
-      border: 1.5px solid #e6d5c1;
-      color: #7a634d;
-      font-size: 11.5px;
-      font-weight: 600;
-    }
-
-    /* 主推大卡片：Uni-app 一码双端装扮屋 */
-    .featured {
+    #app-shell {
       position: relative;
-      background: linear-gradient(145deg, #fffdf9 0%, #fbf1e2 100%);
-      border: 2px solid #c9955a;
-      border-radius: 24px;
-      padding: 20px;
-      box-shadow: 0 12px 32px rgba(145, 96, 42, .14);
-      display: grid;
-      grid-template-columns: 1fr 142px;
-      gap: 16px;
-      align-items: center;
-      text-decoration: none;
-      color: inherit;
-      transition: transform .16s ease, box-shadow .16s ease;
-    }
-    .featured:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 16px 38px rgba(145, 96, 42, .19);
-    }
-    .tag-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-    }
-    .tag.primary { background: #c9955a; color: #fff; }
-    .tag.soft { background: #f3e4cf; color: #7a5c3c; }
-    .featured h2 {
-      margin: 0 0 8px;
-      font-size: 22px;
-      line-height: 1.25;
-      color: #3d2c1e;
-    }
-    .featured .desc {
-      margin: 0 0 14px;
-      font-size: 13.5px;
-      line-height: 1.6;
-      color: #6d5742;
-    }
-    .cta-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 20px;
-      border-radius: 999px;
-      background: #c9955a;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 700;
-      box-shadow: 0 4px 12px rgba(201, 149, 90, .32);
-    }
-    .featured-art {
-      width: 142px;
-      height: 162px;
-      border-radius: 18px;
-      background: radial-gradient(circle at 50% 62%, #f4e3cb 0%, #fbf5eb 78%);
-      border: 1px solid #ead8c0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 100%;
+      max-width: 430px;
+      height: 100dvh;
+      max-height: 932px;
+      background: #fbf4ea;
       overflow: hidden;
-      padding: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
     }
-    .featured-art img {
+    @media (min-width: 521px) {
+      #app-shell {
+        border-radius: 24px;
+        height: min(94dvh, 896px);
+      }
+    }
+    @media (max-width: 520px) {
+      html, body { background: #fbf4ea; }
+      #app-shell {
+        max-width: none;
+        max-height: none;
+        height: 100dvh;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+    #uni-frame {
       width: 100%;
       height: 100%;
-      object-fit: contain;
-    }
-
-    @media (max-width: 540px) {
-      .featured {
-        grid-template-columns: 1fr;
-        text-align: left;
-      }
-      .featured-art {
-        width: 100%;
-        height: 148px;
-        order: -1;
-      }
-    }
-
-    .sec-title {
-      margin: 6px 2px 0;
-      font-size: 13px;
-      font-weight: 700;
-      color: #8b7259;
-      letter-spacing: .04em;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-    }
-    @media (max-width: 540px) {
-      .grid { grid-template-columns: 1fr; }
-    }
-    .card {
-      background: #fffdf9;
-      border: 1.5px solid #e6d5c1;
-      border-radius: 18px;
-      padding: 16px;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 12px;
-      box-shadow: 0 4px 14px rgba(80, 50, 20, .05);
-      transition: border-color .15s ease, transform .15s ease;
-    }
-    .card:hover {
-      border-color: #c9955a;
-      transform: translateY(-2px);
-    }
-    .card h3 {
-      margin: 0 0 6px;
-      font-size: 16px;
-      color: #423123;
-    }
-    .card p {
-      margin: 0;
-      font-size: 12.5px;
-      line-height: 1.55;
-      color: #7c6550;
-    }
-    .card-foot {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 12px;
-      font-weight: 600;
-      color: #b77e3d;
-    }
-
-    /* 历史基线版折叠区 */
-    details.legacy {
+      border: 0;
+      display: block;
       background: #fbf4ea;
-      border: 1.5px dashed #decab0;
-      border-radius: 16px;
-      padding: 12px 16px;
     }
-    details.legacy summary {
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 700;
-      color: #7a634d;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    details.legacy summary::-webkit-details-marker { display: none; }
-    .legacy-list {
-      margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px solid #eadcc9;
+    /* 独立子项目 UI Icon 悬浮快捷入口（右侧舞台空白区，不遮挡顶栏/宠物/衣橱） */
+    .world-dock {
+      position: absolute;
+      right: 10px;
+      top: calc(114px + env(safe-area-inset-top, 0px));
+      z-index: 30;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 9px;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    .legacy-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 9px 12px;
-      border-radius: 12px;
-      background: #fffdf9;
-      border: 1px solid #eadcc9;
-      text-decoration: none;
+    .world-btn {
+      width: 46px;
+      padding: 6px 4px 5px;
+      border-radius: 15px;
+      background: rgba(251, 244, 234, 0.90);
+      border: 1.5px solid rgba(201, 149, 90, 0.42);
+      box-shadow: 0 4px 12px rgba(62, 40, 18, 0.16);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       color: #5a4636;
-      font-size: 12.5px;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      transition: transform .14s ease, border-color .14s ease, background .14s ease;
     }
-    .legacy-item:hover { border-color: #c9955a; }
-    .legacy-item span.sub {
-      color: #937b63;
-      font-size: 11.5px;
+    .world-btn:hover {
+      border-color: #c9955a;
+      background: rgba(255, 253, 249, 0.98);
+      transform: scale(1.04);
     }
-
-    footer {
-      margin-top: 4px;
-      text-align: center;
-      font-size: 11.5px;
-      color: #9a826a;
-      line-height: 1.6;
+    .world-btn:active {
+      transform: scale(0.95);
     }
-    footer a { color: #8c6336; text-decoration: none; }
+    .world-btn svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+    .world-btn span {
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: .02em;
+      color: #5a4636;
+    }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <header class="hero-head">
-      <div class="brand">
-        <img class="brand-icon" src="./assets/koi-v2b/work/sets/tex_base_ext.png" alt="BOON KOI">
-        <div>
-          <h1>蛋宝宝 H5 · 线上总入口</h1>
-          <p>Eggbabe 统一线上展示与试玩导航</p>
-        </div>
-      </div>
-      <span class="branch-badge">唯一发布源：main</span>
-    </header>
+  <div id="app-shell">
+    <iframe id="uni-frame" title="蛋宝宝装扮屋" src="./eggbabe-uni/site/"></iframe>
 
-    <a class="featured" href="./eggbabe-uni/site/">
-      <div>
-        <div class="tag-row">
-          <span class="tag primary">主推 · 最新正式版</span>
-          <span class="tag soft">Uni-app 一码双端</span>
-          <span class="tag soft">远程热更新</span>
-        </div>
-        <h2>蛋宝宝装扮屋</h2>
-        <p class="desc">
-          最新统一换装与背景体验：包含 <strong>锦鲤 12 套全身套装</strong>、<strong>玉兔 8 款配饰</strong>、<strong>11 套小屋背景</strong>、摸头/跳跃/眨眼 WebGL 互动动画，以及一键导出 780×1688 高清壁纸。
-        </p>
-        <span class="cta-btn">立即进入装扮屋 →</span>
-      </div>
-      <div class="featured-art">
-        <img src="./assets/koi-v2b/work/sets/tex_base_ext.png" alt="BOON KOI 锦鲤装扮屋">
-      </div>
-    </a>
-
-    <div class="sec-title">其它独立子项目</div>
-    <section class="grid">
-      <a class="card" href="./yutu-house-mod.html">
-        <div>
-          <h3>玉兔小屋 · 模块升级版</h3>
-          <p>路线 B 四房间粘土模块烘焙升级，支持 2D 寻路、门洞穿行与前景遮挡交互。</p>
-        </div>
-        <div class="card-foot">
-          <span>yutu-house-mod</span>
-          <span>进入体验 →</span>
-        </div>
+    <nav class="world-dock" aria-label="扩展场景入口">
+      <a class="world-btn" href="./yutu-house-mod.html" title="进入玉兔小屋">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3.5 11.2L12 4.2l8.5 7" stroke="#c9955a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M6 10.2V19a1.4 1.4 0 0 0 1.4 1.4h9.2A1.4 1.4 0 0 0 18 19v-8.8" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M10.2 20.4v-4.6a1.8 1.8 0 0 1 3.6 0v4.6" fill="#e9c89b" stroke="#7a5b3e" stroke-width="1.5"/>
+        </svg>
+        <span>小屋</span>
       </a>
-
-      <a class="card" href="./danbaobao-meadow.html">
-        <div>
-          <h3>蛋宝宝牧场</h3>
-          <p>Three.js 3D 粘土草场互动体验：11 只小羊、方圈四角口，支持拖拽小羊、旋转与缩放视角。</p>
-        </div>
-        <div class="card-foot">
-          <span>danbaobao-meadow</span>
-          <span>进入体验 →</span>
-        </div>
+      <a class="world-btn" href="./danbaobao-meadow.html" title="进入蛋宝宝牧场">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 18.5c2.5-2.2 5.3-3.2 8-3.2s5.5 1 8 3.2" stroke="#7ea862" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="12" cy="11.2" r="4.2" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.6"/>
+          <circle cx="8.6" cy="10.4" r="2.1" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.5"/>
+          <circle cx="15.4" cy="10.4" r="2.1" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.5"/>
+          <circle cx="12" cy="8.2" r="2.2" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.5"/>
+          <circle cx="10.8" cy="11.4" r="0.8" fill="#4f3d2e"/>
+          <circle cx="13.2" cy="11.4" r="0.8" fill="#4f3d2e"/>
+        </svg>
+        <span>牧场</span>
       </a>
-    </section>
-
-    <details class="legacy">
-      <summary>
-        <span>历史基线版（兼容参考 · 换装体验请优先使用上方新版）</span>
-        <span>展开 ▾</span>
-      </summary>
-      <div class="legacy-list">
-        <a class="legacy-item" href="./assets/dress_pets_demo.html">
-          <strong>双宠 iframe 试衣页（历史基线版）</strong>
-          <span class="sub">assets/dress_pets_demo.html</span>
-        </a>
-        <a class="legacy-item" href="./assets/koi-v2b/koi_mesh_demo.html">
-          <strong>锦鲤单页 WebGL 基线</strong>
-          <span class="sub">assets/koi-v2b/koi_mesh_demo.html</span>
-        </a>
-        <a class="legacy-item" href="./assets/v2b/yutu_mesh_demo.html">
-          <strong>玉兔单页 WebGL 基线</strong>
-          <span class="sub">assets/v2b/yutu_mesh_demo.html</span>
-        </a>
-      </div>
-    </details>
-
-    <footer>
-      GitHub Pages 唯一线上发布源：<code>main</code> 分支 ·
-      <a href="https://github.com/octopusgump/eggbabe-h5" target="_blank" rel="noopener">octopusgump/eggbabe-h5</a>
-    </footer>
-  </main>
+    </nav>
+  </div>
 </body>
 </html>
