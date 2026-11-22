@@ -36,7 +36,8 @@
 | 路径 | 说明 |
 | :--- | :--- |
 | [`index.html`](index.html) | 唯一对外主入口（直接呈现 `eggbabe-uni/site/` + 右侧小屋/牧场 UI Icon） |
-| [`eggbabe-uni/`](eggbabe-uni/) | **主工程**：Uni-app Vue 3 一码双端装扮屋（H5 + 微信小程序） |
+| [`eggbabe-uni/`](eggbabe-uni/) | **主工程**：Uni-app Vue 3 一码双端装扮与轻陪伴电子宠物（H5 + 微信小程序） |
+| [`docs/prd/`](docs/prd/0001-light-companion-pet.md) | **产品需求文档（PRD）**：轻陪伴电子宠物等核心玩法规范 |
 | [`assets/shared/catalog.json`](assets/shared/catalog.json) | 换装与背景统一热更新清单 |
 | [`yutu-house-mod/`](yutu-house-mod/) | 玉兔小屋模块升级版工程（路线 B） |
 | [`danbaobao-meadow/`](danbaobao-meadow/) | 蛋宝宝牧场 Three.js 工程 |

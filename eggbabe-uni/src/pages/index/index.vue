@@ -30,7 +30,7 @@
 
         <!-- 轻养成状态胶囊：等级 + 饱食 + 清洁 -->
         <view class="care-hud">
-          <view class="lv-badge">
+          <view class="lv-badge" @tap="onTapLvBadge">
             <text class="lv-text">Lv.{{ petCare.level }}</text>
             <view class="exp-track">
               <view class="exp-fill" :style="{ width: expPercent + '%' }"></view>
@@ -89,8 +89,20 @@
         <canvas type="webgl" id="pet-gl" class="pet-gl"></canvas>
         <!-- #endif -->
 
-        <!-- 脏污提醒：嗡嗡绕飞的小苍蝇 + 小灰尘（清洁 < 30% 时出现） -->
+        <!-- 脏污提醒：淡绿臭气波浪线 + 嗡嗡绕飞小苍蝇 + 小灰尘（清洁 < 30% 时出现） -->
         <view v-if="isDirty && !rinsing" class="dirty-layer" :class="{ lifted: isDrawerOpen }">
+          <view class="stink-wisp stink-1">
+            <view class="stink-seg stink-top"></view>
+            <view class="stink-seg stink-bot"></view>
+          </view>
+          <view class="stink-wisp stink-2">
+            <view class="stink-seg stink-top"></view>
+            <view class="stink-seg stink-bot"></view>
+          </view>
+          <view class="stink-wisp stink-3">
+            <view class="stink-seg stink-top"></view>
+            <view class="stink-seg stink-bot"></view>
+          </view>
           <view class="fly fly-a">
             <view class="fly-wing wing-l"></view>
             <view class="fly-body"></view>
@@ -299,13 +311,14 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
-import { onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
+import { onLoad, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
 import { getDefaultCatalog, fetchRemoteCatalog } from "../../config/catalogLoader";
 import { PetStage } from "../../engine/petStage";
 import { exportWallpaper } from "../../engine/wallpaperExporter";
 import {
   SNACKS_BY_PET,
   loadCareAll,
+  saveCareAll,
   applyTimeDecay,
   expForNextLevel,
   getMood,
@@ -595,8 +608,75 @@ function refreshStageRectH5() {
   // #endif
 }
 
+let lvTapCount = 0;
+let lvTapResetTimer = null;
+
+function applyDemoPreset(preset, notify = false) {
+  const now = Date.now();
+  if (preset === "dirty") {
+    ["koi", "yutu"].forEach((id) => {
+      careAll[id].hygiene = 18;
+      careAll[id].hunger = 22;
+      careAll[id].updatedAt = now;
+    });
+    saveCareAll(careAll);
+    syncPetMood(true);
+    if (notify) {
+      haptic("medium");
+      pushFloatToast("已模拟 8 小时后：变臭变饿啦");
+    }
+  } else if (preset === "hungry") {
+    ["koi", "yutu"].forEach((id) => {
+      careAll[id].hunger = 18;
+      careAll[id].hygiene = 78;
+      careAll[id].updatedAt = now;
+    });
+    saveCareAll(careAll);
+    syncPetMood(true);
+    if (notify) {
+      haptic("medium");
+      pushFloatToast("已模拟饿肚子状态");
+    }
+  }
+}
+
+function onTapLvBadge() {
+  lvTapCount += 1;
+  if (lvTapResetTimer) clearTimeout(lvTapResetTimer);
+  lvTapResetTimer = setTimeout(() => {
+    lvTapCount = 0;
+  }, 2400);
+  if (lvTapCount >= 5) {
+    lvTapCount = 0;
+    applyDemoPreset("dirty", true);
+  }
+}
+
+onLoad((query) => {
+  if (query && (query.demo === "dirty" || query.demo === "hungry")) {
+    applyDemoPreset(query.demo, false);
+  }
+});
+
 onMounted(() => {
   updateSafeArea();
+
+  // #ifdef H5
+  try {
+    const sp = new URLSearchParams(window.location.search || "");
+    let demo = sp.get("demo");
+    if (!demo && window.location.hash && window.location.hash.indexOf("?") >= 0) {
+      const hsp = new URLSearchParams(window.location.hash.split("?")[1]);
+      demo = hsp.get("demo");
+    }
+    if (demo === "dirty" || demo === "hungry") {
+      applyDemoPreset(demo, false);
+    }
+  } catch (e) {
+    // ignore URL parsing errors
+  }
+  // #endif
+
   setTimeout(initStage, 50);
 
   fetchRemoteCatalog().then((remote) => {
@@ -1380,6 +1460,47 @@ onShareTimeline(() => ({
 
 .dirty-layer.lifted {
   top: 29%;
+}
+
+.stink-wisp {
+  position: absolute;
+  width: 14px;
+  height: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 4px rgba(132, 192, 48, 0.55));
+  animation: stinkRise 2.4s ease-in-out infinite;
+}
+
+.stink-seg {
+  width: 11px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+}
+
+.stink-top {
+  border-left-color: rgba(158, 212, 70, 0.88);
+  transform: translateX(2px) rotate(12deg);
+}
+
+.stink-bot {
+  border-right-color: rgba(158, 212, 70, 0.88);
+  margin-top: -4px;
+  transform: translateX(-2px) rotate(12deg);
+}
+
+.stink-1 { left: 26%; top: 18%; animation-delay: 0s; }
+.stink-2 { left: 48%; top: 6%; animation-delay: 0.75s; }
+.stink-3 { left: 68%; top: 20%; animation-delay: 1.45s; }
+
+@keyframes stinkRise {
+  0%   { opacity: 0; transform: translateY(14px) translateX(0) scale(0.82); }
+  28%  { opacity: 0.92; transform: translateY(0px) translateX(4px) scale(1); }
+  65%  { opacity: 0.78; transform: translateY(-14px) translateX(-4px) scale(1.04); }
+  100% { opacity: 0; transform: translateY(-28px) translateX(2px) scale(0.92); }
 }
 
 .fly {
