@@ -1,0 +1,403 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-11-21",
+  "backgrounds": [
+    {
+      "id": "room_bg",
+      "name": "奶油暖屋",
+      "file": "assets/shared/room_bg.jpg",
+      "stageBg": "#f0e2cc",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(86,52,28,.32) 0%, rgba(92,58,32,.19) 28%, rgba(110,72,40,.09) 52%, rgba(120,80,46,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(52,32,16,.46) 0%, rgba(62,38,20,.2) 42%, rgba(62,38,20,0) 74%)",
+      "exportShadowRgba": "rgba(52, 32, 16, 0.32)"
+    },
+    {
+      "id": "bg_winter_blue",
+      "name": "冬日蓝菱格",
+      "file": "assets/shared/bgs/bg_winter_blue.jpg",
+      "stageBg": "#5b7996",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(36,52,72,.32) 0%, rgba(44,62,84,.18) 30%, rgba(56,74,96,.08) 54%, rgba(56,74,96,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(26,38,54,.46) 0%, rgba(34,48,66,.2) 42%, rgba(34,48,66,0) 74%)",
+      "exportShadowRgba": "rgba(26, 38, 54, 0.34)"
+    },
+    {
+      "id": "bg_mint_room",
+      "name": "复古薄荷房",
+      "file": "assets/shared/bgs/bg_mint_room.jpg",
+      "stageBg": "#b8c7b3",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(78,58,34,.30) 0%, rgba(88,66,40,.17) 30%, rgba(102,78,48,.08) 54%, rgba(102,78,48,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(50,36,20,.44) 0%, rgba(60,44,24,.19) 42%, rgba(60,44,24,0) 74%)",
+      "exportShadowRgba": "rgba(50, 36, 20, 0.30)"
+    },
+    {
+      "id": "bg_moon_courtyard",
+      "name": "桂月亭台夜",
+      "file": "assets/shared/bgs/bg_moon_courtyard.jpg",
+      "stageBg": "#27335c",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(20,24,48,.42) 0%, rgba(28,32,62,.24) 30%, rgba(36,42,74,.10) 54%, rgba(36,42,74,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(14,16,34,.56) 0%, rgba(22,26,48,.26) 42%, rgba(22,26,48,0) 74%)",
+      "exportShadowRgba": "rgba(14, 16, 34, 0.42)"
+    },
+    {
+      "id": "bg_lotus_pond",
+      "name": "荷灯锦鲤池",
+      "file": "assets/shared/bgs/bg_lotus_pond.jpg",
+      "stageBg": "#16384c",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(20,30,46,.42) 0%, rgba(28,40,58,.24) 30%, rgba(38,52,72,.10) 54%, rgba(38,52,72,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(14,22,34,.56) 0%, rgba(22,32,48,.26) 42%, rgba(22,32,48,0) 74%)",
+      "exportShadowRgba": "rgba(14, 22, 34, 0.42)"
+    },
+    {
+      "id": "bg_plush_meadow",
+      "name": "星夜绒花坡",
+      "file": "assets/shared/bgs/bg_plush_meadow.jpg",
+      "stageBg": "#2b2566",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(68,36,56,.36) 0%, rgba(82,46,68,.20) 30%, rgba(96,58,80,.09) 54%, rgba(96,58,80,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(44,22,38,.50) 0%, rgba(56,30,48,.22) 42%, rgba(56,30,48,0) 74%)",
+      "exportShadowRgba": "rgba(44, 22, 38, 0.38)"
+    },
+    {
+      "id": "bg_sunset_meadow",
+      "name": "晚霞云朵坡",
+      "file": "assets/shared/bgs/bg_sunset_meadow.jpg",
+      "stageBg": "#8e6d88",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(76,58,44,.34) 0%, rgba(88,68,52,.19) 30%, rgba(104,82,64,.08) 54%, rgba(104,82,64,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(50,36,26,.48) 0%, rgba(62,46,34,.22) 42%, rgba(62,46,34,0) 74%)",
+      "exportShadowRgba": "rgba(50, 36, 26, 0.34)"
+    },
+    {
+      "id": "bg_deep_sea",
+      "name": "幻光深海屋",
+      "file": "assets/shared/bgs/bg_deep_sea.jpg",
+      "stageBg": "#1c6392",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(56,36,78,.34) 0%, rgba(68,46,92,.19) 30%, rgba(84,58,108,.08) 54%, rgba(84,58,108,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(38,24,56,.48) 0%, rgba(50,32,72,.22) 42%, rgba(50,32,72,0) 74%)",
+      "exportShadowRgba": "rgba(38, 24, 56, 0.36)"
+    },
+    {
+      "id": "bg_autumn_cabin",
+      "name": "秋日暖炉屋",
+      "file": "assets/shared/bgs/bg_autumn_cabin.jpg",
+      "stageBg": "#5b321a",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(46,22,10,.44) 0%, rgba(58,28,14,.25) 30%, rgba(72,38,18,.11) 54%, rgba(72,38,18,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(28,12,6,.58) 0%, rgba(40,18,8,.28) 42%, rgba(40,18,8,0) 74%)",
+      "exportShadowRgba": "rgba(28, 12, 6, 0.44)"
+    },
+    {
+      "id": "bg_candy_hearth",
+      "name": "甜梦糖果屋",
+      "file": "assets/shared/bgs/bg_candy_hearth.jpg",
+      "stageBg": "#2d6f82",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(92,42,42,.34) 0%, rgba(108,52,52,.19) 30%, rgba(124,64,64,.08) 54%, rgba(124,64,64,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(62,26,28,.48) 0%, rgba(76,34,36,.22) 42%, rgba(76,34,36,0) 74%)",
+      "exportShadowRgba": "rgba(62, 26, 28, 0.36)"
+    },
+    {
+      "id": "bg_pink_cloud",
+      "name": "暮粉祥云境",
+      "file": "assets/shared/bgs/bg_pink_cloud.jpg",
+      "stageBg": "#b38fa3",
+      "shadowSoft": "radial-gradient(ellipse at 48% 46%, rgba(86,52,74,.32) 0%, rgba(98,62,86,.18) 30%, rgba(114,76,100,.08) 54%, rgba(114,76,100,0) 76%)",
+      "shadowContact": "radial-gradient(ellipse at 50% 50%, rgba(58,34,50,.46) 0%, rgba(72,44,62,.20) 42%, rgba(72,44,62,0) 74%)",
+      "exportShadowRgba": "rgba(58, 34, 50, 0.34)"
+    }
+  ],
+  "pets": {
+    "koi": {
+      "id": "koi",
+      "label": "锦鲤",
+      "drawerTitle": "套装 (12)",
+      "mode": "sets",
+      "canvasW": 640,
+      "canvasH": 780,
+      "scale": 0.403614,
+      "feetStageX": 195,
+      "feetStageY": 412,
+      "exportScale": 0.88,
+      "exportFeetX": 390,
+      "exportFeetY": 1312,
+      "cx": 328,
+      "feetY": 771,
+      "neck": {
+        "x": 328,
+        "y": 613
+      },
+      "head": {
+        "x": 328,
+        "y": 398,
+        "rx": 255,
+        "ry": 149
+      },
+      "earL": {
+        "x": 310,
+        "y": 179
+      },
+      "earR": {
+        "x": 346,
+        "y": 179
+      },
+      "bodyY": 505,
+      "earAmp": 0.35,
+      "useEyeShader": true,
+      "eyeLUV": [
+        0.386859375,
+        0.48123076923076924,
+        0.0875,
+        0.06923076923076923
+      ],
+      "eyeRUV": [
+        0.619890625,
+        0.48366666666666663,
+        0.0875,
+        0.06923076923076923
+      ],
+      "textures": {
+        "base": "assets/koi-v2b/work/sets/tex_base_ext.png",
+        "closed": "assets/koi-v2b/work/sets/eyes_closed.png",
+        "doze": "assets/koi-v2b/work/sets/eyes_doze.png"
+      },
+      "items": [
+        {
+          "id": "set_duck",
+          "slot": "set",
+          "name": "小黄鸭雨衣",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_duck.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_duck.png"
+        },
+        {
+          "id": "set_yukata",
+          "slot": "set",
+          "name": "夏日祭浴衣",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_yukata.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_yukata.png"
+        },
+        {
+          "id": "set_sailor",
+          "slot": "set",
+          "name": "小海军水手",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_sailor.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_sailor.png"
+        },
+        {
+          "id": "set_strawberry_pj",
+          "slot": "set",
+          "name": "草莓睡衣",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_strawberry_pj.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_strawberry_pj.png"
+        },
+        {
+          "id": "set_mushroom",
+          "slot": "set",
+          "name": "森林小蘑菇",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_mushroom.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_mushroom.png"
+        },
+        {
+          "id": "set_baker",
+          "slot": "set",
+          "name": "小厨师烘焙",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_baker.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_baker.png"
+        },
+        {
+          "id": "set_astronaut",
+          "slot": "set",
+          "name": "复古宇航员",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_astronaut.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_astronaut.png"
+        },
+        {
+          "id": "set_lion",
+          "slot": "set",
+          "name": "新年小醒狮",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_lion.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_lion.png"
+        },
+        {
+          "id": "set_trex",
+          "slot": "set",
+          "name": "暴走霸王龙",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_trex.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_trex.png"
+        },
+        {
+          "id": "set_triceratops",
+          "slot": "set",
+          "name": "针织三角龙",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_triceratops.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_triceratops.png"
+        },
+        {
+          "id": "set_eggshell_dino",
+          "slot": "set",
+          "name": "破壳小恐龙",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_eggshell_dino.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_eggshell_dino.png"
+        },
+        {
+          "id": "set_stego",
+          "slot": "set",
+          "name": "粉黄小剑龙",
+          "price": 20,
+          "tex": "assets/koi-v2b/work/sets/tex_set_stego.png",
+          "thumb": "assets/koi-v2b/work/sets/thumb_set_stego.png"
+        }
+      ]
+    },
+    "yutu": {
+      "id": "yutu",
+      "label": "玉兔",
+      "drawerTitle": "配饰 (8)",
+      "mode": "accessories",
+      "canvasW": 600,
+      "canvasH": 1119,
+      "scale": 0.295,
+      "feetStageX": 195,
+      "feetStageY": 412,
+      "exportScale": 0.7,
+      "exportFeetX": 390,
+      "exportFeetY": 1312,
+      "cx": 301,
+      "feetY": 1105,
+      "neck": {
+        "x": 301,
+        "y": 668
+      },
+      "head": {
+        "x": 301,
+        "y": 520,
+        "rx": 215,
+        "ry": 200
+      },
+      "earL": {
+        "x": 205,
+        "y": 348
+      },
+      "earR": {
+        "x": 405,
+        "y": 348
+      },
+      "bodyY": 870,
+      "earAmp": 1,
+      "useEyeShader": false,
+      "eyeLUV": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "eyeRUV": [
+        0,
+        0,
+        1,
+        1
+      ],
+      "textures": {
+        "base": "assets/v2b/work/tex_base.png",
+        "closed": "assets/v2b/work/tex_closed.png",
+        "doze": "assets/v2b/work/tex_doze.png"
+      },
+      "items": [
+        {
+          "id": "strawberry",
+          "slot": "head",
+          "name": "草莓针织帽",
+          "x": 126,
+          "y": 176,
+          "w": 349,
+          "h": 276,
+          "tex": "assets/v2b/work/dress/extract/acc_strawberry.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_strawberry.png"
+        },
+        {
+          "id": "crown",
+          "slot": "head",
+          "name": "小皇冠",
+          "x": 156,
+          "y": 187,
+          "w": 288,
+          "h": 288,
+          "tex": "assets/v2b/work/dress/extract/acc_crown.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_crown.png"
+        },
+        {
+          "id": "beanie",
+          "slot": "head",
+          "name": "暖绒毛线帽",
+          "x": 141,
+          "y": 117,
+          "w": 319,
+          "h": 337,
+          "tex": "assets/v2b/work/dress/extract/acc_beanie.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_beanie.png"
+        },
+        {
+          "id": "bow",
+          "slot": "head",
+          "name": "甜心蝴蝶结",
+          "x": 236,
+          "y": 228,
+          "w": 280,
+          "h": 304,
+          "tex": "assets/v2b/work/dress/extract/acc_bow.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_bow.png"
+        },
+        {
+          "id": "flower",
+          "slot": "head",
+          "name": "春日花环",
+          "x": 79,
+          "y": 279,
+          "w": 443,
+          "h": 231,
+          "tex": "assets/v2b/work/dress/extract/acc_flower.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_flower.png"
+        },
+        {
+          "id": "straw",
+          "slot": "head",
+          "name": "田园小草帽",
+          "x": 151,
+          "y": 187,
+          "w": 298,
+          "h": 308,
+          "tex": "assets/v2b/work/dress/extract/acc_straw.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_straw.png"
+        },
+        {
+          "id": "scarf_stripe",
+          "slot": "neck",
+          "name": "条纹围巾",
+          "x": 60,
+          "y": 560,
+          "w": 486,
+          "h": 267,
+          "tex": "assets/v2b/work/dress/extract/acc_scarf_stripe.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_scarf_stripe.png"
+        },
+        {
+          "id": "scarf_caramel",
+          "slot": "neck",
+          "name": "焦糖围巾",
+          "x": 51,
+          "y": 588,
+          "w": 482,
+          "h": 328,
+          "tex": "assets/v2b/work/dress/extract/acc_scarf_caramel.png",
+          "thumb": "assets/v2b/work/dress/extract/thumb_scarf_caramel.png"
+        }
+      ]
+    }
+  }
+}
