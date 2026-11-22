@@ -78,5 +78,85 @@
       120,
       30
     ]
+  },
+  {
+    "id": "wolf_hood",
+    "name": "狼皮小兔",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1562,
+      "eye_dx": 1.5,
+      "eye_dy": 0.0,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "berry_pancake",
+    "name": "松饼甜心",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1643,
+      "eye_dx": -0.5,
+      "eye_dy": -0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "lion_tanghulu",
+    "name": "瑞雪醒狮",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.162,
+      "eye_dx": 0.5,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "duck_bathrobe",
+    "name": "泡泡浴袍",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1643,
+      "eye_dx": -0.5,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
   }
 ]

@@ -58,6 +58,34 @@ SETS = [
         "translucent_dome": True,
         "raw": "set_astro_bubble.jpg",
     },
+    {
+        "id": "wolf_hood",
+        "name": "狼皮小兔",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_wolf_hood.jpg",
+    },
+    {
+        "id": "berry_pancake",
+        "name": "松饼甜心",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_berry_pancake.jpg",
+    },
+    {
+        "id": "lion_tanghulu",
+        "name": "瑞雪醒狮",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_lion_tanghulu.jpg",
+    },
+    {
+        "id": "duck_bathrobe",
+        "name": "泡泡浴袍",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_duck_bathrobe.jpg",
+    },
 ]
 
 
@@ -626,7 +654,7 @@ def main() -> None:
 
     # Save QA contact sheet to artifact dir for visual inspection
     art_dir = Path(
-        "/home/antigravity/.gemini/jetski/brain/v1/default/jetski_remote_agents_3p/6095bc4b-d05f-40d4-a33f-19b19097b5d9"
+        "/home/antigravity/.gemini/jetski/brain/v1/default/jetski_remote_agents_3p_devbox/bebdf5ef-5683-4c19-8182-9d748f7c71ef"
     )
     if art_dir.exists():
         build_qa_sheet(aligned_sets, art_dir / "yutu_sets_qa_contact.png")
