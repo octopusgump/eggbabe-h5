@@ -8,6 +8,8 @@
 
 | 文件 | 内容 |
 |------|------|
+| [**docs/DESIGN_SYSTEM.md**](docs/DESIGN_SYSTEM.md) | 蛋宝宝全端统一 UI Design System（色彩、字阶、形状、动效、核心组件与跨端规范） |
+| [**docs/CHARACTER_OUTFIT_DESIGN.md**](docs/CHARACTER_OUTFIT_DESIGN.md) | 玉兔 / 锦鲤角色服装设计规范、Chroma-Key 生图 Prompt 模板与双端 PNG 交付质检 |
 | [**PLAN.md**](PLAN.md) | v2b 基线、`yutu_mesh_demo.html`、方案 A（破壳换装走路小屋）、MVP（2+2+8）、Vite+TS、阶段 **P0–P5** |
 | [**CONTEXT.md**](CONTEXT.md) | `yutu_context_bundle_946c`、**`assets/v2b/`** 路径、与小程序仓库 **无耦合** |
 
