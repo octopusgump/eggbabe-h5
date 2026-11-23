@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>蛋宝宝 · 窗边起居室与专属试衣间</title>
+  <meta name="description" content="蛋宝宝单场景窗边起居室原型：贴图生活状态、WebGL 实时网格换装试衣台与零 Token 插画明信片合成。">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" data-period="day">
+    <h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);margin:0;">蛋宝宝 · 窗边起居室与专属试衣间</h1>
+
+    <!-- Scrollable / Pannable Scene Viewport -->
+    <div id="viewport">
+      <div id="scene-frame">
+        <div id="world-camera">
+          <div id="camera-rig">
+            <!-- Layer 0: Clean empty room base -->
+            <img id="base-img" class="scene-img" src="scene/room_empty.png" alt="窗边实木书桌起居室">
+            <!-- Layer 1: Patch state image (sleep / drawing) -->
+            <img id="patch-img" class="scene-img" src="scene/sleep_yutu.png" alt="">
+
+            <!-- Fitting room soft spotlight vignette -->
+            <div id="fitting-vignette"></div>
+
+            <!-- Wall pinned miniature Polaroid (appears after collecting first postcard) -->
+            <div id="wall-polaroid" class="hidden" role="button" tabindex="0" aria-label="查看墙上的纪念拍立得">
+              <img id="wall-polaroid-img" src="" alt="墙面纪念拍立得">
+            </div>
+
+            <!-- Removed accessories resting on bed roof / side table during sleep or drawing -->
+            <img id="bed-hat-prop" class="placed-acc hidden" src="" alt="睡前摘在床头的头饰" title="睡前摘下的头饰">
+            <img id="table-acc-prop" class="placed-acc hidden" src="" alt="叠放在边几上的配饰" title="叠放在边几的配饰">
+
+            <!-- Head-mounted accessory overlay during patch states (e.g. drawing) -->
+            <img id="patch-head-acc" class="hidden" src="" alt="">
+
+            <!-- Open miniature wardrobe trunk prop (`dress_rummage` state) -->
+            <div id="trunk-prop" class="hidden" role="button" aria-label="打开试衣间">
+              <svg viewBox="0 0 96 74" width="88" height="68" aria-hidden="true">
+                <ellipse cx="48" cy="64" rx="40" ry="8" fill="rgba(48,30,14,0.26)"/>
+                <!-- Trunk lid -->
+                <path d="M16 30 L74 16 Q80 15 82 21 L86 36 L20 44 Z" fill="#C99A67" stroke="#8C5E32" stroke-width="2"/>
+                <path d="M21 31 L73 20 L76 33 L24 41 Z" fill="#FBF1E1"/>
+                <!-- Trunk body -->
+                <rect x="14" y="38" width="68" height="24" rx="5" fill="#B88450" stroke="#7E5228" stroke-width="2"/>
+                <!-- Peeking pastel cloth -->
+                <path d="M26 39 Q36 28 48 39 Q54 46 38 49 Q24 48 26 39 Z" fill="#F4B9AE"/>
+                <path d="M48 38 Q60 29 70 39 Q72 47 58 48 Z" fill="#EDE78E"/>
+                <!-- Brass clasp -->
+                <rect x="44" y="45" width="8" height="9" rx="2" fill="#E8BD6B" stroke="#8C5E32" stroke-width="1.2"/>
+              </svg>
+            </div>
+
+            <!-- Away paw-print note (`away` state) -->
+            <div id="away-note" class="hidden" role="button" aria-label="查看外出留信">
+              🐾 穿新衣出门玩啦 · 点信封收明信片
+            </div>
+
+            <!-- Desk miniature wooden standing mirror prop (in-scene Fitting Room hotspot) -->
+            <div id="desk-mirror-prop" role="button" tabindex="0" aria-label="点击穿衣镜进入专门试衣间">
+              <span class="prop-pill-tag">试衣镜</span>
+              <div class="mirror-frame"></div>
+              <div class="mirror-stand"></div>
+            </div>
+
+            <!-- Layer 2: WebGL Deformable Mesh Pet & Ground Shadows -->
+            <div id="pet-shadow-soft"></div>
+            <div id="pet-shadow-contact"></div>
+            <canvas id="gl-pet"></canvas>
+
+            <!-- Miniprogram `action-glow` pulse target for contextual actions -->
+            <button id="scene-action-glow" type="button" class="action-glow hidden" aria-label="查看互动惊喜"></button>
+
+            <!-- Interactive pointer surface for desk hopping & petting -->
+            <div id="scene-hit-layer"></div>
+
+            <!-- Dialogue bubble & Period lighting tint -->
+            <div id="pet-bubble" class="emo-bubble"></div>
+            <div id="period-tint"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fixed Corner HUD (Aligned 1:1 with eggbabe-miniprogram `life-scene`) -->
+    <section id="hud-layer" aria-label="房间状态栏">
+      <!-- Top-Left: Pet Mood & Companion Star Card -->
+      <div id="pet-mood-card">
+        <div class="mood-header">
+          <span id="hud-pet-name" class="mood-pet-name">玉兔</span>
+          <button id="btn-quick-switch-pet" type="button" class="pet-switch-mini" title="切换玉兔 / 锦鲤">切换伙伴</button>
+        </div>
+        <div class="mood-state-row">
+          <span id="hud-state-icon">☀️</span>
+          <span id="hud-state-label">在软木垫上发呆</span>
+        </div>
+        <div class="mood-star-row">
+          <span class="star-badge" title="陪伴星星（可在试衣间解锁限定穿搭）">
+            <span class="star-icon">⭐</span>
+            <span id="hud-star-count">68</span>
+          </span>
+          <span class="companion-days">一起 12 天</span>
+        </div>
+        <button id="wake-to-desk-btn" type="button" class="hidden">✨ 唤回软木垫互动</button>
+      </div>
+
+      <!-- Top-Right: Collapsible Stage & State Switcher (`stage-tester`) -->
+      <div id="tester-wrap">
+        <button id="btn-toggle-tester" type="button" class="tester-pill" aria-expanded="false">
+          <span class="tester-tag">状态</span>
+          <span id="tester-current-label">桌面待机</span>
+          <span id="tester-chevron">⌄</span>
+        </button>
+        <div id="tester-menu" class="tester-menu hidden" role="menu">
+          <div class="tester-section-label">居家状态（贴图态 + WebGL 态）</div>
+          <button type="button" class="tester-opt active" data-state="free_stand">
+            <span>🐾 桌面待机（点桌跳跃）</span><span>✓</span>
+          </button>
+          <button type="button" class="tester-opt" data-state="sleep">
+            <span>💤 钻被窝睡觉（摘衣床头）</span><span></span>
+          </button>
+          <button type="button" class="tester-opt" data-state="drawing">
+            <span>🖍️ 趴着画画（头饰挂载）</span><span></span>
+          </button>
+          <button type="button" class="tester-opt" data-state="dress_rummage">
+            <span>🧳 翻衣箱臭美（换衣钩子）</span><span></span>
+          </button>
+          <button type="button" class="tester-opt" data-state="away">
+            <span>📮 外出偶遇（收带妆明信片）</span><span></span>
+          </button>
+          <button type="button" class="tester-opt reserved" data-state="gaming">
+            <span>🎮 在家 · 打游戏</span><span class="reserved-tag">预留槽</span>
+          </button>
+          <button type="button" class="tester-opt reserved" data-state="reading">
+            <span>📖 在家 · 看书</span><span class="reserved-tag">预留槽</span>
+          </button>
+          <div class="tester-section-label">窗外光线时段</div>
+          <div class="period-row">
+            <button type="button" class="period-chip active" data-period="day">白天</button>
+            <button type="button" class="period-chip" data-period="sunset">落日</button>
+            <button type="button" class="period-chip" data-period="night">夜晚</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom-Left: Arrival Envelope (`scene-context-entry`) -->
+      <div id="bottom-left-hud">
+        <button id="btn-envelope" type="button" class="fab-circle" aria-label="查看偶遇明信片">
+          <span id="envelope-hint" class="fab-hint">带妆明信片</span>
+          <span id="envelope-dot" class="unread-dot"></span>
+          <svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <rect x="3" y="6" width="22" height="16" rx="3.5" fill="#FFF8E8" stroke="#5A4636" stroke-width="1.8"/>
+            <path d="M4.5 8L14 15.2L23.5 8" stroke="#5A4636" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="14" cy="14.5" r="2.3" fill="#E0785A"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Bottom-Center: Mobile Pan Dots -->
+      <div id="pan-dots" aria-hidden="true">
+        <span class="pan-dot" data-idx="0"></span>
+        <span class="pan-dot active" data-idx="1"></span>
+        <span class="pan-dot" data-idx="2"></span>
+      </div>
+
+      <!-- Bottom-Right: Dedicated Fitting Room + Album Toolbox FABs -->
+      <div id="bottom-right-hud">
+        <button id="btn-open-album" type="button" class="fab-circle" aria-label="打开纪念册百宝箱">
+          <span class="fab-hint">纪念册</span>
+          <svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <rect x="4" y="9" width="20" height="13" rx="3" fill="#D7A46C" stroke="#5A4636" stroke-width="1.7"/>
+            <path d="M5 12.5H23" stroke="#5A4636" stroke-width="1.6"/>
+            <path d="M7 9V7.5C7 6.1 8.1 5 9.5 5H18.5C19.9 5 21 6.1 21 7.5V9" fill="#E7BE8B" stroke="#5A4636" stroke-width="1.7"/>
+            <rect x="12" y="11" width="4" height="4.5" rx="1" fill="#FFFDF8" stroke="#5A4636" stroke-width="1.4"/>
+          </svg>
+        </button>
+
+        <button id="btn-open-fitting" type="button" class="fab-circle" aria-label="进入专门试衣间">
+          <span class="fab-hint">去换装</span>
+          <svg viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <path d="M14 5.5C15.5 5.5 16.6 6.5 16.6 7.8C16.6 8.9 15.8 9.6 14 10.2V11.6" stroke="#5A4636" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M5 18.8L14 11.6L23 18.8C23.8 19.4 23.4 20.8 22.3 20.8H5.7C4.6 20.8 4.2 19.4 5 18.8Z" fill="#F4E2C8" stroke="#5A4636" stroke-width="1.8" stroke-linejoin="round"/>
+            <circle cx="19.5" cy="8" r="2" fill="#E2A952"/>
+          </svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Fitting Room Top Controls & Bottom Wardrobe Sheet -->
+    <header id="fitting-topbar">
+      <button id="btn-exit-fitting" type="button" class="fitting-nav-pill">‹ 返回起居室</button>
+      <div class="fitting-center-group" role="tablist" aria-label="选择试衣伙伴">
+        <button type="button" class="pet-seg-btn active" data-pet="yutu">玉兔</button>
+        <button type="button" class="pet-seg-btn" data-pet="koi">锦鲤</button>
+      </div>
+      <button id="btn-studio-snap" type="button" class="fitting-nav-pill">📷 定妆照</button>
+    </header>
+
+    <section id="wardrobe-sheet" aria-label="专属试衣间衣橱">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header-row">
+        <div id="wardrobe-tabs" class="slot-tabs" role="tablist"></div>
+        <div class="sheet-star-pill" title="陪伴星星余额">
+          <span>⭐</span><span id="sheet-star-count">68</span>
+        </div>
+      </div>
+      <div id="wardrobe-grid"></div>
+      <div class="sheet-actions">
+        <button id="btn-revert-preview" type="button" class="app-btn app-btn--secondary-soft hidden">还原穿搭</button>
+        <button id="btn-confirm-outfit" type="button" class="app-btn app-btn--primary">穿好啦</button>
+      </div>
+    </section>
+
+    <!-- Zero-Token Live Composite Postcard Modal -->
+    <div id="postcard-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="带妆插画明信片">
+      <div class="polaroid-dialog">
+        <div class="dialog-top">
+          <span id="postcard-eyebrow" class="dialog-eyebrow">故事偶遇 · 零 Token 实时合成</span>
+          <button id="btn-close-postcard" type="button" class="dialog-close" aria-label="关闭">×</button>
+        </div>
+        <div class="companion-polaroid-card">
+          <img id="postcard-preview-img" src="" alt="带妆纪念明信片预览">
+        </div>
+        <div id="postcard-scene-bar" class="postcard-scene-switcher" aria-label="切换偶遇插画场景"></div>
+        <p id="postcard-story-text" class="polaroid-story-copy"></p>
+        <div class="dialog-actions">
+          <button id="btn-download-postcard" type="button" class="app-btn app-btn--secondary-soft">保存图片</button>
+          <button id="btn-collect-postcard" type="button" class="app-btn app-btn--primary">收下并贴上墙</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keepsake Album Modal -->
+    <div id="album-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="纪念册百宝箱">
+      <div class="album-dialog">
+        <div class="dialog-top">
+          <span class="dialog-eyebrow">纪念册 · 已收下的带妆拍立得</span>
+          <button id="btn-close-album" type="button" class="dialog-close" aria-label="关闭">×</button>
+        </div>
+        <div id="album-grid"></div>
+      </div>
+    </div>
+
+    <!-- Scene Feedback Toast -->
+    <div id="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
