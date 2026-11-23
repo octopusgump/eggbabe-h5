@@ -72,6 +72,48 @@ SETS = [
         "translucent_dome": False,
         "raw": "set_duck_bathrobe.jpg",
     },
+    {
+        "id": "gta_heist",
+        "name": "洛圣都小劫匪",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_gta_heist.jpg",
+    },
+    {
+        "id": "labubu_monster",
+        "name": "森林锯齿怪",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_labubu_monster.jpg",
+    },
+    {
+        "id": "capy_zen",
+        "name": "佛系卡皮巴拉",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_capy_zen.jpg",
+    },
+    {
+        "id": "ballet_bonnet",
+        "name": "奶油芭蕾结",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_ballet_bonnet.jpg",
+    },
+    {
+        "id": "fluffy_sheep",
+        "name": "卷毛小绵羊",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_fluffy_sheep.jpg",
+    },
+    {
+        "id": "y2k_beanie",
+        "name": "千禧拍立得",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_y2k_beanie.jpg",
+    },
 ]
 
 

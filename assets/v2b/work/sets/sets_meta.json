@@ -118,5 +118,125 @@
       120,
       30
     ]
+  },
+  {
+    "id": "gta_heist",
+    "name": "洛圣都小劫匪",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1127,
+      "eye_dx": 1.5,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "labubu_monster",
+    "name": "森林锯齿怪",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1368,
+      "eye_dx": 0.0,
+      "eye_dy": 0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "capy_zen",
+    "name": "佛系卡皮巴拉",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1127,
+      "eye_dx": 0.0,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "ballet_bonnet",
+    "name": "奶油芭蕾结",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1846,
+      "eye_dx": -1.0,
+      "eye_dy": 0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "fluffy_sheep",
+    "name": "卷毛小绵羊",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1562,
+      "eye_dx": 0.0,
+      "eye_dy": 0.0,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "y2k_beanie",
+    "name": "千禧拍立得",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.0845,
+      "eye_dx": 0.0,
+      "eye_dy": 0.0,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
   }
 ]

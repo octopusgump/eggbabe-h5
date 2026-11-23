@@ -512,6 +512,66 @@
           "closedTex": "assets/shared/webp/yutu_set_duck_bathrobe_closed.webp",
           "dozeTex": "assets/shared/webp/yutu_set_duck_bathrobe_doze.webp",
           "thumb": "assets/shared/webp/thumbs/yutu_set_duck_bathrobe.webp"
+        },
+        {
+          "id": "set_gta_heist",
+          "slot": "set",
+          "name": "洛圣都小劫匪",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_gta_heist.webp",
+          "closedTex": "assets/shared/webp/yutu_set_gta_heist_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_gta_heist_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_gta_heist.webp"
+        },
+        {
+          "id": "set_labubu_monster",
+          "slot": "set",
+          "name": "森林锯齿怪",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_labubu_monster.webp",
+          "closedTex": "assets/shared/webp/yutu_set_labubu_monster_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_labubu_monster_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_labubu_monster.webp"
+        },
+        {
+          "id": "set_capy_zen",
+          "slot": "set",
+          "name": "佛系卡皮巴拉",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_capy_zen.webp",
+          "closedTex": "assets/shared/webp/yutu_set_capy_zen_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_capy_zen_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_capy_zen.webp"
+        },
+        {
+          "id": "set_ballet_bonnet",
+          "slot": "set",
+          "name": "奶油芭蕾结",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_ballet_bonnet.webp",
+          "closedTex": "assets/shared/webp/yutu_set_ballet_bonnet_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_ballet_bonnet_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_ballet_bonnet.webp"
+        },
+        {
+          "id": "set_fluffy_sheep",
+          "slot": "set",
+          "name": "卷毛小绵羊",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_fluffy_sheep.webp",
+          "closedTex": "assets/shared/webp/yutu_set_fluffy_sheep_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_fluffy_sheep_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_fluffy_sheep.webp"
+        },
+        {
+          "id": "set_y2k_beanie",
+          "slot": "set",
+          "name": "千禧拍立得",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_y2k_beanie.webp",
+          "closedTex": "assets/shared/webp/yutu_set_y2k_beanie_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_y2k_beanie_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_y2k_beanie.webp"
         }
       ]
     }
