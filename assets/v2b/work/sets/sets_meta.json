@@ -238,5 +238,245 @@
       120,
       30
     ]
+  },
+  {
+    "id": "tweed_detective",
+    "name": "贝克街小侦探",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1335,
+      "eye_dx": 0.5,
+      "eye_dy": 0.0,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "shark_hood",
+    "name": "奶凶小鲨",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1138,
+      "eye_dx": 0.5,
+      "eye_dy": 1.0,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "cream_aviator",
+    "name": "奶油小飞行员",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1738,
+      "eye_dx": 0.0,
+      "eye_dy": 0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "zelda_hero",
+    "name": "海拉鲁小勇者",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.2748,
+      "eye_dx": -0.5,
+      "eye_dy": 0.0,
+      "feet_dy": -2.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "star_witch",
+    "name": "星月小占星",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.099,
+      "eye_dx": 0.0,
+      "eye_dy": 0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "rain_frog",
+    "name": "雨天小青蛙",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1436,
+      "eye_dx": 0.0,
+      "eye_dy": 0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "force_hood",
+    "name": "原力喝汤兜帽",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1214,
+      "eye_dx": -0.5,
+      "eye_dy": 0.0,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "penguin_hood",
+    "name": "冰岛小企鹅",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1585,
+      "eye_dx": -0.5,
+      "eye_dy": 0.0,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "ski_goggles",
+    "name": "雪山滑雪兔",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1515,
+      "eye_dx": 0.0,
+      "eye_dy": -0.5,
+      "feet_dy": -2.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "moyu_fisher",
+    "name": "摸鱼小渔夫",
+    "key": "green",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1726,
+      "eye_dx": 1.0,
+      "eye_dy": 0.0,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "knit_babushka",
+    "name": "法式雏菊头巾",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.2261,
+      "eye_dx": 0.0,
+      "eye_dy": 0.5,
+      "feet_dy": 0.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
+  },
+  {
+    "id": "barista_bunny",
+    "name": "手冲咖啡师",
+    "key": "blue",
+    "translucent_dome": false,
+    "align_error": {
+      "scale": 1.1493,
+      "eye_dx": 0.5,
+      "eye_dy": -0.5,
+      "feet_dy": -1.0
+    },
+    "canvas": [
+      840,
+      1179
+    ],
+    "pad": [
+      120,
+      30
+    ]
   }
 ]

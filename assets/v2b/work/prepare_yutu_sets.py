@@ -114,6 +114,90 @@ SETS = [
         "translucent_dome": False,
         "raw": "set_y2k_beanie.jpg",
     },
+    {
+        "id": "tweed_detective",
+        "name": "贝克街小侦探",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_tweed_detective.jpg",
+    },
+    {
+        "id": "shark_hood",
+        "name": "奶凶小鲨",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_shark_hood.jpg",
+    },
+    {
+        "id": "cream_aviator",
+        "name": "奶油小飞行员",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_cream_aviator.jpg",
+    },
+    {
+        "id": "zelda_hero",
+        "name": "海拉鲁小勇者",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_zelda_hero.jpg",
+    },
+    {
+        "id": "star_witch",
+        "name": "星月小占星",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_star_witch.jpg",
+    },
+    {
+        "id": "rain_frog",
+        "name": "雨天小青蛙",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_rain_frog.jpg",
+    },
+    {
+        "id": "force_hood",
+        "name": "原力喝汤兜帽",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_force_hood.jpg",
+    },
+    {
+        "id": "penguin_hood",
+        "name": "冰岛小企鹅",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_penguin_hood.jpg",
+    },
+    {
+        "id": "ski_goggles",
+        "name": "雪山滑雪兔",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_ski_goggles.jpg",
+    },
+    {
+        "id": "moyu_fisher",
+        "name": "摸鱼小渔夫",
+        "key": "green",
+        "translucent_dome": False,
+        "raw": "set_moyu_fisher.jpg",
+    },
+    {
+        "id": "knit_babushka",
+        "name": "法式雏菊头巾",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_knit_babushka.jpg",
+    },
+    {
+        "id": "barista_bunny",
+        "name": "手冲咖啡师",
+        "key": "blue",
+        "translucent_dome": False,
+        "raw": "set_barista_bunny.jpg",
+    },
 ]
 
 
@@ -265,11 +349,13 @@ def chroma_to_rgba(
     if key == "blue":
         excess = b - np.maximum(r, g)
         bg_excess = float(bg_col[2] - max(bg_col[0], bg_col[1]))
-        lo, hi = 24.0, max(105.0, bg_excess * 0.58)
+        hi = min(bg_excess * 0.72, max(105.0, bg_excess * 0.58))
+        lo = min(24.0, hi * 0.35)
     else:
         excess = g - np.maximum(r, b)
         bg_excess = float(bg_col[1] - max(bg_col[0], bg_col[2]))
-        lo, hi = 24.0, max(125.0, bg_excess * 0.56)
+        hi = min(bg_excess * 0.72, max(125.0, bg_excess * 0.56))
+        lo = min(24.0, hi * 0.35)
 
     alpha = np.clip((hi - excess) / max(hi - lo, 1.0), 0.0, 1.0)
     alpha[excess > hi + 15.0] = 0.0

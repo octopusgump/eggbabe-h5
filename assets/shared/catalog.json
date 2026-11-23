@@ -572,6 +572,126 @@
           "closedTex": "assets/shared/webp/yutu_set_y2k_beanie_closed.webp",
           "dozeTex": "assets/shared/webp/yutu_set_y2k_beanie_doze.webp",
           "thumb": "assets/shared/webp/thumbs/yutu_set_y2k_beanie.webp"
+        },
+        {
+          "id": "set_tweed_detective",
+          "slot": "set",
+          "name": "贝克街小侦探",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_tweed_detective.webp",
+          "closedTex": "assets/shared/webp/yutu_set_tweed_detective_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_tweed_detective_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_tweed_detective.webp"
+        },
+        {
+          "id": "set_shark_hood",
+          "slot": "set",
+          "name": "奶凶小鲨",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_shark_hood.webp",
+          "closedTex": "assets/shared/webp/yutu_set_shark_hood_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_shark_hood_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_shark_hood.webp"
+        },
+        {
+          "id": "set_cream_aviator",
+          "slot": "set",
+          "name": "奶油小飞行员",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_cream_aviator.webp",
+          "closedTex": "assets/shared/webp/yutu_set_cream_aviator_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_cream_aviator_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_cream_aviator.webp"
+        },
+        {
+          "id": "set_zelda_hero",
+          "slot": "set",
+          "name": "海拉鲁小勇者",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_zelda_hero.webp",
+          "closedTex": "assets/shared/webp/yutu_set_zelda_hero_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_zelda_hero_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_zelda_hero.webp"
+        },
+        {
+          "id": "set_star_witch",
+          "slot": "set",
+          "name": "星月小占星",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_star_witch.webp",
+          "closedTex": "assets/shared/webp/yutu_set_star_witch_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_star_witch_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_star_witch.webp"
+        },
+        {
+          "id": "set_rain_frog",
+          "slot": "set",
+          "name": "雨天小青蛙",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_rain_frog.webp",
+          "closedTex": "assets/shared/webp/yutu_set_rain_frog_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_rain_frog_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_rain_frog.webp"
+        },
+        {
+          "id": "set_force_hood",
+          "slot": "set",
+          "name": "原力喝汤兜帽",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_force_hood.webp",
+          "closedTex": "assets/shared/webp/yutu_set_force_hood_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_force_hood_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_force_hood.webp"
+        },
+        {
+          "id": "set_penguin_hood",
+          "slot": "set",
+          "name": "冰岛小企鹅",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_penguin_hood.webp",
+          "closedTex": "assets/shared/webp/yutu_set_penguin_hood_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_penguin_hood_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_penguin_hood.webp"
+        },
+        {
+          "id": "set_ski_goggles",
+          "slot": "set",
+          "name": "雪山滑雪兔",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_ski_goggles.webp",
+          "closedTex": "assets/shared/webp/yutu_set_ski_goggles_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_ski_goggles_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_ski_goggles.webp"
+        },
+        {
+          "id": "set_moyu_fisher",
+          "slot": "set",
+          "name": "摸鱼小渔夫",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_moyu_fisher.webp",
+          "closedTex": "assets/shared/webp/yutu_set_moyu_fisher_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_moyu_fisher_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_moyu_fisher.webp"
+        },
+        {
+          "id": "set_knit_babushka",
+          "slot": "set",
+          "name": "法式雏菊头巾",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_knit_babushka.webp",
+          "closedTex": "assets/shared/webp/yutu_set_knit_babushka_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_knit_babushka_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_knit_babushka.webp"
+        },
+        {
+          "id": "set_barista_bunny",
+          "slot": "set",
+          "name": "手冲咖啡师",
+          "price": 20,
+          "tex": "assets/shared/webp/yutu_set_barista_bunny.webp",
+          "closedTex": "assets/shared/webp/yutu_set_barista_bunny_closed.webp",
+          "dozeTex": "assets/shared/webp/yutu_set_barista_bunny_doze.webp",
+          "thumb": "assets/shared/webp/thumbs/yutu_set_barista_bunny.webp"
         }
       ]
     }
