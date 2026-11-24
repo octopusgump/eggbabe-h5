@@ -163,5 +163,21 @@ test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and
     assert.ok(fs.existsSync(abs), `missing room thumbnail PNG: ${room.bgFile}`);
     assert.ok(room.bgFile.endsWith(".png"), `room thumbnail must be PNG: ${room.bgFile}`);
   }
+
+  // 4. Clock 25-min focus timer removed; legacy 唤回桌面 removed; dedicated tb_bg_3d.png exists
+  assert.equal(html.includes('id="btn-clock-windup"'), false, "25m focus windup button must be removed");
+  assert.equal(html.includes('id="clock-modal-focus-banner"'), false, "focus banner must be removed");
+  assert.equal(html.includes('id="scene-clock-focus-ring"'), false, "scene clock focus ring must be removed");
+  assert.equal(html.includes('id="tb-btn-desk-toggle"'), false, "legacy 唤回桌面 button must be removed");
+  assert.ok(html.includes('./living-room-dress/ui/tb_bg_3d.png'), "toolbox 背景 button must use dedicated tb_bg_3d.png");
+  assert.ok(fs.existsSync(path.join(REPO, "living-room-dress/ui/tb_bg_3d.png")), "tb_bg_3d.png must exist on disk");
+
+  // 5. Partner profile modal minimalist cleanup (no footprints, no exp bar, no stat subtitles, no spine)
+  assert.equal(html.includes("profile-footprints"), false, "陪伴足迹 section must be removed from profile modal");
+  assert.equal(html.includes("profile-bar-row--exp"), false, "亲密经验 bar must be removed from profile modal");
+  assert.equal(html.includes('id="profile-star-hint"'), false, "star subtitle fluff must be removed");
+  assert.equal(html.includes('id="profile-streak-days"'), false, "streak subtitle fluff must be removed");
+  assert.equal(html.includes("profile-journal-card__spine"), false, "legacy notebook spine must be removed");
 });
+
 

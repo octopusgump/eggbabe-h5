@@ -751,8 +751,6 @@
   function resolvePatrolWindowText(now) {
     const h = now.getHours();
     if (h >= 23 || h < 6) return "🌙 深夜静默值守";
-    const fs = getClockWidget().focusSession;
-    if (fs && fs.active) return "🐾 盯梢专注执勤";
     const map = {
       sleep: "🌙 被窝夜巡休整",
       lazy: "☁️ 被角打盹值守",
@@ -772,75 +770,36 @@
   }
 
   function checkAndSettleFocusSession() {
-    const res = Store.settleFocusSession(crossStore, Date.now());
-    if (!res || !res.settled) return false;
-    const prevStars = state.stars;
-    const nextStars = Number(crossStore.companion.starBalance || prevStars);
-    state.stars = nextStars;
-    persistState();
-    if (res.starsAwarded > 0) {
-      sfx.star();
-      animateStarsTo(nextStars, res.starsAwarded);
-      showSceneFeedback(`黑猫警长盯梢 ${res.durationMin} 分钟完成！获得 +${res.starsAwarded}✦`, "dialogue", null, 3200);
-    } else {
-      showSceneFeedback(`已完成 ${res.durationMin} 分钟安静陪伴（今日发条星星已满 3 次）`, "system", null, 2600);
-    }
-    if (typeof renderMoodTab === "function") renderMoodTab();
-    renderBlackCatClockUI();
-    return true;
+    return false;
   }
 
   function renderBlackCatClockUI() {
     const cw = getClockWidget();
-    const fs = cw.focusSession;
     const now = new Date();
     const shiftKey = resolveActiveShift(now);
     const shiftDef = CLOCK_SHIFT_DEFS[shiftKey] || CLOCK_SHIFT_DEFS.day;
 
-    // 1. 正面微窗（零倒计时数字）与专注金色星芒进度环
-    ipClockPatrolTextEl.textContent = resolvePatrolWindowText(now);
-    const isFocusing = !!(fs && fs.active && typeof fs.startedAt === "number");
-    ipClockDialEl.classList.toggle("is-focus-active", isFocusing);
-    sceneClockFocusRingEl.hidden = !isFocusing;
-    clockDutyHintEl.classList.toggle("is-focusing", isFocusing);
-    clockDutyHintTextEl.textContent = isFocusing ? "🐾 警长盯梢中" : "🐾 警长值班中";
+    // 1. 正面微窗（纯粹走时与值守状态）
+    if (ipClockPatrolTextEl) ipClockPatrolTextEl.textContent = resolvePatrolWindowText(now);
+    if (ipClockDialEl) ipClockDialEl.classList.remove("is-focus-active");
+    if (clockDutyHintEl) clockDutyHintEl.classList.remove("is-focusing");
+    if (clockDutyHintTextEl) clockDutyHintTextEl.textContent = "🐾 警长值班中";
+    if (ipClockFocusArcEl) ipClockFocusArcEl.style.strokeDashoffset = FOCUS_CIRCUMFERENCE.toFixed(2);
 
-    if (isFocusing) {
-      const durMs = (fs.durationMin === 15 ? 15 : 25) * 60000;
-      const prog = clamp((Date.now() - fs.startedAt) / durMs, 0.04, 1);
-      ipClockFocusArcEl.style.strokeDashoffset = (FOCUS_CIRCUMFERENCE * (1 - prog)).toFixed(2);
-    } else {
-      ipClockFocusArcEl.style.strokeDashoffset = FOCUS_CIRCUMFERENCE.toFixed(2);
-    }
-
-    // 2. 背面发条状态与文案
-    btnClockWindupEl.classList.toggle("is-active", isFocusing);
-    ipClockWindupKeyEl.style.transform = `rotate(${clockKeyAngle}deg)`;
-    if (isFocusing) {
-      const reward = fs.durationMin === 15 ? 5 : 10;
-      ipClockWindupLabelEl.textContent = `${fs.durationMin}m 盯梢中`;
-      clockModalFocusBannerEl.textContent = `发条已拧紧：${fs.durationMin} 分钟盯梢专注（+${reward}✦ · 锁屏不断）`;
-    } else {
-      const todayKey = Store.getUtc8DateKey();
-      const used = fs.lastRewardDate === todayKey ? Number(fs.todayRewardCount || 0) : 0;
-      ipClockWindupLabelEl.textContent = "拧发条";
-      clockModalFocusBannerEl.textContent = `拧警星发条：15m(+5✦) / 25m(+10✦) · 今日 ${used}/3 次`;
-    }
-
-    // 3. 背面班次拨盘高亮
+    // 2. 背面班次拨盘高亮
     clockModalEl.querySelectorAll("[data-clock-shift]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.clockShift === shiftKey);
     });
 
-    // 4. 背面呼噜滴答机械拨杆
+    // 3. 背面呼噜滴答机械拨杆
     const tickOn = !!cw.tickWhiteNoiseOn;
-    btnClockTickToggleEl.setAttribute("aria-checked", String(tickOn));
-    ipClockTickTextEl.textContent = tickOn ? "呼噜滴答:开" : "呼噜滴答:关";
+    if (btnClockTickToggleEl) btnClockTickToggleEl.setAttribute("aria-checked", String(tickOn));
+    if (ipClockTickTextEl) ipClockTickTextEl.textContent = tickOn ? "呼噜滴答:开" : "呼噜滴答:关";
 
-    // 5. 底部副标题与翻转提示
+    // 4. 底部副标题与翻转提示
     const wk = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][now.getDay()];
-    clockModalSubEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${wk} · ${shiftDef.label}`;
-    btnClockFlipHintEl.textContent = clockFlipped ? "点一下翻回正面表盘 ↻" : "轻触黑猫翻看背面发条 ↻";
+    if (clockModalSubEl) clockModalSubEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${wk} · ${shiftDef.label}`;
+    if (btnClockFlipHintEl) btnClockFlipHintEl.textContent = clockFlipped ? "点一下翻回正面表盘 ↻" : "轻触黑猫翻看背面 ↻";
   }
 
   function updateBlackCatClockTick() {
@@ -963,34 +922,7 @@
     }
   });
 
-  // 背面①：拧动五角警星黄铜发条（不计时 -> 15m +5✦ -> 25m +10✦ -> 不计时）
-  btnClockWindupEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    const cw = getClockWidget();
-    const fs = cw.focusSession;
-    clockKeyAngle += 120;
-    sfx.ratchet();
-
-    if (!fs.active) {
-      fs.active = true;
-      fs.durationMin = 15;
-      fs.startedAt = Date.now();
-      showSceneFeedback("咔哒～发条拧好：15 分钟盯梢专注开始（+5✦）", "dialogue");
-    } else if (fs.durationMin === 15) {
-      fs.active = true;
-      fs.durationMin = 25;
-      fs.startedAt = Date.now();
-      showSceneFeedback("再拧半圈：升级为 25 分钟盯梢专注（+10✦）", "dialogue");
-    } else {
-      fs.active = false;
-      fs.startedAt = null;
-      showSceneFeedback("已松开警星发条，休息一下吧～", "system");
-    }
-    persistState();
-    renderBlackCatClockUI();
-  });
-
-  // 背面②：白班 / 黄昏哨 / 夜巡哨作息拨盘
+  // 背面①：白班 / 黄昏哨 / 夜巡哨作息拨盘
   clockModalEl.querySelectorAll("[data-clock-shift]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
@@ -1237,7 +1169,7 @@
     });
     profilePetThumbEl.src = getPetDisplayThumbUrl(petId, state.savedSet[petId]);
     profilePetNameEl.textContent = getPetName(petId);
-    profilePetLvEl.textContent = `亲密度 Lv.${ps.level}`;
+    if (profilePetLvEl) profilePetLvEl.textContent = `亲密度 Lv.${ps.level}`;
     profileMoodIconEl.textContent = mood.icon;
     profileMoodLabelEl.textContent = mood.label;
     profileMoodQuoteEl.textContent = `“${mood.text}”`;
@@ -1245,12 +1177,9 @@
 
     profileStarValueEl.textContent = `${state.stars} ✦`;
     profileTotalDaysEl.textContent = `累计 ${crossStore.companion.totalCompanionDays || 1} 天`;
-    profileStreakDaysEl.textContent = `连续一起 ${crossStore.companion.companionDays || 1} 天`;
 
     const hungerPct = Math.round(clamp(ps.hunger, 0, 100));
     const hygienePct = Math.round(clamp(ps.hygiene, 0, 100));
-    const nextExp = expForNextLevel(ps.level);
-    const expPct = Math.round(clamp((ps.exp / Math.max(1, nextExp)) * 100, 0, 100));
 
     profileBarHungerEl.style.width = `${hungerPct}%`;
     profileValHungerEl.textContent = `${hungerPct}%`;
@@ -1259,21 +1188,6 @@
     profileBarHygieneEl.style.width = `${hygienePct}%`;
     profileValHygieneEl.textContent = `${hygienePct}%`;
     profileBarHygieneRowEl.classList.toggle("is-warning", hygienePct < 30);
-
-    profileBarExpEl.style.width = `${expPct}%`;
-    profileValExpEl.textContent = `${Math.round(ps.exp)} / ${nextExp}`;
-
-    // 分区三：陪伴足迹概览（wx-mp-ordinary 隐藏收集总数分母）
-    const ksCount = state.keepsakes.length;
-    fpKeepsakesTextEl.textContent = mode === "wx-mp-ordinary"
-      ? `已留存 ${ksCount} 件`
-      : `小物件 ${ksCount}/${Store.TOTAL_KEEPSAKES_COUNT}`;
-
-    const koiCount = (catalog.pets && catalog.pets.koi && catalog.pets.koi.items && catalog.pets.koi.items.length) || 12;
-    const yutuCount = (catalog.pets && catalog.pets.yutu && catalog.pets.yutu.items && catalog.pets.yutu.items.length) || 24;
-    fpOutfitsTextEl.textContent = `穿搭 ${koiCount + yutuCount}套`;
-    fpDiariesTextEl.textContent = `日记 ${(crossStore.diaries || []).length}篇`;
-    fpPostcardsTextEl.textContent = `明信片 ${state.postcards.length}张`;
   }
 
   function openProfileModal() {
@@ -1415,27 +1329,6 @@
       devTestersEl.hidden = !devTestersEl.hidden;
       showSceneFeedback(devTestersEl.hidden ? "验收工具已收起" : "验收工具已开启", "system");
     }
-  });
-
-  $("fp-btn-keepsakes").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    openKeepsakeAlbum("keepsakes");
-  });
-  $("fp-btn-outfits").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    enterFittingRoom();
-  });
-  $("fp-btn-diaries").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    openDiaryCover();
-  });
-  $("fp-btn-postcards").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    openKeepsakeAlbum("postcards");
   });
 
   if (new URLSearchParams(window.location.search).get("demo") === "1") {
@@ -3281,7 +3174,6 @@
     renderContextEntry();
     renderMoodTab();
     updateDevTesterLabels();
-    tbDeskToggleLabelEl.textContent = nextKey === "free_stand" ? "日常动作" : "唤回桌面";
     if (def.screen !== undefined && !isCustomBgActive()) {
       scrollToScreen(def.screen, smoothScroll !== false);
     }
@@ -3330,27 +3222,12 @@
 
   $("tb-btn-spaces")?.addEventListener("click", () => {
     setToolboxOpen(false);
-    openHouseGuide("rooms");
+    openHouseGuide("bgs");
   });
   $("tb-btn-album").addEventListener("click", () => {
     setToolboxOpen(false);
     tbAlbumDotEl.hidden = true;
     openKeepsakeAlbum("postcards");
-  });
-  $("tb-btn-desk-toggle").addEventListener("click", () => {
-    setToolboxOpen(false);
-    if (state.roomState === "free_stand") {
-      state.stageBgId = "living_room";
-      const cycle = ["drawing", "sleep", "reading", "window", "gaming", "music", "lazy", "stare"];
-      const pick = cycle[Math.floor(Math.random() * cycle.length)];
-      applyRoomState(pick, true);
-      showSceneFeedback(ROOM_STATES[pick].line, "dialogue");
-    } else {
-      applyRoomState("free_stand", true);
-      sfx.hop();
-      startAnim("minihop", performance.now());
-      showSceneFeedback("回到桌面软木垫啦～", "dialogue");
-    }
   });
   $("tb-btn-wallpaper").addEventListener("click", async () => {
     setToolboxOpen(false);
