@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fortunes,byId} from '../shared/fortunes.mjs';
+import {tap,pick,dateKey} from '../shared/draw.mjs';
+import {validateInput,validateOutput,interpret} from '../server/interpret.mjs';
+import {illustration} from '../js/art.js';
+import {stampSvg} from '../js/stamp.js';
+test('360 independently stored unique lots, 12 themes of 30, safe positive copy',()=>{assert.equal(fortunes.length,360);assert.equal(new Set(fortunes.map(x=>x.text)).size,360);assert.equal(new Set(fortunes.map(x=>x.id)).size,360);for(const theme of new Set(fortunes.map(x=>x.theme)))assert.equal(fortunes.filter(x=>x.theme===theme).length,30);for(const f of fortunes){assert.ok(f.text.length<=60&&f.text.length>=10);assert.doesNotMatch(f.text,/凶签|厄运|注定失败|一切都会好起来|一定成功/);}});
+test('first click 3.3 s; 100 clicks max 33 s, no restart of baseline',()=>{let s=tap(null,1000);assert.equal(s.deadline,4300);for(let i=2;i<=100;i++)s=tap(s,1000+i*10);assert.equal(s.clicks,100);assert.equal(s.deadline,34000);assert.equal(tap(s,3000),s);});
+test('expired draw cannot be extended; ended stages cannot shake',()=>{const s=tap(null,0);assert.equal(tap(s,3300),s);const result={...s,phase:'result'};assert.equal(tap(result,30),result);});
+test('avoid last 30, library fallback and local date format',()=>{const recent=fortunes.slice(0,30).map(x=>x.id);assert.equal(pick(fortunes,recent,()=>0).id,'F031');assert.equal(pick(fortunes,fortunes.map(x=>x.id),()=>0).id,'F001');assert.equal(dateKey(new Date(2026,10,19)), '2026-11-19');});
+test('all lots have square art and the date seal is separate',()=>{for(const f of fortunes){const art=illustration(f,'2026.11.19 15:30','fish');assert.doesNotMatch(art,/今日有幸|2026.11.19/);assert.match(art,/viewBox="0 0 400 400"/);assert.match(stampSvg("2026.11.19 15:30"),/2026.11.19 15:30/);assert.match(art,/<svg/);}});
+const input={fortuneId:'F001',direction:'生活',question:'',pet:'bunny'};
+test('optional empty question accepted; server uses canonical lot; invalid inputs rejected',()=>{assert.equal(validateInput({...input,fortune:'injected'}).fortune,byId('F001').text);for(const bad of [{fortuneId:'bad'},{direction:'bad'},{question:'a'.repeat(201)},{pet:'bad'},{question:123}])assert.throws(()=>validateInput({...input,...bad}));});
+test('negative and malformed AI responses rejected',()=>{assert.throws(()=>validateOutput({reading:'你注定失败。',suggestion:'今天认真尝试。',companion:'我会陪伴着你。'}));assert.throws(()=>validateOutput({reading:'只有一个字段'}));});
+test('DeepSeek includes selected direction, original fortune and question; JSON retry works',async()=>{let calls=0;const expected={reading:'你可以按自己的节奏来理解今天的选择。',suggestion:'选出今天最想投入的一件事，先尝试十分钟。',companion:'我就在旁边陪你慢慢开始。'};const value=await interpret({...input,question:'如何开始？'},{DEEPSEEK_API_KEY:'test'},async(url,opts)=>{calls++;const body=JSON.parse(opts.body);assert.match(url,/chat\/completions$/);assert.equal(JSON.parse(body.messages[1].content).question,'如何开始？');assert.equal(JSON.parse(body.messages[1].content).fortune,byId(input.fortuneId).text);return new Response(JSON.stringify({choices:[{message:{content:calls===1?'bad':JSON.stringify(expected)}}]}));});assert.equal(calls,2);assert.deepEqual(value,expected);});
+test('missing secret and failed provider never replaced with fake reading',async()=>{await assert.rejects(()=>interpret(input,{}),/尚未配置/);await assert.rejects(()=>interpret(input,{DEEPSEEK_API_KEY:'test'},async()=>new Response('',{status:401})),/密钥未通过/);});
