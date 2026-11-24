@@ -184,7 +184,7 @@
       minDays: 1,
       starCost: 0,
       desc: "木床、床头黑猫警长发条钟、三层原木书架与书桌试衣软木垫。",
-      bgFile: "living-room-dress/panoramas/room_shell_day.png"
+      bgFile: "living-room-dress/panoramas/cozy_room_day.png"
     },
     {
       id: "cozy_kitchen",

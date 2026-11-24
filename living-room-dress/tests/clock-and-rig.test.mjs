@@ -134,3 +134,34 @@ test("settleFocusSession recovers lock-screen elapsed timestamps idempotently wi
   assert.equal(rNext.starsAwarded, 10);
   assert.equal(store.companion.starBalance, initialStars + 35);
 });
+
+test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and unified toolbox rooms & backgrounds", () => {
+  const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(REPO, "living-room-dress/app.js"), "utf8");
+  const P5Data = require(path.join(REPO, "living-room-dress/p5-rooms-and-games.js"));
+
+  // 1. Sleep pat-to-wake hotspot & 3-stage animation hooks
+  assert.ok(html.includes('id="hit-sleep-pet"'), "sleep pat-to-wake hotspot must exist");
+  assert.ok(appJs.includes("function isPetSleepingNow()"), "isPetSleepingNow helper must exist");
+  assert.ok(appJs.includes("function promptPatToWake("), "promptPatToWake helper must exist");
+  assert.ok(appJs.includes("function wakePetWithPatAnimation()"), "wakePetWithPatAnimation must exist");
+  assert.ok(appJs.includes('promptPatToWake("feed")'), "feed must be guarded when sleeping");
+  assert.ok(appJs.includes('promptPatToWake("bath")'), "bath must be guarded when sleeping");
+  assert.ok(appJs.includes('promptPatToWake("wardrobe")'), "wardrobe must be guarded when sleeping");
+  assert.ok(appJs.includes('nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.png"'), "nightLit panorama must be configured");
+
+  // 2. Unified rooms & backgrounds inside bottom-right toolbox; top pill hidden; wardrobe bg tab removed
+  assert.ok(html.includes('id="tb-btn-spaces"'), "toolbox must contain unified 房间背景 entry");
+  assert.ok(html.includes('id="house-bgs-pane"'), "house guide modal must include #house-bgs-pane");
+  assert.ok(html.includes('data-house-tab="bgs"'), "house guide modal must include 场景背景 tab");
+  assert.ok(html.includes('id="room-switcher-pill" class="room-switcher-pill" type="button" hidden'), "top room-switcher-pill must be hidden to avoid topbar overlap");
+  assert.equal(html.includes('id="tab-wardrobe-bgs"'), false, "duplicate wardrobe background tab must be removed");
+
+  // 3. Every room in ROOMS_CATALOG must point to an existing PNG (no broken thumbnails)
+  for (const room of P5Data.ROOMS_CATALOG) {
+    const abs = path.join(REPO, room.bgFile);
+    assert.ok(fs.existsSync(abs), `missing room thumbnail PNG: ${room.bgFile}`);
+    assert.ok(room.bgFile.endsWith(".png"), `room thumbnail must be PNG: ${room.bgFile}`);
+  }
+});
+
