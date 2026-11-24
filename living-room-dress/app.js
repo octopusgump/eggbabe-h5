@@ -40,8 +40,28 @@
     return PAGES_CDN + "/" + clean;
   }
 
-  /* ---------- 1. 轻养成小零食（3D 哑光图标）与 careStore 兼容存档 ---------- */
-  const CARE_STORAGE_KEY = "eggbabe_care_v1";
+  /* ---------- 1. 跨端底座 (eggbabe-cross-end-v1) 与轻养成小零食 ---------- */
+  const Store = window.EggBabeStore;
+  let catalog = window.__EGGBABE_CATALOG__ || { backgrounds: [], pets: {} };
+
+  if (Store && typeof Store.injectCapsuleSafeAreaVars === "function") {
+    Store.injectCapsuleSafeAreaVars(document.documentElement);
+  }
+
+  let quotaWarned = false;
+  const storageAdapter = Store.createStorageAdapter({
+    onQuotaError: () => {
+      if (quotaWarned) return;
+      quotaWarned = true;
+      if (typeof showSceneFeedback === "function") {
+        showSceneFeedback("存储空间紧张，已为您保留核心陪伴存档", "system", "warning");
+      }
+    }
+  });
+  const loadedStoreResult = Store.loadOrMigrateStore(storageAdapter, catalog);
+  const crossStore = loadedStoreResult.store;
+  window.__EGGBABE_CROSS_STORE__ = crossStore;
+
   const SNACKS_BY_PET = {
     koi: [
       { id: "dried_fish", name: "香酥小鱼干", icon: "./living-room-dress/ui/snack_fish.png", hunger: 22, exp: 16, reply: "咔嚓咔嚓，最爱香酥小鱼干啦～" },
@@ -55,40 +75,18 @@
     ]
   };
 
-  function expForNextLevel(lv) { return 60 + (Math.max(1, lv) - 1) * 35; }
-  function loadCareAll() {
-    const now = Date.now();
-    const base = {
-      koi: { hunger: 68, hygiene: 72, exp: 15, level: 1, updatedAt: now },
-      yutu: { hunger: 68, hygiene: 72, exp: 15, level: 1, updatedAt: now }
-    };
-    try {
-      const raw = localStorage.getItem(CARE_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        ["koi", "yutu"].forEach((id) => {
-          if (parsed && parsed[id]) {
-            const hrs = Math.max(0, (now - Number(parsed[id].updatedAt || now)) / 3600000);
-            base[id] = {
-              hunger: clamp(Number(parsed[id].hunger ?? 68) - hrs * 5, 0, 100),
-              hygiene: clamp(Number(parsed[id].hygiene ?? 72) - hrs * 4, 0, 100),
-              exp: Math.max(0, Number(parsed[id].exp ?? 0)),
-              level: Math.max(1, Math.floor(Number(parsed[id].level ?? 1))),
-              updatedAt: now
-            };
-          }
-        });
-      }
-    } catch (e) {}
-    return base;
-  }
-  const careAll = loadCareAll();
+  function expForNextLevel(lv) { return Store.expForNextLevel(lv); }
+  const careAll = {
+    koi: crossStore.pets.koi.care,
+    yutu: crossStore.pets.yutu.care
+  };
   function saveCareAll() {
-    try {
-      careAll.koi.updatedAt = Date.now();
-      careAll.yutu.updatedAt = Date.now();
-      localStorage.setItem(CARE_STORAGE_KEY, JSON.stringify(careAll));
-    } catch (e) {}
+    const now = Date.now();
+    careAll.koi.updatedAt = now;
+    careAll.yutu.updatedAt = now;
+    crossStore.pets.koi.care = careAll.koi;
+    crossStore.pets.yutu.care = careAll.yutu;
+    if (typeof persistState === "function") persistState();
   }
   function addCareExp(petId, amount) {
     const ps = careAll[petId];
@@ -103,15 +101,8 @@
     return leveledUp;
   }
 
-  /* ---------- 2. 小程序每日心情、10 态房间与遇见配置 ---------- */
-  const DAILY_MOODS = {
-    JOY: { key: "JOY", label: "愉快", icon: "😊", text: "我想了想，觉得自己运气挺不错的。" },
-    CURIOSITY: { key: "CURIOSITY", label: "好奇", icon: "🤔", text: "我今天一直在想一件事，还没想明白。" },
-    CALM: { key: "CALM", label: "平静", icon: "😌", text: "今天不想说太多话，就这样待着挺好。" },
-    EXCITEMENT: { key: "EXCITEMENT", label: "兴奋", icon: "🤩", text: "我今天一刻都停不下来，坐下三秒又想起来。" },
-    CARE: { key: "CARE", label: "关怀", icon: "🤗", text: "我想安静陪一会儿，就在旁边不出声。" },
-    FATIGUE: { key: "FATIGUE", label: "小困", icon: "🥱", text: "晒着暖暖的太阳，眼皮有点打架啦。" }
-  };
+  /* ---------- 2. 8 态柔和每日心情、10 态房间与遇见配置 ---------- */
+  const DAILY_MOODS = Store.MOOD_TYPES;
 
   const KEPSAKE_DEFS = {
     "soft-button": { id: "soft-button", name: "旧木纽扣", img: "./living-room-dress/keepsakes/soft-button.png", story: "这颗纽扣原本缝在一条很旧的围巾上。天气凉的时候握一会儿，就像有人替我把领口掖好了。" },
@@ -275,65 +266,55 @@
     }
   };
 
-  /* ---------- 4. 持久化状态（全量服装默认开放，零星星拦截） ---------- */
-  const SAVE_KEY = "eggbabe_living_room_mp_v4";
+  /* ---------- 4. 持久化状态（全量服装默认开放，底层统一由 eggbabe-cross-end-v1 驱动） ---------- */
   function detectLocalPeriod() {
-    const h = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
+    const d = new Date(Date.now() + 8 * 3600 * 1000);
+    const h = d.getUTCHours();
+    const m = d.getUTCMinutes();
     if (h >= 6 && h < 17) return "day";
-    if (h >= 17 && h < 19) return "sunset";
+    if (h >= 17 && (h < 19 || (h === 19 && m < 30))) return "sunset";
     return "night";
   }
 
+  const todayDateKey = Store.getUtc8DateKey();
+  const initialMood = Store.computeDailyMood(todayDateKey, crossStore.activePetId, careAll[crossStore.activePetId]);
+
   const state = {
-    petId: "koi",         // 默认打开展示锦鲤，左上角与装扮页可 1 键秒切玉兔
+    petId: crossStore.activePetId === "yutu" ? "yutu" : "koi",
     roomState: "free_stand",
     period: detectLocalPeriod(),
-    stageBgId: "living_room", // "living_room" 或 catalog.backgrounds 中的 11 套插画背景 id
-    moodKey: "JOY",
-    moodPhase: "summary",
-    clockMode: "analog",
-    sfxOn: true,
-    stars: 128,
-    companionDays: 12,
-    unreadMail: true,
+    stageBgId: (crossStore.settings && crossStore.settings.stageBgId) || "living_room",
+    moodKey: initialMood.moodKey,
+    clockMode: (crossStore.settings && crossStore.settings.clockMode === "digital") ? "digital" : "analog",
+    sfxOn: crossStore.settings && typeof crossStore.settings.sfxOn === "boolean" ? crossStore.settings.sfxOn : true,
+    stars: Number(crossStore.companion.starBalance || 0),
+    companionDays: Number(crossStore.companion.companionDays || 1),
+    totalCompanionDays: Number(crossStore.companion.totalCompanionDays || 1),
+    unreadMail: crossStore.companion.dailyLetterClaimedDate !== todayDateKey,
     actedStates: {},
-    savedSet: { koi: "set_duck", yutu: "set_cozy_knit" },
-    keepsakes: ["short-pencil"],
-    postcards: []
+    savedSet: {
+      koi: crossStore.pets.koi.equippedSetId || Store.DEFAULT_SET_BY_PET.koi,
+      yutu: crossStore.pets.yutu.equippedSetId || Store.DEFAULT_SET_BY_PET.yutu
+    },
+    keepsakes: Array.isArray(crossStore.curioCabinet.unlockedIds) ? crossStore.curioCabinet.unlockedIds.slice() : [],
+    postcards: Array.isArray(crossStore.postcards) ? crossStore.postcards.slice() : []
   };
 
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) {
-      const p = JSON.parse(raw);
-      if (p && typeof p === "object") {
-        if (p.petId === "koi" || p.petId === "yutu") state.petId = p.petId;
-        if (typeof p.stars === "number") state.stars = p.stars;
-        if (typeof p.stageBgId === "string") state.stageBgId = p.stageBgId;
-        if (p.clockMode === "digital" || p.clockMode === "analog") state.clockMode = p.clockMode;
-        if (typeof p.sfxOn === "boolean") state.sfxOn = p.sfxOn;
-        if (p.savedSet) state.savedSet = Object.assign(state.savedSet, p.savedSet);
-        if (Array.isArray(p.keepsakes)) state.keepsakes = p.keepsakes.filter((id) => KEPSAKE_DEFS[id]);
-        if (Array.isArray(p.postcards)) state.postcards = p.postcards.slice(0, 36);
-        if (typeof p.unreadMail === "boolean") state.unreadMail = p.unreadMail;
-      }
-    }
-  } catch (e) {}
-
   function persistState() {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        petId: state.petId,
-        stars: state.stars,
-        stageBgId: state.stageBgId,
-        clockMode: state.clockMode,
-        sfxOn: state.sfxOn,
-        unreadMail: state.unreadMail,
-        savedSet: state.savedSet,
-        keepsakes: state.keepsakes,
-        postcards: state.postcards.slice(0, 36)
-      }));
-    } catch (e) {}
+    crossStore.activePetId = state.petId;
+    crossStore.settings.sfxOn = !!state.sfxOn;
+    crossStore.settings.stageBgId = state.stageBgId || "living_room";
+    crossStore.settings.clockMode = state.clockMode === "digital" ? "digital" : "analog";
+    crossStore.companion.starBalance = Math.max(0, Math.floor(Number(state.stars || 0)));
+    crossStore.pets.koi.equippedSetId = state.savedSet.koi;
+    crossStore.pets.yutu.equippedSetId = state.savedSet.yutu;
+    crossStore.pets.koi.care = careAll.koi;
+    crossStore.pets.yutu.care = careAll.yutu;
+    crossStore.curioCabinet.unlockedIds = state.keepsakes.slice();
+    crossStore.postcards = state.postcards.slice(0, 60);
+    state.companionDays = Number(crossStore.companion.companionDays || 1);
+    state.totalCompanionDays = Number(crossStore.companion.totalCompanionDays || 1);
+    storageAdapter.setJSON(Store.STORAGE_KEY, crossStore);
   }
 
   /* ---------- 5. Web Audio 轻音效（对齐 sfx.js：含咀嚼、泡泡、冲水、升级） ---------- */
@@ -419,15 +400,50 @@
   const hudStarCountEl = $("hud-star-count");
   const hudStarGainEl = $("hud-star-gain");
   const hudLvPillEl = $("hud-lv-pill");
-  const hudDaysEl = $("hud-companion-days");
-  const moodDetailEl = $("mood-room-detail");
-  const moodSentenceEl = $("mood-room-sentence");
+  const hudDaysNumEl = $("hud-days-num");
   const hudPetNameEl = $("hud-pet-name");
   const hudSwitchPetTextEl = $("hud-switch-pet-text");
   const hudMoodIconEl = $("hud-mood-icon");
   const hudMoodLabelEl = $("hud-mood-label");
-  const hudMoodTextEl = $("hud-mood-text");
-  const hudCareMiniEl = $("hud-care-mini");
+  const hudCareHungerEl = $("hud-care-hunger");
+  const hudCareHygieneEl = $("hud-care-hygiene");
+  const hudHungerValEl = $("hud-hunger-val");
+  const hudHungerBarEl = $("hud-hunger-bar");
+  const hudHygieneValEl = $("hud-hygiene-val");
+  const hudHygieneBarEl = $("hud-hygiene-bar");
+
+  const profileModalEl = $("profile-modal-overlay");
+  const profileAvatarEl = $("profile-avatar");
+  const profileUserNicknameEl = $("profile-user-nickname");
+  const profileSyncBadgeEl = $("profile-sync-badge");
+  const profilePublicIdEl = $("profile-public-id");
+  const profilePhoneRowEl = $("profile-phone-row");
+  const profilePhoneTextEl = $("profile-phone-text");
+  const btnProfilePhoneActionEl = $("btn-profile-phone-action");
+  const profileUserBioEl = $("profile-user-bio");
+  const profilePetThumbEl = $("profile-pet-thumb");
+  const profilePetNameEl = $("profile-pet-name");
+  const profilePetLvEl = $("profile-pet-lv");
+  const profileMoodIconEl = $("profile-mood-icon");
+  const profileMoodLabelEl = $("profile-mood-label");
+  const profileMoodQuoteEl = $("profile-mood-quote");
+  const profileOutfitTagEl = $("profile-outfit-tag");
+  const profileStarBadgeEl = $("profile-star-badge");
+  const profileStarValueEl = $("profile-star-value");
+  const profileTotalDaysEl = $("profile-total-days");
+  const profileStreakDaysEl = $("profile-streak-days");
+  const profileBarHungerRowEl = $("profile-bar-hunger-row");
+  const profileBarHungerEl = $("profile-bar-hunger");
+  const profileValHungerEl = $("profile-val-hunger");
+  const profileBarHygieneRowEl = $("profile-bar-hygiene-row");
+  const profileBarHygieneEl = $("profile-bar-hygiene");
+  const profileValHygieneEl = $("profile-val-hygiene");
+  const profileBarExpEl = $("profile-bar-exp");
+  const profileValExpEl = $("profile-val-exp");
+  const fpKeepsakesTextEl = $("fp-keepsakes-text");
+  const fpOutfitsTextEl = $("fp-outfits-text");
+  const fpDiariesTextEl = $("fp-diaries-text");
+  const fpPostcardsTextEl = $("fp-postcards-text");
 
   const roomClockEl = $("room-clock");
   const clockAnalogEl = $("clock-analog");
@@ -588,14 +604,28 @@
   updateClock();
   setInterval(updateClock, 1000);
 
-  /* ---------- 9. 内嵌 catalog.json 快照（0ms 立即可用） + 远程静默热更 ---------- */
-  let catalog = window.__EGGBABE_CATALOG__ || { backgrounds: [], pets: {} };
+  /* ---------- 9. 内嵌 catalog.json 辅助查询 ---------- */
+  function getSetItem(petId, setId) {
+    if (!catalog || !setId) return null;
+    const p = catalog.pets && catalog.pets[petId];
+    return (p && p.items && p.items.find((x) => x.id === setId)) || null;
+  }
 
   function getSetName(petId, setId) {
-    if (!catalog || !setId) return "";
-    const p = catalog.pets && catalog.pets[petId];
-    const found = p && p.items && p.items.find((x) => x.id === setId);
+    const found = getSetItem(petId, setId);
     return found ? found.name : "";
+  }
+
+  function getPetDisplayThumbUrl(petId, setId) {
+    const p = catalog && catalog.pets && catalog.pets[petId];
+    const item = getSetItem(petId, setId);
+    const rel = (item && (item.thumb || item.tex)) || (p && p.textures && p.textures.base) || "";
+    return sharedUrl(rel);
+  }
+
+  function getPetName(petId) {
+    const p = crossStore.pets && crossStore.pets[petId];
+    return (p && p.name) || Store.DEFAULT_PET_NAMES[petId] || "蛋宝宝";
   }
 
   function getAllPostcardScenes() {
@@ -633,37 +663,194 @@
     return list;
   }
 
-  /* ---------- 10. 左上状态牌（含一键切锦鲤/玉兔 + 养成状态同步） ---------- */
+  /* ---------- 10. 左上精简 HUD 状态牌 + 「个人信息与伙伴档案」手帐弹窗（P1） ---------- */
   let secretTapTimes = [];
+
+  function copyTextToClipboard(text, successMsg) {
+    const val = String(text || "");
+    if (!val) return;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      navigator.clipboard.writeText(val).then(() => {
+        showSceneFeedback(successMsg || "已复制到剪贴板", "system");
+      }).catch(() => {
+        fallbackCopyText(val, successMsg);
+      });
+    } else {
+      fallbackCopyText(val, successMsg);
+    }
+  }
+
+  function fallbackCopyText(val, successMsg) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = val;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      showSceneFeedback(successMsg || "已复制到剪贴板", "system");
+    } catch (e) {
+      showSceneFeedback(val, "system");
+    }
+  }
+
   function syncCareIndicators() {
     const ps = careAll[state.petId] || careAll.koi;
-    const isHungry = ps.hunger < 30;
-    const isDirty = ps.hygiene < 30;
+    const hungerPct = Math.round(clamp(ps.hunger, 0, 100));
+    const hygienePct = Math.round(clamp(ps.hygiene, 0, 100));
+    const isHungry = hungerPct < 30;
+    const isDirty = hygienePct < 30;
+
     dockDotHungryEl.hidden = !isHungry;
     dockDotDirtyEl.hidden = !isDirty;
-    hudLvPillEl.textContent = `Lv.${ps.level}`;
-    hudCareMiniEl.textContent = `饱食 ${Math.round(ps.hunger)}% · 清洁 ${Math.round(ps.hygiene)}%`;
+
+    hudDaysNumEl.textContent = String(crossStore.companion.totalCompanionDays || 1);
+    hudHungerValEl.textContent = `${hungerPct}%`;
+    hudHungerBarEl.style.width = `${hungerPct}%`;
+    hudCareHungerEl.classList.toggle("is-warning", isHungry);
+
+    hudHygieneValEl.textContent = `${hygienePct}%`;
+    hudHygieneBarEl.style.width = `${hygienePct}%`;
+    hudCareHygieneEl.classList.toggle("is-warning", isDirty);
 
     const showDirtyFx = isDirty && isWebGLActive() && careUiMode !== "bath";
     dirtyLayerEl.hidden = !showDirtyFx;
     if (showDirtyFx) positionDirtyFx();
   }
 
+  function getActiveComputedMood() {
+    const dk = Store.getUtc8DateKey();
+    const ps = careAll[state.petId] || careAll.koi;
+    const m = Store.computeDailyMood(dk, state.petId, ps);
+    state.moodKey = m.moodKey;
+    if (crossStore.pets[state.petId]) {
+      crossStore.pets[state.petId].dailyMood = {
+        dateKey: m.dateKey,
+        moodKey: m.moodKey,
+        overriddenByCare: m.overriddenByCare
+      };
+    }
+    return m;
+  }
+
   function renderMoodTab() {
-    const mood = DAILY_MOODS[state.moodKey] || DAILY_MOODS.JOY;
+    const mood = getActiveComputedMood();
+    const speciesLabel = state.petId === "yutu" ? "玉兔" : "锦鲤";
     hudStarCountEl.textContent = String(state.stars);
-    hudDaysEl.textContent = `连续一起 ${state.companionDays} 天`;
-    hudPetNameEl.textContent = state.petId === "yutu" ? "糯米团子 · 玉兔" : "锦小鲤 · 锦鲤";
+    hudPetNameEl.textContent = `${getPetName(state.petId)} · ${speciesLabel}`;
     hudSwitchPetTextEl.textContent = state.petId === "yutu" ? "⇄ 锦鲤" : "⇄ 玉兔";
     hudMoodIconEl.textContent = mood.icon;
     hudMoodLabelEl.textContent = mood.label;
-
-    const eqName = getSetName(state.petId, state.savedSet[state.petId]);
-    hudMoodTextEl.textContent = eqName ? `${mood.text}（身穿「${eqName}」）` : mood.text;
-
-    moodDetailEl.classList.toggle("pet-mood-tab__room-detail--open", state.moodPhase !== "minimal");
-    moodSentenceEl.classList.toggle("pet-mood-tab__room-sentence--open", state.moodPhase === "expanded");
     syncCareIndicators();
+    if (!profileModalEl.hidden) renderProfileModal();
+  }
+
+  function renderProfileModal() {
+    const mode = crossStore.profileMode || "h5";
+    const user = crossStore.user;
+    const petId = state.petId;
+    const ps = careAll[petId] || careAll.koi;
+    const mood = getActiveComputedMood();
+    const eqName = getSetName(petId, state.savedSet[petId]) || "原生毛绒";
+
+    // 分区一：账号与 4 档 profileMode 适配
+    if (user.avatarUrl) {
+      profileAvatarEl.innerHTML = `<img src="${user.avatarUrl}" alt="头像" />`;
+    } else {
+      const firstChar = Array.from(String(user.nickname || "蛋").trim())[0] || "蛋";
+      profileAvatarEl.textContent = firstChar;
+    }
+    profileUserNicknameEl.textContent = user.nickname || "蛋宝好友";
+    profilePublicIdEl.textContent = user.publicId || "EB-000000";
+    profileUserBioEl.textContent = user.bio || "这个人很懒，还没有简介";
+
+    if (mode === "h5") {
+      profileSyncBadgeEl.textContent = "本地已保存";
+      profilePhoneRowEl.hidden = false;
+      profilePhoneTextEl.textContent = "跨端存档备份";
+      btnProfilePhoneActionEl.textContent = "生成跨端引继码";
+    } else if (mode === "wx-mp-enterprise") {
+      profileSyncBadgeEl.textContent = "已同步云端 ●";
+      profilePhoneRowEl.hidden = false;
+      if (user.maskedPhone) {
+        profilePhoneTextEl.textContent = `📱 手机号：${user.maskedPhone}`;
+        btnProfilePhoneActionEl.textContent = "已绑定";
+      } else {
+        profilePhoneTextEl.textContent = "📱 手机号：未绑定";
+        btnProfilePhoneActionEl.textContent = "绑定手机号 · 防丢档";
+      }
+    } else if (mode === "wx-minigame") {
+      profileSyncBadgeEl.textContent = "小游戏云端 ●";
+      profilePhoneRowEl.hidden = false;
+      if (user.maskedPhone) {
+        profilePhoneTextEl.textContent = `📱 手机号：${user.maskedPhone}`;
+        btnProfilePhoneActionEl.textContent = "已同步";
+      } else {
+        profilePhoneTextEl.textContent = "📱 手机号：未同步";
+        btnProfilePhoneActionEl.textContent = "授权同步手机号";
+      }
+    } else {
+      // wx-mp-ordinary：严格遵循 privacy.wxml §8，彻底隐藏手机号字段
+      profileSyncBadgeEl.textContent = "微信已登录 ●";
+      profilePhoneRowEl.hidden = true;
+    }
+
+    // 分区二：宠物核心档案
+    document.querySelectorAll("[data-profile-pet]").forEach((btn) => {
+      const active = btn.dataset.profilePet === petId;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
+    });
+    profilePetThumbEl.src = getPetDisplayThumbUrl(petId, state.savedSet[petId]);
+    profilePetNameEl.textContent = getPetName(petId);
+    profilePetLvEl.textContent = `亲密度 Lv.${ps.level}`;
+    profileMoodIconEl.textContent = mood.icon;
+    profileMoodLabelEl.textContent = mood.label;
+    profileMoodQuoteEl.textContent = `“${mood.text}”`;
+    profileOutfitTagEl.textContent = `身穿 · ${eqName}`;
+
+    profileStarValueEl.textContent = `${state.stars} ✦`;
+    profileTotalDaysEl.textContent = `累计 ${crossStore.companion.totalCompanionDays || 1} 天`;
+    profileStreakDaysEl.textContent = `连续一起 ${crossStore.companion.companionDays || 1} 天`;
+
+    const hungerPct = Math.round(clamp(ps.hunger, 0, 100));
+    const hygienePct = Math.round(clamp(ps.hygiene, 0, 100));
+    const nextExp = expForNextLevel(ps.level);
+    const expPct = Math.round(clamp((ps.exp / Math.max(1, nextExp)) * 100, 0, 100));
+
+    profileBarHungerEl.style.width = `${hungerPct}%`;
+    profileValHungerEl.textContent = `${hungerPct}%`;
+    profileBarHungerRowEl.classList.toggle("is-warning", hungerPct < 30);
+
+    profileBarHygieneEl.style.width = `${hygienePct}%`;
+    profileValHygieneEl.textContent = `${hygienePct}%`;
+    profileBarHygieneRowEl.classList.toggle("is-warning", hygienePct < 30);
+
+    profileBarExpEl.style.width = `${expPct}%`;
+    profileValExpEl.textContent = `${Math.round(ps.exp)} / ${nextExp}`;
+
+    // 分区三：陪伴足迹概览（wx-mp-ordinary 隐藏收集总数分母）
+    const ksCount = state.keepsakes.length;
+    fpKeepsakesTextEl.textContent = mode === "wx-mp-ordinary"
+      ? `已留存 ${ksCount} 件`
+      : `小物件 ${ksCount}/${Store.TOTAL_KEEPSAKES_COUNT}`;
+
+    const koiCount = (catalog.pets && catalog.pets.koi && catalog.pets.koi.items && catalog.pets.koi.items.length) || 12;
+    const yutuCount = (catalog.pets && catalog.pets.yutu && catalog.pets.yutu.items && catalog.pets.yutu.items.length) || 24;
+    fpOutfitsTextEl.textContent = `穿搭 ${koiCount + yutuCount}套`;
+    fpDiariesTextEl.textContent = `日记 ${(crossStore.diaries || []).length}篇`;
+    fpPostcardsTextEl.textContent = `明信片 ${state.postcards.length}张`;
+  }
+
+  function openProfileModal() {
+    renderProfileModal();
+    profileModalEl.hidden = false;
+  }
+
+  function closeProfileModal() {
+    profileModalEl.hidden = true;
   }
 
   $("btn-hud-switch-pet").addEventListener("click", async (ev) => {
@@ -671,16 +858,120 @@
     sfx.tap();
     const next = state.petId === "koi" ? "yutu" : "koi";
     await switchPet(next);
-    showSceneFeedback(next === "koi" ? "已切换为：锦小鲤（12 套穿搭）" : "已切换为：糯米团子（24 套穿搭）", "system");
+    showSceneFeedback(`已切换为：${getPetName(next)}（${next === "koi" ? "12" : "24"} 套穿搭）`, "system");
   });
 
   moodTabEl.addEventListener("click", () => {
     sfx.tap();
-    const order = ["minimal", "summary", "expanded"];
-    state.moodPhase = order[(order.indexOf(state.moodPhase) + 1) % order.length];
-    renderMoodTab();
     triggerRebound(moodTabEl);
+    openProfileModal();
+  });
+  moodTabEl.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      sfx.tap();
+      openProfileModal();
+    }
+  });
 
+  $("btn-close-profile").addEventListener("click", () => { sfx.tap(); closeProfileModal(); });
+  profileModalEl.addEventListener("click", (ev) => {
+    if (ev.target === profileModalEl) {
+      sfx.tap();
+      closeProfileModal();
+    }
+  });
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !profileModalEl.hidden) closeProfileModal();
+  });
+
+  $("btn-copy-public-id").addEventListener("click", () => {
+    sfx.tap();
+    copyTextToClipboard(crossStore.user.publicId, `蛋宝宝号 ${crossStore.user.publicId} 已复制`);
+  });
+
+  $("btn-edit-user-nickname").addEventListener("click", () => {
+    sfx.tap();
+    const input = window.prompt("请输入你的昵称（1–16 字）：", crossStore.user.nickname || "");
+    if (input === null) return;
+    const res = Store.validateNickname(input, 16);
+    if (!res.ok) {
+      showSceneFeedback(res.error, "system", "warning");
+      return;
+    }
+    crossStore.user.nickname = res.value;
+    persistState();
+    renderProfileModal();
+    showSceneFeedback("昵称已更新", "system");
+  });
+
+  $("btn-edit-user-bio").addEventListener("click", () => {
+    sfx.tap();
+    const input = window.prompt("请输入个人简介（最多 30 字）：", crossStore.user.bio || "");
+    if (input === null) return;
+    const res = Store.validateUserBio(input, 30);
+    if (!res.ok) {
+      showSceneFeedback(res.error, "system", "warning");
+      return;
+    }
+    crossStore.user.bio = res.value;
+    persistState();
+    renderProfileModal();
+    showSceneFeedback("简介已保存", "system");
+  });
+
+  btnProfilePhoneActionEl.addEventListener("click", () => {
+    sfx.tap();
+    const mode = crossStore.profileMode || "h5";
+    if (mode === "h5") {
+      const token = `${crossStore.user.publicId}-${String(crossStore.companion.totalCompanionDays || 1).padStart(2, "0")}D-${crossStore.activePetId.toUpperCase()}`;
+      copyTextToClipboard(token, `跨端引继码已复制：${token}`);
+      return;
+    }
+    if (mode === "wx-mp-enterprise" || mode === "wx-minigame") {
+      if (crossStore.user.maskedPhone) {
+        showSceneFeedback(`当前已缓存脱敏号 ${crossStore.user.maskedPhone}（免重复扣费）`, "system");
+        return;
+      }
+      // 模拟服务端换取脱敏手机号并持久化缓存（前端绝不存明文完整号码）
+      crossStore.user.maskedPhone = "138****5678";
+      crossStore.user.phoneBoundAt = Store.getUtc8IsoString();
+      persistState();
+      renderProfileModal();
+      showSceneFeedback("已绑定脱敏手机号 138****5678", "system");
+    }
+  });
+
+  document.querySelectorAll("[data-profile-pet]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const next = btn.dataset.profilePet;
+      if (!next || next === state.petId) return;
+      sfx.tap();
+      await switchPet(next);
+      renderProfileModal();
+    });
+  });
+
+  $("btn-edit-pet-name").addEventListener("click", () => {
+    sfx.tap();
+    const current = getPetName(state.petId);
+    const input = window.prompt("给小家伙起个新名字吧（最多 10 字）：", current);
+    if (input === null) return;
+    const res = Store.validateNickname(input, 10);
+    if (!res.ok) {
+      showSceneFeedback(res.error, "system", "warning");
+      return;
+    }
+    crossStore.pets[state.petId].name = res.value;
+    persistState();
+    renderMoodTab();
+    renderProfileModal();
+    showSceneFeedback(`已将伙伴改名为「${res.value}」`, "system");
+  });
+
+  // 5 连击弹窗星标开启/收起 #dev-testers（从主界面 HUD 迁移至此）
+  profileStarBadgeEl.addEventListener("click", () => {
+    sfx.tap();
     const now = Date.now();
     secretTapTimes = secretTapTimes.filter((t) => now - t < 2400);
     secretTapTimes.push(now);
@@ -689,6 +980,26 @@
       devTestersEl.hidden = !devTestersEl.hidden;
       showSceneFeedback(devTestersEl.hidden ? "验收工具已收起" : "验收工具已开启", "system");
     }
+  });
+
+  $("fp-btn-keepsakes").addEventListener("click", () => {
+    sfx.tap();
+    closeProfileModal();
+    openKeepsakeAlbum("keepsakes");
+  });
+  $("fp-btn-outfits").addEventListener("click", () => {
+    sfx.tap();
+    closeProfileModal();
+    enterFittingRoom();
+  });
+  $("fp-btn-diaries").addEventListener("click", () => {
+    sfx.tap();
+    showSceneFeedback("陪伴日记本正在装订筹备中，敬请期待", "system");
+  });
+  $("fp-btn-postcards").addEventListener("click", () => {
+    sfx.tap();
+    closeProfileModal();
+    openKeepsakeAlbum("postcards");
   });
 
   if (new URLSearchParams(window.location.search).get("demo") === "1") {
@@ -1721,6 +2032,7 @@
 
     const ps = careAll[state.petId];
     ps.hunger = clamp(ps.hunger + snack.hunger, 0, 100);
+    Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { snackId: snack.id });
     const leveled = addCareExp(state.petId, snack.exp);
 
     sfx.munch();
@@ -1859,6 +2171,7 @@
 
     const ps = careAll[state.petId];
     ps.hygiene = 100;
+    Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { bathed: true });
     const leveled = addCareExp(state.petId, 24);
     sfx.splash();
     startAnim("rinse", performance.now());
@@ -1917,6 +2230,7 @@
       if (now - lastPetStarAt > 8500) {
         lastPetStarAt = now;
         sfx.star();
+        Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { visitedState: "petted" });
         addCareExp(state.petId, 10);
         animateStarsTo(state.stars + 2, 2);
         renderMoodTab();
@@ -2046,11 +2360,29 @@
     state.actedStates[`${state.petId}:${state.roomState}`] = true;
     actionGlowEl.hidden = true;
     sfx.star();
-    if (def.keepsakeId && !state.keepsakes.includes(def.keepsakeId)) {
-      state.keepsakes.unshift(def.keepsakeId);
-      tbAlbumDotEl.hidden = false;
+    if (def.keepsakeId) {
+      const norm = Store.keepsakeAliasNormalizer([def.keepsakeId]);
+      const cid = norm.unlockedIds[0] || def.keepsakeId;
+      if (!state.keepsakes.includes(cid)) {
+        state.keepsakes.unshift(cid);
+        if (Array.isArray(crossStore.curioCabinet.shelfSlots) && !crossStore.curioCabinet.shelfSlots.includes(cid)) {
+          const emptyIdx = crossStore.curioCabinet.shelfSlots.indexOf(null);
+          if (emptyIdx >= 0) crossStore.curioCabinet.shelfSlots[emptyIdx] = cid;
+        }
+        crossStore.curioCabinet.unlockedMeta[cid] = {
+          unlockedAt: Store.getUtc8IsoString(),
+          source: "scene:" + state.roomState,
+          isNew: true
+        };
+        tbAlbumDotEl.hidden = false;
+      }
     }
+    Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, {
+      visitedState: state.roomState,
+      keepsakeId: def.keepsakeId
+    });
     animateStarsTo(state.stars + 3, 3);
+    renderMoodTab();
     if (def.actionFeedback) showSceneFeedback(def.actionFeedback, "dialogue");
   });
 
@@ -2300,6 +2632,10 @@
             state.savedSet[state.petId] = null;
           } else {
             state.savedSet[state.petId] = item.id;
+            Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, {
+              outfitId: item.id,
+              countsAsEffective: false
+            });
             await ensureSetLoaded(petRuntimes[state.petId], item.id);
             sfx.hop();
             startAnim("minihop", performance.now());
@@ -2572,12 +2908,26 @@
   $("btn-collect-letter").addEventListener("click", async () => {
     if (!activeLetterMeta) return;
     sfx.star();
-    state.postcards.unshift(activeLetterMeta);
-    state.postcards = state.postcards.slice(0, 36);
+    const postcardMeta = {
+      id: activeLetterMeta.id || ("pc_" + Date.now()),
+      petId: activeLetterMeta.petId,
+      outfitId: activeLetterMeta.outfitId || activeLetterMeta.setId,
+      setId: activeLetterMeta.setId || activeLetterMeta.outfitId,
+      sceneId: activeLetterMeta.sceneId,
+      text: activeLetterMeta.text || "",
+      dateText: activeLetterMeta.dateText || "",
+      createdAt: Store.getUtc8IsoString()
+    };
+    state.postcards.unshift(postcardMeta);
+    state.postcards = state.postcards.slice(0, 60);
     state.unreadMail = false;
+    crossStore.companion.dailyLetterClaimedDate = Store.getUtc8DateKey();
+    Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), postcardMeta.petId, {
+      outfitId: postcardMeta.outfitId
+    });
     tbAlbumDotEl.hidden = false;
 
-    const artUrl = await composeCleanIllustrationUrl(activeLetterMeta.petId, activeLetterMeta.setId, activeLetterMeta.sceneId);
+    const artUrl = await composeCleanIllustrationUrl(postcardMeta.petId, postcardMeta.setId, postcardMeta.sceneId);
     wallPolaroidImgEl.src = artUrl;
     letterOverlayEl.hidden = true;
 
@@ -2588,6 +2938,7 @@
     }
     if (letterGivesStar) animateStarsTo(state.stars + 8, 8);
     else persistState();
+    renderMoodTab();
     showSceneFeedback("明信片已收进纪念册", "system");
   });
 
@@ -2604,7 +2955,9 @@
     document.querySelectorAll("[data-album-tab]").forEach((t) => t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab));
     keepsakeGridEl.innerHTML = "";
     if (currentAlbumTab === "keepsakes") {
-      const list = state.keepsakes.map((id) => KEPSAKE_DEFS[id]).filter(Boolean);
+      const list = state.keepsakes
+        .map((id) => KEPSAKE_DEFS[id] || KEPSAKE_DEFS[Store.toLegacyKeepsakeId(id)])
+        .filter(Boolean);
       keepsakeEmptyEl.hidden = list.length > 0;
       list.forEach((ks) => {
         const cell = document.createElement("button");
@@ -2739,6 +3092,28 @@
       b.addEventListener("click", () => { act.fn(); closeAllTesterMenus(); });
       menuCare.appendChild(b);
     });
+
+    const menuProfileMode = $("menu-profileMode");
+    if (menuProfileMode) {
+      menuProfileMode.innerHTML = "";
+      Store.PROFILE_MODES.forEach((m) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "tester-option" + (crossStore.profileMode === m ? " tester-option--active" : "");
+        b.innerHTML = `<span>${m}</span><span>${crossStore.profileMode === m ? "✓" : ""}</span>`;
+        b.addEventListener("click", () => {
+          crossStore.profileMode = m;
+          crossStore.user.authProvider = m;
+          persistState();
+          renderMoodTab();
+          if (!profileModalEl.hidden) renderProfileModal();
+          closeAllTesterMenus();
+          buildDevTesterMenus();
+          showSceneFeedback(`已切换 profileMode：${m}`, "system");
+        });
+        menuProfileMode.appendChild(b);
+      });
+    }
     updateDevTesterLabels();
   }
 
@@ -2747,10 +3122,15 @@
     $("tester-period-label").textContent = pMap[state.period] || "白天";
     $("tester-state-label").textContent = (ROOM_STATES[state.roomState] || ROOM_STATES.free_stand).label;
     $("tester-pet-label").textContent = state.petId === "yutu" ? "玉兔" : "锦鲤";
+    const pmLabel = $("tester-profile-mode-label");
+    if (pmLabel) pmLabel.textContent = crossStore.profileMode || "h5";
   }
 
   function closeAllTesterMenus() {
-    ["menu-period", "menu-state", "menu-pet", "menu-care"].forEach((id) => { $(id).hidden = true; });
+    ["menu-period", "menu-state", "menu-pet", "menu-care", "menu-profileMode"].forEach((id) => {
+      const el = $(id);
+      if (el) el.hidden = true;
+    });
   }
   btnAcceptanceToggleEl.addEventListener("click", () => {
     const open = acceptanceStackEl.hidden;
@@ -2761,6 +3141,7 @@
   document.querySelectorAll("[data-tester]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = $("menu-" + btn.dataset.tester);
+      if (!target) return;
       const wasHidden = target.hidden;
       closeAllTesterMenus();
       target.hidden = !wasHidden;
@@ -2768,7 +3149,10 @@
   });
 
   /* ---------- 21. 启动流程 ---------- */
-  window.addEventListener("resize", updateViewportGeometry);
+  window.addEventListener("resize", () => {
+    Store.injectCapsuleSafeAreaVars(document.documentElement);
+    updateViewportGeometry();
+  });
 
   async function boot() {
     updateViewportGeometry();

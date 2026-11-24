@@ -16,6 +16,9 @@
   --pano-scale: 0.5;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --wx-capsule-top: 12px;
+  --wx-capsule-bottom: 0px;
+  --wx-capsule-right-pad: 12px;
 }
 
 *, *::before, *::after {
@@ -276,12 +279,12 @@ button:active {
   background: rgba(39, 27, 23, 0.78);
 }
 
-/* ---------- 3. 左上状态栈：三阶陪伴星星牌 + 双模小挂钟 ---------- */
+/* ---------- 3. 左上状态栈：精简常驻版陪伴星星牌 + 双模小挂钟 ---------- */
 .life-status-stack {
   position: fixed;
   z-index: 84;
   left: 12px;
-  top: calc(12px + var(--safe-top));
+  top: max(calc(12px + env(safe-area-inset-top, 0px)), var(--wx-capsule-top, 12px));
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -295,12 +298,12 @@ button:active {
 }
 .pet-mood-tab--post-hatch {
   width: max-content;
-  min-width: 138px;
-  max-width: 206px;
-  padding: 11px 13px;
+  min-width: 176px;
+  max-width: 214px;
+  padding: 10px 12px;
   border: 1px solid rgba(225, 229, 215, 0.95);
   border-radius: 14px;
-  background: rgba(255, 253, 247, 0.92);
+  background: rgba(255, 253, 247, 0.94);
   box-shadow: 0 3px 9px rgba(37, 46, 35, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.58);
   backdrop-filter: blur(8px);
   cursor: pointer;
@@ -309,7 +312,7 @@ button:active {
 .pet-mood-tab__room-header {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 .pet-mood-tab__star-row {
   position: relative;
@@ -319,7 +322,7 @@ button:active {
 }
 .pet-mood-tab__star-value {
   color: #35483C;
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 600;
   line-height: 1.05;
   font-variant-numeric: tabular-nums;
@@ -335,33 +338,21 @@ button:active {
   28% { opacity: 1; transform: translateY(-1px) scale(1.05); }
   100% { opacity: 0; transform: translateY(-9px) scale(0.95); }
 }
-.pet-mood-tab__days {
-  color: #5A675E;
-  font-size: 11.5px;
-  line-height: 1.3;
-}
 .pet-mood-tab__room-detail {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  margin-top: 0;
-  padding-top: 0;
-  border-top: 1px solid transparent;
-  transition: max-height 0.24s ease, opacity 0.2s ease, margin-top 0.22s ease, padding-top 0.22s ease;
-}
-.pet-mood-tab__room-detail--open {
-  max-height: 150px;
-  opacity: 1;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top-color: rgba(53, 72, 60, 0.09);
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(53, 72, 60, 0.09);
 }
 .pet-mood-tab__pet-name {
   display: block;
   color: #002900;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.25;
+  max-width: 122px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pet-mood-tab__mood-inline {
   margin-top: 4px;
@@ -371,7 +362,7 @@ button:active {
 }
 .pet-mood-tab__mood-prefix {
   color: #748078;
-  font-size: 10px;
+  font-size: 10.5px;
 }
 .pet-mood-tab__mood-emoji {
   font-size: 12px;
@@ -382,28 +373,78 @@ button:active {
   font-size: 11px;
   font-weight: 600;
 }
-.pet-mood-tab__room-sentence {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 0.22s ease, opacity 0.2s ease, margin-top 0.2s ease;
+.pet-mood-tab__chevron {
+  margin-left: auto;
+  color: #8A968C;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
 }
-.pet-mood-tab__room-sentence--open {
-  max-height: 84px;
-  opacity: 1;
+.pet-mood-tab__care-row {
   margin-top: 6px;
-}
-.pet-mood-tab__sentence-text {
-  margin: 0;
-  color: #303A32;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(53, 72, 60, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 10.5px;
-  line-height: 1.5;
+  line-height: 1.2;
+  color: #4A5A50;
 }
-.pet-mood-tab__ai-note {
+.pet-mood-tab__care-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.pet-mood-tab__care-text {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pet-mood-tab__care-text b {
+  font-weight: 600;
+  color: #35483C;
+}
+.pet-mood-tab__care-track {
   display: block;
-  margin-top: 3px;
-  color: #8C8C88;
-  font-size: 8.5px;
+  width: 100%;
+  height: 3.5px;
+  border-radius: 999px;
+  background: rgba(53, 72, 60, 0.11);
+  overflow: hidden;
+}
+.pet-mood-tab__care-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #6E8B57;
+  transition: width 0.28s ease, background-color 0.25s ease;
+}
+.pet-mood-tab__care-sep {
+  color: rgba(53, 72, 60, 0.28);
+  align-self: flex-start;
+  line-height: 1.1;
+}
+.pet-mood-tab__care-item.is-warning .pet-mood-tab__care-text,
+.pet-mood-tab__care-item.is-warning .pet-mood-tab__care-text b {
+  color: #D96B52;
+}
+.pet-mood-tab__care-item.is-warning .pet-mood-tab__care-fill {
+  background: #D96B52;
+  animation: care-warn-pulse 1.8s ease-in-out infinite;
+}
+@keyframes care-warn-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.52; }
+}
+@media (max-width: 359px) {
+  .pet-mood-tab__days-prefix {
+    display: none;
+  }
 }
 
 /* 哑光陪伴星星组件（复刻 companion-star.wxss） */
@@ -2085,3 +2126,535 @@ button:active {
   border-radius: 9px;
   object-fit: cover;
 }
+
+/* ==========================================================================
+   11. 暖白方格手帐「个人信息与伙伴档案」弹窗（PRD-0003 Phase 1 P1）
+   ========================================================================== */
+.profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: max(16px, calc(var(--wx-capsule-bottom, env(safe-area-inset-top, 0px)) + 8px)) 14px max(16px, calc(12px + var(--safe-bottom)));
+  background: rgba(34, 30, 24, 0.46);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: profile-fade-in 0.2s ease-out;
+}
+.profile-modal-overlay[hidden] {
+  display: none;
+}
+@keyframes profile-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.profile-journal-card {
+  position: relative;
+  display: flex;
+  width: min(92vw, 420px);
+  max-height: calc(100dvh - max(32px, calc(var(--wx-capsule-bottom, env(safe-area-inset-top, 0px)) + 24px)));
+  border-radius: 18px;
+  overflow: hidden;
+  background-color: #FFFDF9;
+  background-image:
+    linear-gradient(to right, rgba(180, 166, 142, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(180, 166, 142, 0.08) 1px, transparent 1px);
+  background-size: 16px 16px;
+  border: 1.5px solid #E3D7C3;
+  box-shadow: 0 18px 42px rgba(28, 22, 14, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  animation: profile-card-pop 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes profile-card-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.profile-journal-card__spine {
+  flex: none;
+  width: 10px;
+  background: linear-gradient(180deg, #ECE3D0 0%, #E4D7BE 55%, #DECFA8 100%);
+  border-right: 1px dashed rgba(140, 118, 86, 0.36);
+  box-shadow: inset -2px 0 4px rgba(120, 96, 62, 0.08);
+}
+
+.profile-journal-card__inner {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+
+.profile-journal-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px 10px 15px;
+  border-bottom: 1px dashed rgba(146, 128, 100, 0.28);
+  background: rgba(255, 252, 245, 0.82);
+}
+.profile-journal-header__title {
+  margin: 0;
+  color: #3B3022;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.profile-journal-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #D9CCB5;
+  background: #F4ECE0;
+  color: #6B573E;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.14s ease, background-color 0.14s ease;
+}
+.profile-journal-close:hover {
+  background: #EAE0CE;
+}
+.profile-journal-close:active {
+  transform: scale(0.92);
+}
+
+.profile-journal-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px 16px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-section {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(214, 202, 182, 0.7);
+  border-radius: 13px;
+  padding: 11px 12px;
+}
+.profile-section__label {
+  color: #544636;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* 分区一：账号与身份 */
+.profile-account__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+.profile-avatar {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #DCE7CD 0%, #C7DAB0 100%);
+  border: 1.5px solid #B7CCA0;
+  color: #2D4628;
+  font-size: 19px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.profile-account__meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-account__name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.profile-account__nickname {
+  color: #2A241C;
+  font-size: 15px;
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-pencil-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #E5C97B;
+  background: #FFF4CC;
+  color: #8A6110;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: none;
+}
+.profile-pencil-btn--sm {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+.profile-pencil-btn:hover {
+  background: #FCEAA6;
+}
+.profile-sync-badge {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #EDF4E6;
+  color: #4A6A3A;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.profile-account__id-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #6B6153;
+}
+.profile-account__id-row code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #3E362B;
+  font-weight: 600;
+}
+.profile-copy-pill {
+  padding: 1.5px 8px;
+  border-radius: 999px;
+  border: 1px solid #E2C675;
+  background: #FEF3C7;
+  color: #7C5610;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.profile-copy-pill:hover {
+  background: #FDE79B;
+}
+.profile-account__phone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #665D4F;
+}
+.profile-account__phone-row[hidden] {
+  display: none;
+}
+.profile-phone-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(53, 72, 60, 0.22);
+  background: #F3F6EC;
+  color: #35483C;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.profile-phone-pill:hover {
+  background: #E7EEDF;
+}
+.profile-bio-box {
+  margin-top: 9px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: #FAF6EE;
+  border: 1px dashed rgba(174, 155, 126, 0.42);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: #5C5244;
+}
+.profile-bio-box__label {
+  flex: none;
+  color: #8A7E6D;
+}
+.profile-bio-box__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 分区二：宠物核心档案 */
+.profile-pet__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.profile-pet-seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: #F1EBE0;
+  border: 1px solid rgba(176, 160, 134, 0.35);
+}
+.profile-pet-seg__btn {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: #695E4F;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.profile-pet-seg__btn.is-active {
+  background: #FFFFFF;
+  color: #1F3B24;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(42, 34, 22, 0.1);
+}
+
+.profile-pet__card {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 9px;
+  border-radius: 11px;
+  background: #FBF8F1;
+  border: 1px solid rgba(214, 202, 182, 0.55);
+}
+.profile-pet__thumb-wrap {
+  flex: none;
+  width: 74px;
+  height: 82px;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 62%, #FFFFFF 0%, #F1EAD9 100%);
+  border: 1px solid rgba(196, 182, 156, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.profile-pet__thumb {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+}
+.profile-pet__info {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-pet__name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.profile-pet__name {
+  color: #002900;
+  font-size: 15px;
+  font-weight: 600;
+}
+.profile-lv-badge {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #EDF2E3;
+  color: #4E6334;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.profile-pet__mood-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  color: #5A675E;
+}
+.profile-pet__mood-name {
+  color: #2B4232;
+  font-weight: 600;
+}
+.profile-pet__mood-quote {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.42;
+  color: #4D463B;
+}
+.profile-pet__outfit-tag {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 1.5px 7px;
+  border-radius: 6px;
+  background: #EFE9DC;
+  color: #635542;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.profile-stats-grid {
+  margin-top: 9px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.profile-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #FAF7EF;
+  border: 1px solid rgba(210, 198, 176, 0.65);
+  text-align: left;
+}
+.profile-stat-card--star {
+  cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.14s ease;
+}
+.profile-stat-card--star:active {
+  transform: scale(0.97);
+  background: #F4EFE2;
+}
+.profile-stat-card__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+.profile-stat-card__label {
+  font-size: 11px;
+  color: #6B6153;
+}
+.profile-stat-card__val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #283E2B;
+  font-variant-numeric: tabular-nums;
+}
+.profile-stat-card__sub {
+  font-size: 10px;
+  color: #867B6B;
+}
+
+.profile-bars {
+  margin-top: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profile-bar-row {
+  display: grid;
+  grid-template-columns: 68px 1fr 52px;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: #4E5B52;
+}
+.profile-bar-row__track {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(53, 72, 60, 0.1);
+  overflow: hidden;
+}
+.profile-bar-row__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #6E8B57;
+  transition: width 0.28s ease, background-color 0.25s ease;
+}
+.profile-bar-row__fill--exp {
+  background: #D7A846;
+}
+.profile-bar-row__val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #35483C;
+  font-size: 10.5px;
+}
+.profile-bar-row.is-warning .profile-bar-row__label,
+.profile-bar-row.is-warning .profile-bar-row__val {
+  color: #D96B52;
+}
+.profile-bar-row.is-warning .profile-bar-row__fill {
+  background: #D96B52;
+}
+
+/* 分区三：陪伴足迹概览 */
+.profile-footprints__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.profile-footprints__hint {
+  font-size: 10.5px;
+  color: #8D8170;
+}
+.profile-footprints__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.profile-fp-pill {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(186, 174, 152, 0.65);
+  background: #FAF7F0;
+  color: #39483B;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 0.14s ease, transform 0.12s ease;
+}
+.profile-fp-pill:hover {
+  background: #F0EAE0;
+}
+.profile-fp-pill:active {
+  transform: scale(0.97);
+}
+.profile-fp-pill--upcoming {
+  color: #7D766B;
+  border-style: dashed;
+}
+
+@media (max-width: 360px) {
+  .profile-journal-scroll {
+    padding: 10px 10px 14px 11px;
+  }
+  .profile-pet__thumb-wrap {
+    width: 62px;
+    height: 70px;
+  }
+  .profile-bar-row {
+    grid-template-columns: 62px 1fr 48px;
+  }
+}
+
