@@ -1651,3 +1651,437 @@ button:active {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   10. eggbabe-h5 全量内容融合：右侧 3D 喂食/洗澡/装扮胶囊、3D 零食托盘、搓澡泡泡与双页签衣橱
+   ========================================================================== */
+
+/* 左上状态牌：等级小签 + 一键切换锦鲤/玉兔 */
+.pet-mood-tab__lv-pill {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #EDF2E3;
+  color: #4E6334;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.pet-mood-tab__name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pet-mood-tab__switch-btn {
+  padding: 2.5px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(53, 72, 60, 0.18);
+  background: #F4F5EC;
+  color: #35483C;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pet-mood-tab__switch-btn:hover {
+  background: #E8EDE0;
+}
+
+/* 11 套插画背景独立舞台层（保持 9:16 原生构图不拉伸） */
+.custom-stage-bg {
+  position: fixed;
+  z-index: 0;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100dvh;
+  object-fit: cover;
+  pointer-events: none;
+  transition: opacity 0.26s ease, transform 0.36s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.page.is-fitting .custom-stage-bg {
+  transform: translateY(-14%);
+}
+.page.has-custom-bg .world-track {
+  background: transparent;
+}
+.page.has-custom-bg .world-panorama-bg {
+  opacity: 0;
+}
+
+/* 漫画情绪节拍宿主、打盹 Zzz、脏污提醒、肥皂泡泡与冲水闪光 */
+.pet-fx-host,
+.soap-bubble-layer,
+.dirty-layer {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.emo-beat-node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 #FFFFFF, 0 0 4px rgba(255, 255, 255, 0.88);
+  will-change: transform, opacity;
+}
+.sleep-zz {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  color: rgba(255, 253, 247, 0.92);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 6px rgba(34, 45, 36, 0.32);
+  transform: translate(-50%, -100%);
+  animation: zz-float 2.4s ease-in-out infinite;
+}
+@keyframes zz-float {
+  0%, 100% { opacity: 0.35; transform: translate(-50%, -90%) scale(0.92); }
+  50% { opacity: 0.95; transform: translate(-42%, -135%) scale(1.06); }
+}
+
+.stink-wisp {
+  position: absolute;
+  width: 12px;
+  height: 28px;
+  border-left: 2.5px solid rgba(138, 168, 92, 0.65);
+  border-radius: 50%;
+  animation: wisp-rise 2.2s ease-in-out infinite;
+}
+.stink-2 { animation-delay: 0.9s; }
+@keyframes wisp-rise {
+  0% { opacity: 0; transform: translateY(8px) scaleX(0.9); }
+  45% { opacity: 0.78; }
+  100% { opacity: 0; transform: translateY(-24px) scaleX(1.1); }
+}
+.tiny-fly {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3B4236;
+  box-shadow: -3px -2px 0 -1px rgba(255, 255, 255, 0.75), 3px -2px 0 -1px rgba(255, 255, 255, 0.75);
+  animation: fly-orbit 2.8s ease-in-out infinite alternate;
+}
+.fly-b { animation-duration: 3.4s; animation-direction: alternate-reverse; }
+@keyframes fly-orbit {
+  0% { transform: translate(-18px, -6px); }
+  50% { transform: translate(16px, -18px); }
+  100% { transform: translate(22px, 4px); }
+}
+
+.soap-bubble {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.2px solid rgba(255, 255, 255, 0.88);
+  background: radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.92) 0%, rgba(215, 245, 238, 0.46) 46%, rgba(196, 224, 248, 0.18) 78%, rgba(255, 255, 255, 0.55) 100%);
+  box-shadow: 0 2px 6px rgba(42, 60, 52, 0.12), inset 0 -2px 4px rgba(255, 255, 255, 0.65);
+  transform: translate(-50%, -50%) scale(0.35);
+  animation: bubble-pop-in 0.24s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.soap-bubble.is-popping {
+  animation: bubble-fade-up 0.42s ease-out forwards;
+}
+@keyframes bubble-pop-in {
+  to { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes bubble-fade-up {
+  to { opacity: 0; transform: translate(-50%, -95%) scale(1.28); }
+}
+
+.rinse-flash {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 56%, rgba(255, 252, 236, 0.48), transparent 68%);
+  animation: rinse-fade 0.92s ease-out forwards;
+}
+.rinse-sheen {
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(120deg, transparent 36%, rgba(255, 255, 255, 0.68) 50%, transparent 64%);
+  animation: rinse-sweep 0.85s ease-out forwards;
+}
+@keyframes rinse-sweep {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(60%); }
+}
+@keyframes rinse-fade {
+  0%, 35% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 右侧竖向 3D 喂食 / 洗澡 / 装扮胶囊（对齐截图右侧蓝框 + 3D 百宝箱材质风格） */
+.care-3d-dock {
+  position: fixed;
+  z-index: 28;
+  right: 12px;
+  bottom: calc(82px + var(--safe-bottom));
+  width: 58px;
+  padding: 8px 5px;
+  border: 1px solid #E5E3DF;
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.95);
+  box-shadow: 0 6px 18px rgba(32, 28, 23, 0.18), inset 0 1.5px 2px rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+.page.is-fitting .care-3d-dock {
+  opacity: 0;
+  pointer-events: none !important;
+}
+.care-3d-dock__item {
+  width: 48px;
+  padding: 5px 2px 4px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #35483C;
+}
+.care-3d-dock__item.is-active {
+  background: #EEF3E5;
+  color: #002900;
+}
+.care-3d-dock__icon-wrap {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.care-3d-dock__icon-wrap img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(42, 34, 24, 0.14));
+}
+.care-3d-dock__label {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.care-3d-dock__divider {
+  width: 28px;
+  height: 1px;
+  background: #E5E3DF;
+}
+
+/* 3D 百宝箱风格底部弹层：喂食小零食托盘 & 搓澡泡泡卡 */
+.care-3d-panel {
+  position: fixed;
+  z-index: 88;
+  left: 12px;
+  right: 78px;
+  bottom: calc(80px + var(--safe-bottom));
+  max-width: 348px;
+  margin: 0 auto;
+  padding: 13px 14px;
+  border: 1px solid #E5E3DF;
+  border-radius: 18px;
+  background: rgba(255, 253, 247, 0.97);
+  box-shadow: 0 8px 24px rgba(32, 28, 23, 0.20);
+  backdrop-filter: blur(10px);
+  transform-origin: 100% 80%;
+  animation: toolbox-panel-open 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.care-3d-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.care-3d-panel__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.care-3d-panel__title {
+  color: #35483C;
+  font-size: 13px;
+  font-weight: 600;
+}
+.care-3d-panel__sub {
+  color: #8C8C88;
+  font-size: 10.5px;
+}
+.care-3d-panel__close {
+  height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #EEF0EA;
+  color: #002900;
+  font-size: 11.5px;
+  font-weight: 600;
+  flex: none;
+}
+
+.snack-3d-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.snack-3d-card {
+  padding: 8px 6px 7px;
+  border-radius: 14px;
+  border: 1px solid #E5E3DF;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  touch-action: none;
+  cursor: grab;
+  box-shadow: 0 2px 6px rgba(32, 28, 23, 0.05);
+}
+.snack-3d-card:active {
+  cursor: grabbing;
+  background: #F5F8ED;
+  border-color: rgba(0, 41, 0, 0.35);
+}
+.snack-3d-card img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 4px rgba(42, 34, 24, 0.14));
+}
+.snack-3d-card__name {
+  color: #35483C;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.snack-3d-card__meta {
+  color: #8C8C88;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.flying-snack-3d,
+.drag-snack-3d {
+  position: fixed;
+  z-index: 300;
+  width: 58px;
+  height: 58px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+.flying-snack-3d {
+  transition: left 0.32s cubic-bezier(0.22, 1, 0.36, 1), top 0.32s cubic-bezier(0.22, 1, 0.36, 1), transform 0.32s ease;
+}
+.drag-snack-3d.is-over-pet {
+  transform: translate(-50%, -50%) scale(1.18);
+}
+.flying-snack-3d img,
+.drag-snack-3d img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgba(32, 28, 23, 0.24));
+}
+
+.bath-3d-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bath-3d-row__icon {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  flex: none;
+}
+.bath-3d-row__main {
+  flex: 1;
+  min-width: 0;
+}
+.bath-3d-row__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.bath-3d-row__pct {
+  color: #002900;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bath-3d-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #EEF0EA;
+  overflow: hidden;
+}
+.bath-3d-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #819A54, #9DB65B);
+  transition: width 0.14s ease-out;
+}
+
+/* 装扮抽屉双主 Tab（套装 + 12 套背景）与顶栏操作组 */
+.fitting-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fitting-snap-pill--ink {
+  background: #002900;
+  border-color: #002900;
+  color: #FFFFFF;
+}
+.wardrobe-main-tabs {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: #E6E8E1;
+}
+.wardrobe-main-tab {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #5A675E;
+  font-size: 12px;
+  font-weight: 500;
+}
+.wardrobe-main-tab.is-active {
+  background: #FFFFFF;
+  color: #002900;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0, 41, 0, 0.08);
+}
+.wardrobe-done-pill {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #002900;
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.outfit-card__bg-thumb {
+  width: 100%;
+  height: 52px;
+  border-radius: 9px;
+  object-fit: cover;
+}

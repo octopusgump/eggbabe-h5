@@ -1,7 +1,8 @@
 /* ==========================================================================
-   蛋宝宝 · 破壳起居室 × 专属试衣间 × 零 Token 带妆明信片（1:1 小程序同源全景版）
-   - 场景坐标系：2823 × 1672（100% 对齐 eggbabe-miniprogram post-hatch-assets.js）
-   - 换装资产：../assets/shared/catalog.json（玉兔 24 套 + 锦鲤 12 套，纯压缩 PNG）
+   蛋宝宝 · 破壳起居室 × eggbabe-h5 全量锦鲤/玉兔换装/背景/喂食/洗澡（1:1 小程序同源 UI 版）
+   - 内嵌 catalog-snapshot.js 零网络阻塞 + 同域/github.io CDN 双模资源解析
+   - 完整移植 eggbabe-uni PetStage (laugh/sad/think/cute 四情绪剧场 + eat/scrub/rinse/doze)
+   - 右侧 3D 百宝箱风格「喂食 / 洗澡 / 装扮」胶囊栏 + 全量 36 套服装 & 12 套背景免锁即穿
    ========================================================================== */
 (function () {
   "use strict";
@@ -13,185 +14,269 @@
   const CORK_HOME = { x: 1392, y: 1126 };
   const COLS = 30, ROWS = 56, NV = (COLS + 1) * (ROWS + 1);
   const ACC_COLS = 12, ACC_ROWS = 12;
-
+  const PAGES_CDN = "https://octopusgump.github.io/eggbabe-h5";
   const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  function sharedUrl(p) {
-    return p.startsWith("assets/") ? "../" + p : p;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const sstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
+  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+  const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const easeOutBack = (t) => { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+  function rot2d(x, y, px, py, deg) {
+    const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), dx = x - px, dy = y - py;
+    return [px + dx * c - dy * s, py + dx * s + dy * c];
   }
 
-  /* ---------- 1. 小程序官方每日心情、状态与遇见配置（复刻 daily-mood.js & life-scenes.js） ---------- */
+  // 双模高可用资源解析：本地或正式 /living-room-dress/ 走相对路径 ../assets/，独立预览沙箱自动走线上 github.io CDN
+  function sharedUrl(relPath) {
+    if (!relPath) return "";
+    if (/^(https?:|data:|blob:)/i.test(relPath)) return relPath;
+    const clean = String(relPath).replace(/^(\.\.\/|\/)+/, "");
+    const proto = window.location.protocol;
+    if (proto === "http:" || proto === "https:") {
+      return window.location.pathname.indexOf("/living-room-dress/") >= 0 ? "../" + clean : "./" + clean;
+    }
+    return PAGES_CDN + "/" + clean;
+  }
+
+  /* ---------- 1. 轻养成小零食（3D 哑光图标）与 careStore 兼容存档 ---------- */
+  const CARE_STORAGE_KEY = "eggbabe_care_v1";
+  const SNACKS_BY_PET = {
+    koi: [
+      { id: "dried_fish", name: "香酥小鱼干", icon: "./living-room-dress/ui/snack_fish.png", hunger: 22, exp: 16, reply: "咔嚓咔嚓，最爱香酥小鱼干啦～" },
+      { id: "berry_mochi", name: "草莓大福", icon: "./living-room-dress/ui/snack_berry.png", hunger: 26, exp: 20, reply: "软糯糯甜甜的，幸福冒泡泡～" },
+      { id: "star_candy", name: "幸运星星糖", icon: "./living-room-dress/ui/tb_activity.png", hunger: 18, exp: 24, reply: "叮咚，吃掉一颗好运加倍～" }
+    ],
+    yutu: [
+      { id: "carrot", name: "脆脆胡萝卜", icon: "./living-room-dress/ui/snack_carrot.png", hunger: 24, exp: 16, reply: "嘎嘣脆，兔兔能量充满啦～" },
+      { id: "osmanthus_cake", name: "桂花蜜糕", icon: "./living-room-dress/ui/snack_cake.png", hunger: 28, exp: 22, reply: "香香的桂花味，像在月宫一样～" },
+      { id: "cream_berry", name: "奶油小草莓", icon: "./living-room-dress/ui/snack_berry.png", hunger: 20, exp: 20, reply: "酸酸甜甜，耳朵都要开心翘起来啦～" }
+    ]
+  };
+
+  function expForNextLevel(lv) { return 60 + (Math.max(1, lv) - 1) * 35; }
+  function loadCareAll() {
+    const now = Date.now();
+    const base = {
+      koi: { hunger: 68, hygiene: 72, exp: 15, level: 1, updatedAt: now },
+      yutu: { hunger: 68, hygiene: 72, exp: 15, level: 1, updatedAt: now }
+    };
+    try {
+      const raw = localStorage.getItem(CARE_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        ["koi", "yutu"].forEach((id) => {
+          if (parsed && parsed[id]) {
+            const hrs = Math.max(0, (now - Number(parsed[id].updatedAt || now)) / 3600000);
+            base[id] = {
+              hunger: clamp(Number(parsed[id].hunger ?? 68) - hrs * 5, 0, 100),
+              hygiene: clamp(Number(parsed[id].hygiene ?? 72) - hrs * 4, 0, 100),
+              exp: Math.max(0, Number(parsed[id].exp ?? 0)),
+              level: Math.max(1, Math.floor(Number(parsed[id].level ?? 1))),
+              updatedAt: now
+            };
+          }
+        });
+      }
+    } catch (e) {}
+    return base;
+  }
+  const careAll = loadCareAll();
+  function saveCareAll() {
+    try {
+      careAll.koi.updatedAt = Date.now();
+      careAll.yutu.updatedAt = Date.now();
+      localStorage.setItem(CARE_STORAGE_KEY, JSON.stringify(careAll));
+    } catch (e) {}
+  }
+  function addCareExp(petId, amount) {
+    const ps = careAll[petId];
+    ps.exp += amount;
+    let leveledUp = false;
+    while (ps.exp >= expForNextLevel(ps.level)) {
+      ps.exp -= expForNextLevel(ps.level);
+      ps.level += 1;
+      leveledUp = true;
+    }
+    saveCareAll();
+    return leveledUp;
+  }
+
+  /* ---------- 2. 小程序每日心情、10 态房间与遇见配置 ---------- */
   const DAILY_MOODS = {
-    CURIOSITY: { key: "CURIOSITY", label: "好奇", icon: "🤔", text: "我今天一直在想一件事，还没想明白。" },
     JOY: { key: "JOY", label: "愉快", icon: "😊", text: "我想了想，觉得自己运气挺不错的。" },
+    CURIOSITY: { key: "CURIOSITY", label: "好奇", icon: "🤔", text: "我今天一直在想一件事，还没想明白。" },
     CALM: { key: "CALM", label: "平静", icon: "😌", text: "今天不想说太多话，就这样待着挺好。" },
     EXCITEMENT: { key: "EXCITEMENT", label: "兴奋", icon: "🤩", text: "我今天一刻都停不下来，坐下三秒又想起来。" },
     CARE: { key: "CARE", label: "关怀", icon: "🤗", text: "我想安静陪一会儿，就在旁边不出声。" },
-    ANXIETY: { key: "ANXIETY", label: "焦虑", icon: "😰", text: "我今天心里一直不太稳，说不上来为什么。" },
-    FRUSTRATION: { key: "FRUSTRATION", label: "沮丧", icon: "😞", text: "有件事我试了好几次，还是不行，先放着吧。" },
-    FATIGUE: { key: "FATIGUE", label: "疲惫", icon: "🥱", text: "我今天没什么力气，动一下要歇三下。" }
+    FATIGUE: { key: "FATIGUE", label: "小困", icon: "🥱", text: "晒着暖暖的太阳，眼皮有点打架啦。" }
   };
 
   const KEPSAKE_DEFS = {
-    "soft-button": { id: "soft-button", name: "旧木纽扣", img: "./keepsakes/soft-button.png", story: "这颗纽扣原本缝在一条很旧的围巾上。围巾散线以后，我把它留了下来。天气凉的时候握一会儿，就像有人替我把领口掖好了。" },
-    "short-pencil": { id: "short-pencil", name: "短短的铅笔", img: "./keepsakes/short-pencil.png", story: "这支铅笔越画越短，最后只剩两根手指那么长。我舍不得扔，因为每一道被削掉的木屑里都有一张画。现在画新东西前，我还是会先用它轻轻起稿。" },
-    "dali-cloud": { id: "dali-cloud", name: "苍山脚下的云石", img: "./keepsakes/dali-cloud.png", story: "我在风很大的路边看到它，白色纹路像一小片被压住的云。带回来以后，我总把它放在窗边。天气变化时，那片云也像会换一种颜色。" },
-    "cafe-coaster": { id: "cafe-coaster", name: "软木杯垫", img: "./keepsakes/cafe-coaster.png", story: "忙乱的时候，有位客人把歪掉的杯垫扶正了。那只是一个很小的动作，却让桌面突然安静下来。后来收桌子时，我也总会顺手替下一位摆正它。" },
-    "wood-rattle": { id: "wood-rattle", name: "小拨浪鼓", img: "./keepsakes/wood-rattle.png", story: "课堂结束时，老师拿它演示声音怎样一圈圈传出去。我轻轻摇了一下，教室里的人都笑了。后来每当想不出问题，我就听它先替我开个头。" },
-    "ginkgo-leaf": { id: "ginkgo-leaf", name: "一片银杏叶", img: "./keepsakes/ginkgo-leaf.png", story: "它落下来时正好停在我的鞋尖。我把它夹在纸页里带回家，边缘慢慢变得像金色的小扇子。每次拿出来，我都会先看看它有没有又轻一点。" }
+    "soft-button": { id: "soft-button", name: "旧木纽扣", img: "./living-room-dress/keepsakes/soft-button.png", story: "这颗纽扣原本缝在一条很旧的围巾上。天气凉的时候握一会儿，就像有人替我把领口掖好了。" },
+    "short-pencil": { id: "short-pencil", name: "短短的铅笔", img: "./living-room-dress/keepsakes/short-pencil.png", story: "这支铅笔越画越短，最后只剩两根手指那么长。每一道木屑里都藏着一张画。" },
+    "dali-cloud": { id: "dali-cloud", name: "苍山脚下的云石", img: "./living-room-dress/keepsakes/dali-cloud.png", story: "我在风很大的路边看到它，白色纹路像一小片被压住的云。" },
+    "cafe-coaster": { id: "cafe-coaster", name: "软木杯垫", img: "./living-room-dress/keepsakes/cafe-coaster.png", story: "忙乱的时候，把歪掉的杯垫扶正，桌面就会突然安静下来。" },
+    "wood-rattle": { id: "wood-rattle", name: "小拨浪鼓", img: "./living-room-dress/keepsakes/wood-rattle.png", story: "轻轻摇一下，声音一圈圈传出去，每当想不出问题就听它开个头。" },
+    "ginkgo-leaf": { id: "ginkgo-leaf", name: "一片银杏叶", img: "./living-room-dress/keepsakes/ginkgo-leaf.png", story: "它落下来时正好停在鞋尖，夹在纸页里带回家，边缘像金色的小扇子。" }
   };
 
   const ROOM_STATES = {
-    free_stand: {
-      key: "free_stand", label: "桌面待机", screen: 1, track: "webgl",
-      line: "软木垫晒得暖洋洋的，今天这套衣服合身吗？",
-      actionFeedback: ""
-    },
-    sleep: {
-      key: "sleep", fileKey: "nap", label: "睡觉", screen: 0, track: "baked",
-      line: "我把被角压在脸下面，睡得很安静。",
-      actionFeedback: "房间暗下来，我翻了个身。",
-      keepsakeId: "soft-button",
-      anchors: { yutu: { c: [790, 875], a: [663, 344] }, koi: { c: [650, 860], a: [663, 344] } }
-    },
-    lazy: {
-      key: "lazy", fileKey: "lazy", label: "小憩", screen: 0, track: "baked",
-      line: "我听见窗外亮起来了，还想再缩一会儿。",
-      actionFeedback: "被子轻轻盖好，我往里缩了缩。",
-      keepsakeId: "soft-button",
-      anchors: { yutu: { c: [760, 870], a: [570, 980] }, koi: { c: [650, 810], a: [560, 975] } }
-    },
-    stare: {
-      key: "stare", fileKey: "stare", label: "发呆", screen: 1, track: "baked",
-      line: "我盯着桌上的光斑，看它慢慢走过半张纸。",
-      actionFeedback: "我慢半拍地回头看你。",
-      keepsakeId: "cafe-coaster",
-      anchors: { yutu: { c: [1450, 930], a: [1450, 930] }, koi: { c: [1590, 980], a: [1590, 980] } }
-    },
-    drawing: {
-      key: "drawing", fileKey: "draw", label: "涂涂画画", screen: 1, track: "baked",
-      line: "我画了半张纸，还没有决定它像云还是像鱼。",
-      actionFeedback: "画纸转向你，线条终于看清了。",
-      keepsakeId: "short-pencil",
-      anchors: { yutu: { c: [1440, 1010], a: [1510, 1245] }, koi: { c: [1480, 1000], a: [1510, 1245] } }
-    },
-    reading: {
-      key: "reading", fileKey: "read", label: "看书", screen: 1, track: "baked",
-      line: "这一页讲到月亮，我把耳朵靠近一点听。",
-      actionFeedback: "书页翻过去，故事又向前走了一小格。",
-      keepsakeId: "short-pencil",
-      anchors: { yutu: { c: [1420, 930], a: [1415, 1055] }, koi: { c: [1430, 980], a: [1410, 1060] } }
-    },
-    gaming: {
-      key: "gaming", fileKey: "game", label: "打游戏", screen: 1, track: "baked",
-      line: "这一关差一点就过去了，我连耳朵都没敢动。",
-      actionFeedback: "画面里的小角色跳了一下，我没有抬头。",
-      keepsakeId: "cafe-coaster",
-      anchors: { yutu: { c: [1400, 990], a: [1490, 1120] }, koi: { c: [1400, 990], a: [1500, 1120] } }
-    },
-    music: {
-      key: "music", fileKey: "music", label: "听音乐", screen: 1, track: "baked",
-      line: "这首歌的尾巴轻轻绕了一圈，我还不想按暂停。",
-      actionFeedback: "旋律又走了一小段，房间里像多了一点月光。",
-      keepsakeId: "wood-rattle",
-      anchors: { yutu: { c: [1710, 985], a: [1590, 1050] }, koi: { c: [1780, 1000], a: [1680, 1055] } }
-    },
-    window: {
-      key: "window", fileKey: "window", label: "看窗外", screen: 2, track: "baked",
-      line: "远处的云走得很慢，我想和你一起看一会儿。",
-      actionFeedback: "窗外的光慢慢铺开，我陪你看着此刻的天空。",
-      keepsakeId: "ginkgo-leaf",
-      anchors: { yutu: { c: [1940, 835], a: [2200, 450] }, koi: { c: [1940, 830], a: [2200, 450] } }
-    },
-    away: {
-      key: "away", label: "外出旅行", screen: 1, track: "away",
-      line: "大理的风比我想的大，我把新衣服的帽子按住了一路。",
-      actionFeedback: "桌上留了一张小字条：我穿着新衣服出门寄明信片啦。",
-      keepsakeId: "dali-cloud",
-      anchors: { yutu: { c: null, a: [1385, 1345] }, koi: { c: null, a: [1385, 1345] } }
-    }
+    free_stand: { key: "free_stand", label: "桌面待机", screen: 1, track: "webgl", line: "软木垫晒得暖洋洋的，来陪我玩或者换新衣服吧～" },
+    sleep: { key: "sleep", fileKey: "nap", label: "睡觉", screen: 0, track: "baked", line: "我把被角压在脸下面，睡得很安静。", actionFeedback: "房间暗下来，我翻了个身。", keepsakeId: "soft-button", anchors: { yutu: { c: [790, 875], a: [663, 344] }, koi: { c: [650, 860], a: [663, 344] } } },
+    lazy: { key: "lazy", fileKey: "lazy", label: "小憩", screen: 0, track: "baked", line: "我听见窗外亮起来了，还想再缩一会儿。", actionFeedback: "被子轻轻盖好，我往里缩了缩。", keepsakeId: "soft-button", anchors: { yutu: { c: [760, 870], a: [570, 980] }, koi: { c: [650, 810], a: [560, 975] } } },
+    stare: { key: "stare", fileKey: "stare", label: "发呆", screen: 1, track: "baked", line: "我盯着桌上的光斑，看它慢慢走过半张纸。", actionFeedback: "我慢半拍地回头看你。", keepsakeId: "cafe-coaster", anchors: { yutu: { c: [1450, 930], a: [1450, 930] }, koi: { c: [1590, 980], a: [1590, 980] } } },
+    drawing: { key: "drawing", fileKey: "draw", label: "涂涂画画", screen: 1, track: "baked", line: "我画了半张纸，还没有决定它像云还是像鱼。", actionFeedback: "画纸转向你，线条终于看清了。", keepsakeId: "short-pencil", anchors: { yutu: { c: [1440, 1010], a: [1510, 1245] }, koi: { c: [1480, 1000], a: [1510, 1245] } } },
+    reading: { key: "reading", fileKey: "read", label: "看书", screen: 1, track: "baked", line: "这一页讲到月亮，我把耳朵靠近一点听。", actionFeedback: "书页翻过去，故事又向前走了一小格。", keepsakeId: "short-pencil", anchors: { yutu: { c: [1420, 930], a: [1415, 1055] }, koi: { c: [1430, 980], a: [1410, 1060] } } },
+    gaming: { key: "gaming", fileKey: "game", label: "打游戏", screen: 1, track: "baked", line: "这一关差一点就过去了，我连耳朵都没敢动。", actionFeedback: "画面里的小角色跳了一下，我没有抬头。", keepsakeId: "cafe-coaster", anchors: { yutu: { c: [1400, 990], a: [1490, 1120] }, koi: { c: [1400, 990], a: [1500, 1120] } } },
+    music: { key: "music", fileKey: "music", label: "听音乐", screen: 1, track: "baked", line: "这首歌的尾巴轻轻绕了一圈，我还不想按暂停。", actionFeedback: "旋律又走了一小段，房间里像多了一点月光。", keepsakeId: "wood-rattle", anchors: { yutu: { c: [1710, 985], a: [1590, 1050] }, koi: { c: [1780, 1000], a: [1680, 1055] } } },
+    window: { key: "window", fileKey: "window", label: "看窗外", screen: 2, track: "baked", line: "远处的云走得很慢，我想和你一起看一会儿。", actionFeedback: "窗外的光慢慢铺开，我陪你看着此刻的天空。", keepsakeId: "ginkgo-leaf", anchors: { yutu: { c: [1940, 835], a: [2200, 450] }, koi: { c: [1940, 830], a: [2200, 450] } } },
+    away: { key: "away", label: "外出旅行", screen: 1, track: "away", line: "我穿着新衣服出门拍明信片啦。", actionFeedback: "桌上留了一张字条：拆开左下角信封看看我寄回来的照片吧。", keepsakeId: "dali-cloud", anchors: { yutu: { c: null, a: [1385, 1345] }, koi: { c: null, a: [1385, 1345] } } }
   };
 
-  const POSTCARD_SCENES = [
-    {
-      id: "sunset_meadow", label: "晚霞云朵坡", src: "../assets/shared/png/bgs/bg_sunset_meadow.png",
-      tint: "rgba(255,186,138,0.11)", shadowRgba: "rgba(68,42,24,0.30)", pose: "tilt", anchorY: 0.865, scaleK: 1.32,
-      copy: {
-        yutu: "傍晚路过云朵坡，风把长耳朵吹得软软的。出门前换上的这身衣服刚好被晚霞染成了暖杏色。",
-        koi: "顺着晚霞游到了云朵坡，尾巴尖沾了一点橘子汽水似的光，拍张照寄回书桌给你看。"
-      }
-    },
-    {
-      id: "moon_courtyard", label: "桂月亭台夜", src: "../assets/shared/png/bgs/bg_moon_courtyard.png",
-      tint: "rgba(130,158,235,0.12)", shadowRgba: "rgba(24,32,58,0.34)", pose: "cute", anchorY: 0.865, scaleK: 1.30,
-      copy: {
-        yutu: "今晚的月亮又圆又亮，亭子边的桂花落在衣角上，我替你接住了最香的那一朵。",
-        koi: "夜里的石阶凉丝丝的，踩着月光散步时，听见草丛里小虫子在轻轻伴奏。"
-      }
-    },
-    {
-      id: "mint_room", label: "街角薄荷屋", src: "../assets/shared/png/bgs/bg_mint_room.png",
-      tint: "rgba(195,224,198,0.09)", shadowRgba: "rgba(38,54,42,0.28)", pose: "jump", anchorY: 0.865, scaleK: 1.30,
-      copy: {
-        yutu: "偶遇一间薄荷色的小茶屋，店长夸我今天穿得特别精神，还分了我一小块热松饼。",
-        koi: "在薄荷屋窗边躲了一阵太阳，身上的穿搭和这里的复古绿木地板很配吧。"
-      }
-    },
-    {
-      id: "lotus_pond", label: "荷灯许愿池", src: "../assets/shared/png/bgs/bg_lotus_pond.png",
-      tint: "rgba(116,190,218,0.11)", shadowRgba: "rgba(22,48,58,0.32)", pose: "tilt", anchorY: 0.865, scaleK: 1.32,
-      copy: {
-        yutu: "水面上漂着一盏盏暖融融的小荷灯，我蹲在岸边看了好久，留了一盏最亮的给你。",
-        koi: "回到熟悉的水边，水波一晃一晃把新衣服映得亮晶晶的。"
-      }
-    },
-    {
-      id: "studio_desk", label: "窗边起居室", src: "./panoramas/empty_day.png", cropCenter: true,
-      tint: "rgba(255,224,182,0.07)", shadowRgba: "rgba(58,36,18,0.30)", pose: "cute", anchorY: 0.855, scaleK: 1.34,
-      copy: {
-        yutu: "在书桌软木垫试衣台刚换好的新造型，趁咖啡还温热，留一张今天的居家定妆纪念。",
-        koi: "站在阳光晒暖的软木垫上转了个圈，这套新穿搭正式收录进今日份好心情。"
-      }
-    }
-  ];
-
-  const EMOTE_LINES = {
+  /* ---------- 3. 原版 PetStage 四大情绪配置（100% 移植自 eggbabe-uni/src/engine/petStage.js） ---------- */
+  // 严格遵守 AGENTS.md：玉兔严禁添加粉色腮红；保留原版深棕圆眼、灰蓝鼻与胡须
+  const EMO_FACES = {
     yutu: {
-      laugh: ["耳朵尖有点痒，再摸一下也可以。", "嘿嘿，今天心情亮晶晶的。"],
-      sad: ["刚刚差点没站稳，扶我一下嘛。", "陪我在桌边待一会儿好不好。"],
-      think: ["我在数窗外飘过去几朵云。", "今天穿哪一套去寄明信片好呢？"],
-      cute: ["这套衣服把耳朵衬得很精神吧。", "离你近一点，软木垫都更暖和了。"]
-    },
-    koi: {
-      laugh: ["咕噜噜，开心得冒出一串小泡泡。", "蹭蹭手心，分你一点今日份好运。"],
-      sad: ["水草缠住尾巴尖啦，帮我理一理。", "安静待在你手边就会安心下来。"],
-      think: ["咖啡杯里的倒影好像也在看我。", "等风停了，我想去巷口看看。"],
-      cute: ["转个身给你看新衣服的背面。", "有你在旁边，连发呆都很有趣。"]
-    }
-  };
-
-  // 严格遵守 AGENTS.md：严禁在玉兔脸上添加粉色腮红（allowBlush: false）
-  const FACES = {
-    yutu: {
-      rect: [230, 425, 620, 680], allowBlush: false,
+      rect: [230, 425, 620, 680], closedTex: true, stalk: false, stalkK: 1,
       eyes: [
         { x: 341, y: 553, r: 27, ex: 327, ey: 549, erx: 43, ery: 52 },
         { x: 503, y: 554, r: 27, ex: 521, ey: 549, erx: 44, ery: 51 }
       ],
-      lookUp: [4, -11]
+      mouth: { x: 421, y: 620, w: 46, h: 30 }, eraseMouth: null,
+      browLen: 46, browGap: 6, gloom: { x: 421, y: 432, w: 54, h: 44 },
+      lookUp: [4, -11],
+      anchors: { L: [248, 485], R: [594, 485], top: [421, 315] },
+      lines: {
+        laugh: ["哈哈哈，好痒呀～", "嘿嘿，再来一次！", "笑得长耳朵都抖啦～"],
+        sad: ["呜…胡萝卜掉了", "陪我玩一会儿嘛…", "心里空空的…"],
+        think: ["嗯…月亮上有什么呢？", "让我想想今天穿哪套哦…", "今天吃什么小零食好呢？"],
+        cute: ["抱抱我嘛～", "这套新衣服超合身对吧♡", "眯眯眼，最喜欢你啦"]
+      }
     },
     koi: {
-      rect: [156, 252, 506, 532], allowBlush: true, cheeks: [[202, 438], [450, 438]], cheekR: 28,
+      rect: [156, 252, 506, 532], closedTex: false, stalk: true, stalkK: 1.5,
       eyes: [
         { x: 247, y: 371, r: 27, ex: 243, ey: 368, erx: 51, ery: 57 },
         { x: 398, y: 371, r: 27, ex: 398, ey: 369, erx: 52, ery: 56 }
       ],
-      lookUp: [5, -14]
+      mouth: { x: 324, y: 448, w: 96, h: 40 },
+      eraseMouth: { x0: 248, y0: 420, x1: 400, y1: 478, dy: 54 },
+      browLen: 46, browGap: 8, gloom: { x: 324, y: 258, w: 54, h: 38 },
+      lookUp: [5, -14],
+      anchors: { L: [134, 327], R: [522, 327], top: [410, 204] },
+      lines: {
+        laugh: ["咕噜噜，笑出泡泡啦！", "哈哈，好运来啦～", "痒痒的，嘻嘻～"],
+        sad: ["呜…泡泡破掉了", "鳍鳍好累哦…", "摸摸我才能好起来…"],
+        think: ["咦？水面上是什么？", "让我咕噜一下…", "嗯…好运藏在哪？"],
+        cute: ["摸摸我，好运加倍♡", "转个圈给你看新衣服～", "嘿嘿，我最锦鲤啦"]
+      }
     }
   };
 
-  /* ---------- 2. 轻量持久化状态（仅存元数据，零 base64 膨胀） ---------- */
-  const SAVE_KEY = "eggbabe_living_room_mp_v3";
+  function earSide(s, v) { return s > 0 ? { earL: 0, earR: v } : { earL: -v, earR: 0 }; }
+  function K(o, e, pose, extra) { return Object.assign({ o, e }, pose, extra || {}); }
+
+  const EMO_DEFS = {
+    laugh: {
+      ms: 2400,
+      keys(s) {
+        const hop = (o, d) => K(o, "in", { hopY: -26, sy: 1.03, sx: 0.98, headRot: 5 * d, earL: d > 0 ? -14 : -5, earR: d > 0 ? 5 : 14, stalk: 16 * d, wClosed: 1, shS: 0.92 });
+        const land = (o, d) => K(o, "out", { hopY: 0, sy: 0.95, sx: 1.05, headRot: 2 * d, earL: -8, earR: 8, stalk: 4 * d, wClosed: 1, shS: 1.08 });
+        return [
+          K(0, "in", {}),
+          K(0.08, "out", { sx: 1.08, sy: 0.88, earL: 12, earR: -12, wClosed: 1, shS: 1.12, stalk: -8 }),
+          K(0.18, "out", { hopY: -86, sy: 1.10, sx: 0.94, earL: -20, earR: 20, rot: -2, wClosed: 1, shS: 0.9, stalk: -18 }),
+          K(0.28, "in", { hopY: -105, sy: 1.02, sx: 0.99, headRot: 6, earL: -8, earR: 8, rot: -1, wClosed: 1, stalk: -12 }),
+          K(0.38, "back", { hopY: 0, sx: 1.12, sy: 0.86, earL: -18, earR: 18, wClosed: 1, shS: 1.16, stalk: 10 }),
+          hop(0.46, 1), land(0.515, 1), hop(0.57, -1), land(0.625, -1), hop(0.68, 1),
+          K(0.735, "out", { hopY: 0, sy: 0.95, sx: 1.05, headRot: 1, wClosed: 1, shS: 1.08 }),
+          K(0.78, "io", { sy: 1.0, wClosed: 1 }),
+          K(0.84, "io", { headRot: -4, rot: -1.5, sy: 1.02, earL: -6, earR: 6, wClosed: 1, stalk: -6 }),
+          K(0.92, "out", { headRot: -1, wClosed: 0.5 }),
+          K(1, "out", {})
+        ];
+      },
+      faces: [["laughEyes", 0.07, 0.88, 140, 260], ["laugh", 0.27, 0.88, 160, 260]],
+      beats: [{ u: 0.3, fx: "haha", t: "哈", at: "L" }, { u: 0.46, fx: "haha", t: "哈哈", at: "R" }, { u: 0.57, fx: "haha", t: "嘻", at: "L" }, { u: 0.68, fx: "haha", t: "哈", at: "R" }]
+    },
+    sad: {
+      ms: 2600, lag: { earR: 0.05 },
+      keys(s) {
+        const base = { sy: 0.94, sx: 1.03, headTy: 12, headRot: -5 * s, earL: -50, earR: 50, stalk: 40 * s };
+        const sniff = (o) => K(o, "out", Object.assign({}, base, { sy: 0.965, hopY: -8, headRot: -5 * s + 1.5, stalk: 40 * s + 4 }));
+        return [
+          K(0, "io", {}),
+          K(0.10, "io", { sy: 1.02, earL: -4, earR: 4, stalk: -6 * s }),
+          K(0.30, "lin", base), K(0.42, "in", base), sniff(0.443), K(0.466, "out", Object.assign({}, base, { stalk: 40 * s - 4 })),
+          K(0.52, "in", base), sniff(0.543), K(0.566, "io", Object.assign({}, base, { stalk: 40 * s - 4 })),
+          K(0.62, "io", base),
+          K(0.71, "io", Object.assign({}, base, { sy: 0.97, breath: 0.04, headTy: 10 })),
+          K(0.80, "io", Object.assign({}, base, { sy: 0.92, breath: -0.02, headTy: 16 })),
+          K(0.88, "io", Object.assign({}, base, { sy: 0.93, headTy: 15, lean: 0.25 * s, rot: 0.8 * s })),
+          K(0.92, "io", Object.assign({}, base, { sy: 0.97, headTy: 6, headRot: -2 * s, lean: 0.1 * s, earL: -46, earR: 46 })),
+          K(0.96, "io", { earL: -30, earR: 30, stalk: 22 * s }),
+          K(1, "out", {})
+        ];
+      },
+      faces: [["sad", 0.12, 0.9, 320, 220]],
+      beats: [{ u: 0.36, fx: "tear", eye: 0 }, { u: 0.50, fx: "tear", eye: 1 }]
+    },
+    think: {
+      ms: 2500,
+      add(u, ms) {
+        const w = sstep(0.15, 0.22, u) * (1 - sstep(0.5, 0.55, u));
+        const shk = u > 0.8 && u < 0.92 ? Math.sin(((u - 0.8) / 0.12) * Math.PI * 4) * (1 - (u - 0.8) / 0.12) : 0;
+        return {
+          headRot: 2.5 * w * Math.sin((ms / 1000) * Math.PI * 2 * 0.7),
+          lean: 0.15 * w * Math.sin((ms / 1000) * Math.PI * 2 * 0.5),
+          stalk: 10 * shk
+        };
+      },
+      keys(s) {
+        const tilt = Object.assign({ headRot: 11 * s, rot: 1.5 * s, headTy: 3, stalk: 20 * s }, earSide(s, 24));
+        return [
+          K(0, "out", {}),
+          K(0.15, "lin", tilt), K(0.33, "out", tilt), K(0.345, "in", Object.assign({}, tilt, { hopY: -8 })), K(0.36, "out", tilt),
+          K(0.375, "in", Object.assign({}, tilt, { hopY: -8 })), K(0.39, "io", tilt), K(0.5, "io", tilt),
+          K(0.62, "io", Object.assign({ headRot: -6 * s, rot: -0.5 * s, headTy: 2, stalk: -12 * s }, earSide(-s, 14))),
+          K(0.72, "out", { sy: 0.9, sx: 1.06, headRot: -2 * s, earL: 6, earR: -6, shS: 1.1 }),
+          K(0.80, "in", { hopY: -45, sy: 1.08, sx: 0.95, earL: -14, earR: 14, shS: 0.9 }),
+          K(0.88, "back", { hopY: 0, sx: 1.08, sy: 0.9, earL: -8, earR: 8, shS: 1.1 }),
+          K(0.95, "io", { sy: 1.02 }),
+          K(1, "out", {})
+        ];
+      },
+      faces(s) { return [[s > 0 ? "thinkR" : "thinkL", 0.04, 0.72, 220, 120]]; },
+      beats: [{ u: 0.08, fx: "q", big: true }, { u: 0.56, fx: "q", big: false, flip: true }, { u: 0.78, fx: "bang" }]
+    },
+    cute: {
+      ms: 2400,
+      keys(s) {
+        const sw = (o, d) => K(o, "io", Object.assign({ headRot: 10 * d, lean: 0.45 * d, rot: 2 * d, headTy: 3, wClosed: 1, stalk: 14 * d }, d > 0 ? { earL: 8, earR: 10 } : { earL: -10, earR: -8 }));
+        const pose = Object.assign({ headRot: 12 * s, rot: 3 * s, headTy: 2, wClosed: 1, stalk: 22 * s }, s > 0 ? { earL: -2, earR: 26 } : { earL: -26, earR: 2 });
+        return [
+          K(0, "out", {}),
+          K(0.10, "io", { sy: 0.95, sx: 1.04, headTy: 4, earL: 8, earR: -8, wClosed: 1 }),
+          sw(0.2, 1), sw(0.3, -1), sw(0.4, 1),
+          K(0.50, "out", { wClosed: 1 }),
+          K(0.55, "in", { hopY: -36, sy: 1.06, sx: 0.96, earL: -10, earR: 10, wClosed: 1, shS: 0.9 }),
+          K(0.60, "out", { hopY: 0, sy: 0.9, sx: 1.08, earL: -6, earR: 6, wClosed: 1, shS: 1.1 }),
+          K(0.65, "in", { hopY: -36, sy: 1.06, sx: 0.96, earL: -10, earR: 10, wClosed: 1, shS: 0.9 }),
+          K(0.70, "back", { hopY: 0, sy: 0.92, sx: 1.07, wClosed: 1, shS: 1.08 }),
+          K(0.74, "lin", pose), K(0.865, "io", pose),
+          K(0.92, "io", { sy: 1.03, headRot: 3 * s, wClosed: 0.6 }),
+          K(1, "out", {})
+        ];
+      },
+      faces: [["cute", 0.04, 0.88, 200, 260]],
+      beats: [{ u: 0.2, fx: "heart", at: "R" }, { u: 0.3, fx: "heart", at: "L" }, { u: 0.4, fx: "heart", at: "R" }, { u: 0.76, fx: "star", at: "S" }, { u: 0.8, fx: "star", at: "S2" }]
+    }
+  };
+
+  /* ---------- 4. 持久化状态（全量服装默认开放，零星星拦截） ---------- */
+  const SAVE_KEY = "eggbabe_living_room_mp_v4";
   function detectLocalPeriod() {
     const h = new Date(Date.now() + 8 * 3600 * 1000).getUTCHours();
     if (h >= 6 && h < 17) return "day";
@@ -200,24 +285,21 @@
   }
 
   const state = {
-    petId: "yutu",
+    petId: "koi",         // 默认打开展示锦鲤，左上角与装扮页可 1 键秒切玉兔
     roomState: "free_stand",
     period: detectLocalPeriod(),
-    moodKey: "CURIOSITY",
-    moodPhase: "summary", // minimal | summary | expanded
-    clockMode: "analog",  // analog | digital
+    stageBgId: "living_room", // "living_room" 或 catalog.backgrounds 中的 11 套插画背景 id
+    moodKey: "JOY",
+    moodPhase: "summary",
+    clockMode: "analog",
     sfxOn: true,
-    stars: 120,
+    stars: 128,
     companionDays: 12,
     unreadMail: true,
     actedStates: {},
-    owned: {
-      yutu: ["set_cozy_knit", "set_moon_palace", "set_rain_frog", "set_barista_bunny"],
-      koi: ["set_duck", "set_strawberry_pj", "set_sailor"]
-    },
-    savedSet: { yutu: "set_cozy_knit", koi: "set_duck" },
+    savedSet: { koi: "set_duck", yutu: "set_cozy_knit" },
     keepsakes: ["short-pencil"],
-    postcards: [] // [{ id, sceneId, petId, setId, dateText, createdAt }]
+    postcards: []
   };
 
   try {
@@ -227,9 +309,9 @@
       if (p && typeof p === "object") {
         if (p.petId === "koi" || p.petId === "yutu") state.petId = p.petId;
         if (typeof p.stars === "number") state.stars = p.stars;
+        if (typeof p.stageBgId === "string") state.stageBgId = p.stageBgId;
         if (p.clockMode === "digital" || p.clockMode === "analog") state.clockMode = p.clockMode;
         if (typeof p.sfxOn === "boolean") state.sfxOn = p.sfxOn;
-        if (p.owned) state.owned = Object.assign(state.owned, p.owned);
         if (p.savedSet) state.savedSet = Object.assign(state.savedSet, p.savedSet);
         if (Array.isArray(p.keepsakes)) state.keepsakes = p.keepsakes.filter((id) => KEPSAKE_DEFS[id]);
         if (Array.isArray(p.postcards)) state.postcards = p.postcards.slice(0, 36);
@@ -243,10 +325,10 @@
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         petId: state.petId,
         stars: state.stars,
+        stageBgId: state.stageBgId,
         clockMode: state.clockMode,
         sfxOn: state.sfxOn,
         unreadMail: state.unreadMail,
-        owned: state.owned,
         savedSet: state.savedSet,
         keepsakes: state.keepsakes,
         postcards: state.postcards.slice(0, 36)
@@ -254,7 +336,7 @@
     } catch (e) {}
   }
 
-  /* ---------- 3. 程序化 Web Audio 轻音效（对齐 PRD-0001 sfx.js） ---------- */
+  /* ---------- 5. Web Audio 轻音效（对齐 sfx.js：含咀嚼、泡泡、冲水、升级） ---------- */
   let audioCtx = null;
   function playTone(freq, endFreq, dur, gainVal, type) {
     if (!state.sfxOn) return;
@@ -267,7 +349,7 @@
       osc.type = type || "sine";
       osc.frequency.setValueAtTime(freq, now);
       if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
-      gain.gain.setValueAtTime(gainVal || 0.06, now);
+      gain.gain.setValueAtTime(gainVal || 0.055, now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
@@ -276,13 +358,28 @@
     } catch (e) {}
   }
   const sfx = {
-    tap: () => playTone(520, 660, 0.07, 0.045, "sine"),
-    hop: () => playTone(340, 580, 0.13, 0.05, "triangle"),
-    star: () => { playTone(660, 880, 0.11, 0.05, "sine"); setTimeout(() => playTone(880, 1175, 0.16, 0.05, "sine"), 85); },
-    unlock: () => { playTone(523, 659, 0.1, 0.055, "triangle"); setTimeout(() => playTone(659, 1046, 0.22, 0.06, "sine"), 95); }
+    tap: () => playTone(520, 680, 0.065, 0.045, "sine"),
+    hop: () => playTone(330, 590, 0.13, 0.05, "triangle"),
+    munch: () => {
+      playTone(290, 210, 0.08, 0.06, "triangle");
+      setTimeout(() => playTone(340, 240, 0.08, 0.06, "triangle"), 130);
+      setTimeout(() => playTone(520, 760, 0.12, 0.05, "sine"), 270);
+    },
+    bubble: () => playTone(580 + Math.random() * 280, 960 + Math.random() * 260, 0.07, 0.035, "sine"),
+    splash: () => {
+      playTone(440, 880, 0.14, 0.055, "sine");
+      setTimeout(() => playTone(660, 1180, 0.18, 0.055, "sine"), 95);
+    },
+    star: () => {
+      playTone(660, 880, 0.11, 0.05, "sine");
+      setTimeout(() => playTone(880, 1175, 0.16, 0.05, "sine"), 85);
+    },
+    levelUp: () => {
+      [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => playTone(f, f * 1.04, 0.14, 0.055, "triangle"), i * 75));
+    }
   };
 
-  /* ---------- 4. DOM 引用 ---------- */
+  /* ---------- 6. DOM 节点引用 ---------- */
   const $ = (id) => document.getElementById(id);
   const appEl = $("app");
   const worldScrollEl = $("world-scroll");
@@ -292,6 +389,7 @@
   const panoPrevEl = $("pano-prev");
   const panoCurrEl = $("pano-curr");
   const panoPreloadEl = $("pano-preload");
+  const customStageBgEl = $("custom-stage-bg");
 
   const wallPolaroidEl = $("wall-polaroid");
   const wallPolaroidImgEl = $("wall-polaroid-img");
@@ -300,6 +398,11 @@
   const shSoftEl = $("pet-shadow-soft");
   const shConEl = $("pet-shadow-contact");
   const glCanvas = $("gl-pet");
+  const petFxHostEl = $("pet-fx-host");
+  const sleepZzEl = $("sleep-zz");
+  const dirtyLayerEl = $("dirty-layer");
+  const soapBubbleLayerEl = $("soap-bubble-layer");
+  const rinseFlashEl = $("rinse-flash");
   const hitLayerEl = $("scene-hit-layer");
   const charHotspotEl = $("character-hotspot");
   const actionGlowEl = $("action-glow");
@@ -315,13 +418,16 @@
   const roomStarWidgetEl = $("room-star-widget");
   const hudStarCountEl = $("hud-star-count");
   const hudStarGainEl = $("hud-star-gain");
+  const hudLvPillEl = $("hud-lv-pill");
   const hudDaysEl = $("hud-companion-days");
   const moodDetailEl = $("mood-room-detail");
   const moodSentenceEl = $("mood-room-sentence");
   const hudPetNameEl = $("hud-pet-name");
+  const hudSwitchPetTextEl = $("hud-switch-pet-text");
   const hudMoodIconEl = $("hud-mood-icon");
   const hudMoodLabelEl = $("hud-mood-label");
   const hudMoodTextEl = $("hud-mood-text");
+  const hudCareMiniEl = $("hud-care-mini");
 
   const roomClockEl = $("room-clock");
   const clockAnalogEl = $("clock-analog");
@@ -332,13 +438,27 @@
   const clockTimeTextEl = $("clock-time-text");
   const clockDateTextEl = $("clock-date-text");
 
+  const dockBtnFeedEl = $("dock-btn-feed");
+  const dockBtnBathEl = $("dock-btn-bath");
+  const dockBtnWardrobeEl = $("dock-btn-wardrobe");
+  const dockDotHungryEl = $("dock-dot-hungry");
+  const dockDotDirtyEl = $("dock-dot-dirty");
+  const feedPanelEl = $("feed-3d-panel");
+  const snackGridEl = $("snack-3d-grid");
+  const flyingSnackEl = $("flying-snack-3d");
+  const flyingSnackImgEl = $("flying-snack-img");
+  const dragSnackEl = $("drag-snack-3d");
+  const dragSnackImgEl = $("drag-snack-img");
+  const bathPanelEl = $("bath-3d-panel");
+  const bathPctTextEl = $("bath-pct-text");
+  const bathFillBarEl = $("bath-fill-bar");
+
   const btnContextEntryEl = $("btn-context-entry");
   const contextIconEl = $("context-entry-icon");
   const contextUnreadDotEl = $("context-unread-dot");
   const letterPlaneFxEl = $("letter-plane-fx");
 
   const actionDockEl = $("scene-action-dock");
-  const btnOpenFittingEl = $("btn-open-fitting");
   const toolboxDismissEl = $("toolbox-dismiss");
   const toolboxEl = $("companion-toolbox");
   const btnToolboxEl = $("btn-toolbox");
@@ -347,7 +467,6 @@
   const chestOpenEl = $("chest-lid-open");
   const tbAlbumDotEl = $("tb-album-dot");
   const tbDeskToggleLabelEl = $("tb-desk-toggle-label");
-  const tbSwitchPetLabelEl = $("tb-switch-pet-label");
   const tbSfxLabelEl = $("tb-sfx-label");
 
   const devTestersEl = $("dev-testers");
@@ -357,11 +476,9 @@
 
   const fittingTopbarEl = $("fitting-topbar");
   const wardrobeSheetEl = $("wardrobe-sheet");
+  const tabWardrobeItemsEl = $("tab-wardrobe-items");
+  const tabWardrobeBgsEl = $("tab-wardrobe-bgs");
   const wardrobeGridEl = $("wardrobe-grid");
-  const sheetStarCountEl = $("sheet-star-count");
-  const btnRevertOutfitEl = $("btn-revert-outfit");
-  const btnConfirmOutfitEl = $("btn-confirm-outfit");
-  const confirmOutfitTextEl = $("confirm-outfit-text");
 
   const letterOverlayEl = $("today-companion-overlay");
   const letterAwardBoxEl = $("letter-award-box");
@@ -372,7 +489,6 @@
   const letterPolaroidImgEl = $("letter-polaroid-img");
   const polaroidPlaceEl = $("polaroid-place");
   const polaroidOutfitEl = $("polaroid-outfit");
-  const collectLetterTextEl = $("collect-letter-text");
 
   const albumViewEl = $("keepsake-album-view");
   const keepsakeEmptyEl = $("keepsake-empty");
@@ -393,15 +509,13 @@
     el.classList.add("is-rebounding");
   }
 
-  /* ---------- 5. 中场 34vh 双层场景反馈栈（dialogue + system） ---------- */
+  /* ---------- 7. 中场 34vh 双层场景反馈栈 ---------- */
   let feedbackTimer = 0;
-  let lastSystemNotice = "";
   function showSceneFeedback(text, variant, tone, durationMs) {
     if (!text) return;
     const v = variant === "system" ? "system" : "dialogue";
     if (v === "dialogue" && feedbackStackEl.classList.contains("scene-feedback-stack--visible") && feedbackFrontEl.classList.contains("scene-feedback-stack__card--system")) {
-      lastSystemNotice = feedbackFrontTextEl.textContent || "";
-      feedbackBackTextEl.textContent = lastSystemNotice;
+      feedbackBackTextEl.textContent = feedbackFrontTextEl.textContent || "";
       feedbackBackEl.hidden = false;
     } else {
       feedbackBackEl.hidden = true;
@@ -413,18 +527,16 @@
     feedbackTimer = setTimeout(() => {
       feedbackStackEl.classList.remove("scene-feedback-stack--visible");
       feedbackBackEl.hidden = true;
-    }, durationMs || (v === "system" ? 1900 : 2500));
+    }, durationMs || (v === "system" ? 1900 : 2600));
   }
 
-  /* ---------- 6. 左上星星滚字动画与双模小挂钟 ---------- */
+  /* ---------- 8. 星星滚字与双模小挂钟 ---------- */
   let starRollRaf = 0;
   let displayedStars = state.stars;
   function animateStarsTo(targetVal, gainDelta) {
     const startVal = displayedStars;
     state.stars = targetVal;
-    sheetStarCountEl.textContent = String(targetVal);
     persistState();
-
     if (gainDelta && gainDelta > 0) {
       hudStarGainEl.textContent = "+" + gainDelta;
       hudStarGainEl.hidden = false;
@@ -433,7 +545,6 @@
       roomStarWidgetEl.classList.add("companion-star--pulse");
       setTimeout(() => { hudStarGainEl.hidden = true; }, 1050);
     }
-
     if (REDUCED_MOTION || startVal === targetVal) {
       displayedStars = targetVal;
       hudStarCountEl.textContent = String(targetVal);
@@ -441,11 +552,9 @@
     }
     cancelAnimationFrame(starRollRaf);
     const t0 = performance.now();
-    const dur = 520;
     function step(now) {
-      const u = Math.min(1, (now - t0) / dur);
-      const ease = 1 - Math.pow(1 - u, 3);
-      displayedStars = Math.round(startVal + (targetVal - startVal) * ease);
+      const u = Math.min(1, (now - t0) / 520);
+      displayedStars = Math.round(startVal + (targetVal - startVal) * easeOutCubic(u));
       hudStarCountEl.textContent = String(displayedStars);
       if (u < 1) starRollRaf = requestAnimationFrame(step);
     }
@@ -454,16 +563,10 @@
 
   function updateClock() {
     const now = new Date();
-    const hh = now.getHours();
-    const mm = now.getMinutes();
-    const ss = now.getSeconds();
-    const hDeg = ((hh % 12) + mm / 60) * 30;
-    const mDeg = (mm + ss / 60) * 6;
-    const sDeg = ss * 6;
-    handHourEl.style.transform = `rotate(${hDeg.toFixed(1)}deg)`;
-    handMinEl.style.transform = `rotate(${mDeg.toFixed(1)}deg)`;
-    handSecEl.style.transform = `rotate(${sDeg.toFixed(1)}deg)`;
-
+    const hh = now.getHours(), mm = now.getMinutes(), ss = now.getSeconds();
+    handHourEl.style.transform = `rotate(${(((hh % 12) + mm / 60) * 30).toFixed(1)}deg)`;
+    handMinEl.style.transform = `rotate(${((mm + ss / 60) * 6).toFixed(1)}deg)`;
+    handSecEl.style.transform = `rotate(${(ss * 6).toFixed(1)}deg)`;
     clockTimeTextEl.textContent = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
     const wk = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][now.getDay()];
     clockDateTextEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${wk}`;
@@ -485,24 +588,92 @@
   updateClock();
   setInterval(updateClock, 1000);
 
-  /* ---------- 7. 左上三阶陪伴心情牌 + 连点 5 次开启验收器 ---------- */
+  /* ---------- 9. 内嵌 catalog.json 快照（0ms 立即可用） + 远程静默热更 ---------- */
+  let catalog = window.__EGGBABE_CATALOG__ || { backgrounds: [], pets: {} };
+
+  function getSetName(petId, setId) {
+    if (!catalog || !setId) return "";
+    const p = catalog.pets && catalog.pets[petId];
+    const found = p && p.items && p.items.find((x) => x.id === setId);
+    return found ? found.name : "";
+  }
+
+  function getAllPostcardScenes() {
+    const list = [
+      {
+        id: "living_room",
+        label: "破壳起居室",
+        src: `./living-room-dress/panoramas/empty_${state.period}.png`,
+        cropCenter: true,
+        tint: "rgba(255,224,182,0.07)",
+        shadowRgba: "rgba(58,36,18,0.30)",
+        pose: "cute",
+        copy: {
+          koi: "在阳光晒暖的书桌软木垫上转了个圈，这套新穿搭正式收录进今日份好运气。",
+          yutu: "在窗边软木垫刚换好的新造型，趁咖啡还冒着热气，留一张居家定妆纪念。"
+        }
+      }
+    ];
+    (catalog.backgrounds || []).forEach((bg, idx) => {
+      const poses = ["tilt", "cute", "jump"];
+      list.push({
+        id: bg.id,
+        label: bg.name,
+        src: sharedUrl(bg.file),
+        cropCenter: false,
+        tint: "rgba(255,220,185,0.08)",
+        shadowRgba: bg.exportShadowRgba || "rgba(48,32,20,0.32)",
+        pose: poses[idx % poses.length],
+        copy: {
+          koi: `穿着喜欢的衣服溜达到「${bg.name}」，连吹过来的风都带着泡泡糖的味道，快拍给你看～`,
+          yutu: `今天去「${bg.name}」散步啦，长耳朵听见了很温柔的风声，顺手寄一张明信片回书桌给你。`
+        }
+      });
+    });
+    return list;
+  }
+
+  /* ---------- 10. 左上状态牌（含一键切锦鲤/玉兔 + 养成状态同步） ---------- */
   let secretTapTimes = [];
+  function syncCareIndicators() {
+    const ps = careAll[state.petId] || careAll.koi;
+    const isHungry = ps.hunger < 30;
+    const isDirty = ps.hygiene < 30;
+    dockDotHungryEl.hidden = !isHungry;
+    dockDotDirtyEl.hidden = !isDirty;
+    hudLvPillEl.textContent = `Lv.${ps.level}`;
+    hudCareMiniEl.textContent = `饱食 ${Math.round(ps.hunger)}% · 清洁 ${Math.round(ps.hygiene)}%`;
+
+    const showDirtyFx = isDirty && isWebGLActive() && careUiMode !== "bath";
+    dirtyLayerEl.hidden = !showDirtyFx;
+    if (showDirtyFx) positionDirtyFx();
+  }
+
   function renderMoodTab() {
-    const mood = DAILY_MOODS[state.moodKey] || DAILY_MOODS.CURIOSITY;
+    const mood = DAILY_MOODS[state.moodKey] || DAILY_MOODS.JOY;
     hudStarCountEl.textContent = String(state.stars);
-    sheetStarCountEl.textContent = String(state.stars);
     hudDaysEl.textContent = `连续一起 ${state.companionDays} 天`;
-    hudPetNameEl.textContent = state.petId === "yutu" ? "糯米团子" : "锦小鲤";
+    hudPetNameEl.textContent = state.petId === "yutu" ? "糯米团子 · 玉兔" : "锦小鲤 · 锦鲤";
+    hudSwitchPetTextEl.textContent = state.petId === "yutu" ? "⇄ 锦鲤" : "⇄ 玉兔";
     hudMoodIconEl.textContent = mood.icon;
     hudMoodLabelEl.textContent = mood.label;
 
-    const eqSetId = state.savedSet[state.petId];
-    const eqName = getSetName(state.petId, eqSetId);
-    hudMoodTextEl.textContent = eqName ? `${mood.text}（今天穿了「${eqName}」）` : mood.text;
+    const eqName = getSetName(state.petId, state.savedSet[state.petId]);
+    hudMoodTextEl.textContent = eqName ? `${mood.text}（身穿「${eqName}」）` : mood.text;
 
     moodDetailEl.classList.toggle("pet-mood-tab__room-detail--open", state.moodPhase !== "minimal");
     moodSentenceEl.classList.toggle("pet-mood-tab__room-sentence--open", state.moodPhase === "expanded");
+    syncCareIndicators();
   }
+
+  $("btn-hud-switch-pet").addEventListener("click", async (ev) => {
+    ev.stopPropagation();
+    sfx.tap();
+    const next = state.petId === "koi" ? "yutu" : "koi";
+    await switchPet(next);
+    showSceneFeedback(next === "koi" ? "已切换为：锦小鲤（12 套穿搭）" : "已切换为：糯米团子（24 套穿搭）", "system");
+  });
+
   moodTabEl.addEventListener("click", () => {
     sfx.tap();
     const order = ["minimal", "summary", "expanded"];
@@ -524,12 +695,37 @@
     devTestersEl.hidden = false;
   }
 
-  /* ---------- 8. 三屏全景视口与母图锚点映射（mapPanoramaPoints） ---------- */
+  /* ---------- 11. 三屏全景视口与 11 套插画背景舞台切换 ---------- */
   let geom = { vw: 390, vh: 844, isPortrait: true, trackW: 1170, panoScale: 0.5, ox: 0, oy: 0, pw: 1411, ph: 836 };
+  let isFittingOpen = false;
+  let careUiMode = "none"; // "none" | "feed" | "bath"
+
+  function isCustomBgActive() {
+    return state.stageBgId && state.stageBgId !== "living_room" && state.roomState === "free_stand";
+  }
+
+  function syncCustomStageBg() {
+    if (isCustomBgActive()) {
+      const bgObj = (catalog.backgrounds || []).find((b) => b.id === state.stageBgId);
+      if (bgObj) {
+        appEl.classList.add("has-custom-bg");
+        customStageBgEl.src = sharedUrl(bgObj.file);
+        customStageBgEl.hidden = false;
+        shSoftEl.style.background = bgObj.shadowSoft || "";
+        shConEl.style.background = bgObj.shadowContact || "";
+        screenDotsEl.style.display = "none";
+        return;
+      }
+    }
+    appEl.classList.remove("has-custom-bg");
+    customStageBgEl.hidden = true;
+    shSoftEl.style.background = "";
+    shConEl.style.background = "";
+    screenDotsEl.style.display = (geom.isPortrait || geom.trackW > geom.vw + 24) ? "flex" : "none";
+  }
 
   function updateViewportGeometry() {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
     const isPortrait = (vw / Math.max(1, vh)) < 1.15;
     const trackW = isPortrait ? vw * 3 : Math.max(vw, Math.round(vh * (PANO_W / PANO_H)));
     const panoScale = Math.max(trackW / PANO_W, vh / PANO_H);
@@ -545,7 +741,7 @@
     panoBoxEl.style.width = pw + "px";
     panoBoxEl.style.height = ph + "px";
 
-    screenDotsEl.style.display = (isPortrait || trackW > vw + 24) ? "flex" : "none";
+    syncCustomStageBg();
     layoutScenePropsAndHotspots();
     if (isFittingOpen) applyFittingCameraTransform();
   }
@@ -560,13 +756,9 @@
   function scrollToScreen(screenIdx, smooth) {
     const maxScroll = worldTrackEl.offsetWidth - worldScrollEl.clientWidth;
     if (maxScroll <= 4) return;
-    let targetX = 0;
-    if (geom.isPortrait) {
-      targetX = clamp(screenIdx, 0, 2) * geom.vw;
-    } else {
-      const focusPanoX = screenIdx === 0 ? 720 : screenIdx === 2 ? 2120 : CORK_HOME.x;
-      targetX = geom.ox + focusPanoX * geom.panoScale - geom.vw * 0.5;
-    }
+    const targetX = geom.isPortrait
+      ? clamp(screenIdx, 0, 2) * geom.vw
+      : geom.ox + (screenIdx === 0 ? 720 : screenIdx === 2 ? 2120 : CORK_HOME.x) * geom.panoScale - geom.vw * 0.5;
     worldScrollEl.scrollTo({ left: clamp(targetX, 0, maxScroll), behavior: (smooth && !REDUCED_MOTION) ? "smooth" : "auto" });
   }
 
@@ -585,10 +777,9 @@
     screenDotsEl.querySelectorAll(".screen-dot").forEach((d, i) => d.classList.toggle("screen-dot--active", i === idx));
   });
 
-  // 支持桌面鼠标拖拽摇镜
   let mousePan = null;
   worldScrollEl.addEventListener("pointerdown", (ev) => {
-    if (ev.pointerType === "mouse" && !isFittingOpen && worldTrackEl.offsetWidth > worldScrollEl.clientWidth + 8) {
+    if (ev.pointerType === "mouse" && !isFittingOpen && careUiMode === "none" && worldTrackEl.offsetWidth > worldScrollEl.clientWidth + 8) {
       mousePan = { startX: ev.clientX, startScroll: worldScrollEl.scrollLeft, moved: false };
     }
   });
@@ -600,39 +791,35 @@
   });
   window.addEventListener("pointerup", () => { setTimeout(() => { mousePan = null; }, 0); });
 
-  /* ---------- 9. 全景底图预加载与 520ms 丝滑交叉淡入 ---------- */
-  let currentPanoUrl = "./panoramas/empty_day.png";
+  let currentPanoUrl = "./living-room-dress/panoramas/empty_day.png";
   let panoReqToken = 0;
-
   function resolveTargetPanoramaUrl() {
     const pd = state.period;
     if (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away") {
-      return `./panoramas/empty_${pd}.png`;
+      return `./living-room-dress/panoramas/empty_${pd}.png`;
     }
     const def = ROOM_STATES[state.roomState];
     const charFolder = state.petId === "yutu" ? "jade-rabbit" : "boon-koi";
-    return `./panoramas/${charFolder}/${def.fileKey}_${pd}.png`;
+    return `./living-room-dress/panoramas/${charFolder}/${def.fileKey}_${pd}.png`;
   }
 
   function syncPanoramaImage(immediate) {
+    syncCustomStageBg();
     const nextUrl = resolveTargetPanoramaUrl();
     if (nextUrl === currentPanoUrl) return;
     const token = ++panoReqToken;
-
     if (immediate || REDUCED_MOTION) {
       currentPanoUrl = nextUrl;
       panoCurrEl.src = nextUrl;
       panoPrevEl.hidden = true;
       return;
     }
-
     panoPreloadEl.onload = () => {
       if (token !== panoReqToken) return;
       panoPrevEl.src = currentPanoUrl;
       panoPrevEl.hidden = false;
       panoPrevEl.classList.remove("world-panorama-bg--previous-fading");
       void panoPrevEl.offsetWidth;
-
       currentPanoUrl = nextUrl;
       panoCurrEl.src = nextUrl;
       panoPrevEl.classList.add("world-panorama-bg--previous-fading");
@@ -644,18 +831,7 @@
     panoPrevEl.classList.remove("world-panorama-bg--previous-fading");
   });
 
-  /* ---------- 10. WebGL 毛绒换装与眼睛着色器引擎 ---------- */
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const sstep = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t); };
-  const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
-  const easeInOut = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-  const easeOutBack = (t) => { const c = 1.6; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
-  function rotPt(x, y, px, py, deg) {
-    const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), dx = x - px, dy = y - py;
-    return [px + dx * c - dy * s, py + dx * s + dy * c];
-  }
-
+  /* ---------- 12. 完整原版 PetStage WebGL 渲染引擎（含锦鲤毛绒眼皮 Shader + 四情绪面部重绘） ---------- */
   const DPR = Math.min(2.0, window.devicePixelRatio || 1);
   glCanvas.width = Math.round(GL_LOGICAL_W * DPR);
   glCanvas.height = Math.round(GL_LOGICAL_H * DPR);
@@ -673,13 +849,16 @@
     "  float cover = clamp(max(smoothstep(lidY + 0.12, lidY - 0.08, d.y), smoothstep(lowY - 0.12, lowY + 0.08, d.y)), 0.0, 1.0) * mask;" +
     "  float xTaper = smoothstep(0.78, 0.28, abs(d.x)); float thick = mix(0.05, 0.09, w) * xTaper;" +
     "  float line = (1.0 - smoothstep(thick * 0.45, thick + 0.045, abs(d.y - lidY))) * xTaper * smoothstep(0.10, 0.30, w) * mask;" +
-    "  return vec3(cover, clamp(line, 0.0, 1.0), 1.0 + clamp(-0.045 * d.x - 0.055 * d.y, -0.09, 0.07));" +
+    "  float castSh = smoothstep(0.30, 0.0, d.y - lidY) * smoothstep(-0.04, 0.06, d.y - lidY) * (1.0 - w * 0.78) * 0.28 * xTaper * mask;" +
+    "  return vec3(cover, clamp(line + castSh * (1.0 - cover), 0.0, 1.0), 1.0 + clamp(-0.045 * d.x - 0.055 * d.y, -0.09, 0.07));" +
     "}" +
     "vec4 happyEye(vec2 uv, vec4 eye, float w){" +
     "  if (w <= 0.004) return vec4(0.0, 0.0, 0.0, 1.0); vec2 d = (uv - eye.xy) / eye.zw; float rad = length(d); if (rad > 1.20) return vec4(0.0, 0.0, 0.0, 1.0);" +
     "  float mask = smoothstep(1.16, 0.78, rad); float xTaper = smoothstep(0.68, 0.22, abs(d.x)); float yArc = -0.20 + 0.62 * (d.x * d.x); float thick = 0.042 + 0.068 * xTaper;" +
     "  float stroke = (1.0 - smoothstep(thick * 0.48, thick + 0.036, abs(d.y - yArc))) * xTaper * w * mask;" +
-    "  return vec4(mask * w, stroke, 0.0, 1.0);" +
+    "  float dropSh = (1.0 - smoothstep(thick * 0.55, thick + 0.09, abs(d.y - (yArc + 0.065)))) * xTaper * w * mask * 0.34;" +
+    "  float sh = 1.0 + clamp(-0.045 * d.x - 0.055 * d.y, -0.09, 0.07);" +
+    "  return vec4(mask * w, stroke, dropSh, sh);" +
     "}" +
     "void main(){" +
     "  vec4 a = texture2D(t0, vUv); vec4 col;" +
@@ -687,8 +866,16 @@
     "    col = a; float c2 = clamp(w2, 0.0, 1.0); float c1 = clamp(w1, 0.0, 1.0);" +
     "    if (c2 > 0.004 || c1 > 0.004) {" +
     "      vec4 plush = texture2D(t2, vUv); vec3 furRgb = plush.rgb / max(plush.a, 0.001); vec3 rgb = col.rgb / max(col.a, 0.001);" +
-    "      if (c2 > 0.004) { vec3 lL = eyeLid(vUv, uEyeL, c2); vec3 lR = eyeLid(vUv, uEyeR, c2); float cov = max(lL.x, lR.x); rgb = mix(rgb, furRgb * (lL.x >= lR.x ? lL.z : lR.z), cov); rgb = mix(rgb, vec3(0.14,0.115,0.098), max(lL.y, lR.y)); }" +
-    "      if (c1 > 0.004) { vec4 hL = happyEye(vUv, uEyeL, c1); vec4 hR = happyEye(vUv, uEyeR, c1); rgb = mix(rgb, furRgb, max(hL.x, hR.x)); rgb = mix(rgb, vec3(0.14,0.115,0.098), max(hL.y, hR.y)); }" +
+    "      if (c2 > 0.004) {" +
+    "        vec3 lL = eyeLid(vUv, uEyeL, c2); vec3 lR = eyeLid(vUv, uEyeR, c2);" +
+    "        float cov = max(lL.x, lR.x); float sh = lL.x >= lR.x ? (lL.x > 0.001 ? lL.z : 1.0) : lR.z;" +
+    "        rgb = mix(rgb, furRgb * sh, cov); rgb = mix(rgb, vec3(0.14, 0.115, 0.098), max(lL.y, lR.y));" +
+    "      }" +
+    "      if (c1 > 0.004) {" +
+    "        vec4 hL = happyEye(vUv, uEyeL, c1); vec4 hR = happyEye(vUv, uEyeR, c1);" +
+    "        float covH = max(hL.x, hR.x); float shH = hL.x >= hR.x ? (hL.x > 0.001 ? hL.w : 1.0) : hR.w;" +
+    "        rgb = mix(rgb, furRgb * shH, covH); rgb = mix(rgb, vec3(0.45, 0.38, 0.31), max(hL.z, hR.z)); rgb = mix(rgb, vec3(0.14, 0.115, 0.098), max(hL.y, hR.y));" +
+    "      }" +
     "      col = vec4(rgb * col.a, col.a);" +
     "    }" +
     "  } else {" +
@@ -744,6 +931,7 @@
     if (texCache.has(url)) return Promise.resolve(texCache.get(url));
     return new Promise((resolve, reject) => {
       const img = new Image();
+      img.crossOrigin = "anonymous";
       img.onload = () => {
         const t = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, t);
@@ -782,21 +970,7 @@
     return { rest, uv, pos, nv, idxLen: idx.length, uvBuf, posBuf, idxBuf };
   }
 
-  let catalog = null;
   const petRuntimes = {};
-
-  function getSetName(petId, setId) {
-    if (!catalog || !setId) return "";
-    const p = catalog.pets && catalog.pets[petId];
-    const found = p && p.items && p.items.find((x) => x.id === setId);
-    return found ? found.name : "";
-  }
-
-  function setPriceFor(item, idx) {
-    if (typeof item.price === "number") return item.price;
-    return 15 + (idx % 3) * 5;
-  }
-
   async function initPet(petId) {
     if (petRuntimes[petId]) return petRuntimes[petId];
     const pCfg = catalog.pets[petId];
@@ -810,29 +984,36 @@
     gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf); gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, posBuf); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.DYNAMIC_DRAW);
 
-    const [tBase, tClosed, tDoze] = await Promise.all([
-      loadTex(pCfg.textures.base), loadTex(pCfg.textures.closed), loadTex(pCfg.textures.doze)
-    ]);
+    const promises = [loadTex(pCfg.textures.base), loadTex(pCfg.textures.doze)];
+    if (!pCfg.useEyeShader && pCfg.textures.closed) promises.push(loadTex(pCfg.textures.closed));
+    const loaded = await Promise.all(promises);
+    const tBase = loaded[0], tDoze = loaded[1], tClosed = loaded[2] || tBase;
+
     const hitCanvas = document.createElement("canvas");
     hitCanvas.width = pCfg.canvasW; hitCanvas.height = pCfg.canvasH;
     const hitCtx = hitCanvas.getContext("2d", { willReadFrequently: true });
     hitCtx.drawImage(imgCache.get(sharedUrl(pCfg.textures.base)), 0, 0, pCfg.canvasW, pCfg.canvasH);
 
-    const fCfg = FACES[petId];
-    const fr = fCfg.rect;
+    const faceCfg = EMO_FACES[petId];
+    const fr = faceCfg.rect;
     const rt = {
       id: petId,
-      // 匹配 2823×1672 母图中玉兔与锦鲤在软木垫上的真实微距比例
-      cfg: Object.assign({}, pCfg, { baseScale: petId === "yutu" ? 0.565 : 0.715 }),
+      cfg: Object.assign({}, pCfg, { baseScale: petId === "yutu" ? 0.565 : 0.725 }),
       rest, uv, pos, uvBuf, posBuf, hitCtx,
       defaultTex: { base: tBase, closed: tClosed, doze: tDoze },
       setTexMap: {},
-      faceCfg: fCfg,
+      faceCfg,
       faceGrid: makeSubGrid({ x: fr[0], y: fr[1], w: fr[2] - fr[0], h: fr[3] - fr[1] }),
-      faceTextures: {}
+      faceTexCache: {},
+      emoKeyCache: {}
     };
     petRuntimes[petId] = rt;
     if (state.savedSet[petId]) await ensureSetLoaded(rt, state.savedSet[petId]);
+
+    // 预热前 4 套常用装扮，点击零等待
+    setTimeout(() => {
+      (pCfg.items || []).slice(0, 4).forEach((it) => { ensureSetLoaded(rt, it.id).catch(() => {}); });
+    }, 450);
     return rt;
   }
 
@@ -840,221 +1021,486 @@
     if (!setId || rt.setTexMap[setId]) return rt.setTexMap[setId];
     const item = rt.cfg.items.find((x) => x.id === setId);
     if (!item) return null;
+    if (rt.cfg.useEyeShader) {
+      const tBase = await loadTex(item.tex);
+      const entry = { base: tBase, closed: tBase, doze: rt.defaultTex.doze, eyeLUV: item.eyeLUV || rt.cfg.eyeLUV, eyeRUV: item.eyeRUV || rt.cfg.eyeRUV };
+      rt.setTexMap[setId] = entry;
+      return entry;
+    }
     const [tBase, tClosed, tDoze] = await Promise.all([
       loadTex(item.tex),
       item.closedTex ? loadTex(item.closedTex) : Promise.resolve(rt.defaultTex.closed),
       item.dozeTex ? loadTex(item.dozeTex) : Promise.resolve(rt.defaultTex.doze)
     ]);
-    const entry = { base: tBase, closed: tClosed, doze: tDoze, eyeLUV: item.eyeLUV, eyeRUV: item.eyeRUV };
+    const entry = { base: tBase, closed: tClosed, doze: tDoze };
     rt.setTexMap[setId] = entry;
     return entry;
   }
 
-  function paintFaceOverlay(rt, kind) {
-    if (rt.faceTextures[kind]) return rt.faceTextures[kind];
-    const F = rt.faceCfg, fr = F.rect, fw = fr[2] - fr[0], fh = fr[3] - fr[1];
-    const cnv = document.createElement("canvas"); cnv.width = fw; cnv.height = fh;
-    const c = cnv.getContext("2d"); c.translate(-fr[0], -fr[1]);
-    const lw = (px) => px / 0.22;
-    function coverPupil(e) {
-      c.save(); c.beginPath(); c.ellipse(e.ex, e.ey, e.erx, e.ery, 0, 0, Math.PI * 2); c.clip();
-      c.fillStyle = "#F7F5F0"; c.beginPath(); c.arc(e.x, e.y, e.r + 5, 0, Math.PI * 2); c.fill(); c.restore();
-    }
-    if (kind === "laugh" || kind === "cute") {
-      F.eyes.forEach((e) => {
-        coverPupil(e); c.save(); c.strokeStyle = "rgba(52,38,32,0.92)"; c.lineWidth = lw(2.3); c.lineCap = "round";
-        c.beginPath(); c.moveTo(e.x - e.r * 0.9, e.y + e.r * 0.28); c.quadraticCurveTo(e.x, e.y - e.r * 0.9, e.x + e.r * 0.9, e.y + e.r * 0.28); c.stroke(); c.restore();
+  // 原版 PetStage 面部表情贴图绘制（含锦鲤大笑擦除嘴巴、弯月笑眼、悲伤阴云、思考转眼珠）
+  function getFaceOverlayTex(rt, id) {
+    if (rt.faceTexCache[id] !== undefined) return rt.faceTexCache[id];
+    const faceCfg = rt.faceCfg;
+    const FR = faceCfg.rect, FW = FR[2] - FR[0], FH = FR[3] - FR[1];
+    const cv = document.createElement("canvas"); cv.width = FW; cv.height = FH;
+    const c = cv.getContext("2d"); c.translate(-FR[0], -FR[1]);
+
+    const S = rt.cfg.scale || 0.35;
+    const CX = rt.cfg.cx;
+    const hitCtx = rt.hitCtx;
+    const lw = (px) => px / S;
+    const sampleAvg = (x, y, w, h) => {
+      const d = hitCtx.getImageData(Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h))).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 200 || (d[i] + d[i + 1] + d[i + 2]) / 3 < 120) continue;
+        r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+      }
+      return n ? [r / n | 0, g / n | 0, b / n | 0] : [232, 226, 216];
+    };
+    const rgb = (col) => `rgb(${col[0]},${col[1]},${col[2]})`;
+    const eyeClip = (ctx, e) => { ctx.beginPath(); ctx.ellipse(e.ex, e.ey, e.erx, e.ery, 0, 0, Math.PI * 2); ctx.clip(); };
+    const coverPupil = (ctx, e) => {
+      const top = sampleAvg(e.x - 8, e.y - e.r - 10, 16, 5);
+      const bot = sampleAvg(e.x - 8, e.y + e.r + 5, 16, 5);
+      const mid = sampleAvg(e.x + (e.x < CX ? -e.r - 9 : e.r + 4), e.y - 6, 5, 12);
+      ctx.save(); eyeClip(ctx, e);
+      const g = ctx.createLinearGradient(0, e.y - e.r - 4, 0, e.y + e.r + 4);
+      g.addColorStop(0, rgb(top)); g.addColorStop(0.5, rgb(mid)); g.addColorStop(1, rgb(bot));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    };
+    const movePupil = (ctx, e, dx, dy) => {
+      coverPupil(ctx, e);
+      const R = e.r + 3;
+      ctx.save(); eyeClip(ctx, e);
+      ctx.beginPath(); ctx.arc(e.x + dx, e.y + dy, e.r + 2, 0, Math.PI * 2); ctx.clip();
+      ctx.drawImage(hitCtx.canvas, e.x - R, e.y - R, 2 * R, 2 * R, e.x - R + dx, e.y - R + dy, 2 * R, 2 * R);
+      ctx.restore();
+    };
+    const eraseMouth = (ctx) => {
+      const m = faceCfg.eraseMouth; if (!m) return;
+      const w = m.x1 - m.x0, h = m.y1 - m.y0, tc = document.createElement("canvas");
+      tc.width = w; tc.height = h;
+      const t = tc.getContext("2d");
+      t.filter = "blur(5px)"; t.lineCap = "round"; t.lineWidth = 26; t.strokeStyle = "#000"; t.fillStyle = "#000";
+      t.beginPath(); t.moveTo(16, 17); t.quadraticCurveTo(w / 2, h - 4, w - 18, 14); t.stroke();
+      t.beginPath(); t.ellipse(w / 2, h * 0.5, w * 0.36, h * 0.32, 0, 0, Math.PI * 2); t.fill();
+      t.filter = "none"; t.globalCompositeOperation = "source-in";
+      t.drawImage(hitCtx.canvas, m.x0, m.y0 + m.dy, w, h, 0, 0, w, h);
+      ctx.drawImage(tc, m.x0, m.y0);
+    };
+    const stroke = (ctx, color, wStage, fn) => {
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw(wStage); ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath(); fn(ctx); ctx.stroke(); ctx.restore();
+    };
+    const INK = "rgba(52,38,32,.92)";
+    const dMouth = (ctx, m) => {
+      const x0 = m.x - m.w / 2, x1 = m.x + m.w / 2, y0 = m.y - m.h / 2;
+      const path = () => {
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(m.x, y0 - m.h * 0.08, x1, y0);
+        ctx.bezierCurveTo(x1, y0 + m.h * 0.9, m.x + m.w * 0.22, y0 + m.h * 1.08, m.x, y0 + m.h * 1.08);
+        ctx.bezierCurveTo(m.x - m.w * 0.22, y0 + m.h * 1.08, x0, y0 + m.h * 0.9, x0, y0); ctx.closePath();
+      };
+      ctx.save(); path(); ctx.fillStyle = "#5b2a26"; ctx.fill(); ctx.clip();
+      ctx.fillStyle = "#ff8f8f"; ctx.beginPath(); ctx.ellipse(m.x, y0 + m.h * 1.0, m.w * 0.3, m.h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      ctx.save(); path(); ctx.strokeStyle = "#3a1c18"; ctx.lineWidth = lw(1.3); ctx.lineJoin = "round"; ctx.stroke(); ctx.restore();
+    };
+    const brows = (ctx, kind, side) => {
+      faceCfg.eyes.forEach((e) => {
+        const isL = e.x < CX, inner = isL ? 1 : -1, L = faceCfg.browLen, bx = e.ex, by = e.ey - e.ery - faceCfg.browGap;
+        stroke(ctx, "rgba(78,60,50,.88)", 2.1, (cc) => {
+          if (kind === "sad") {
+            cc.moveTo(bx - inner * L * 0.5, by + L * 0.12); cc.quadraticCurveTo(bx, by + L * 0.02, bx + inner * L * 0.5, by - L * 0.28);
+          } else {
+            const up = (isL ? -1 : 1) === side;
+            if (up) { cc.moveTo(bx - L * 0.5, by - L * 0.05); cc.quadraticCurveTo(bx, by - L * 0.42, bx + L * 0.5, by - L * 0.05); }
+            else { cc.moveTo(bx - L * 0.45, by + L * 0.1); cc.lineTo(bx + L * 0.45, by + L * 0.06); }
+          }
+        });
       });
-      if (F.allowBlush && F.cheeks) {
-        F.cheeks.forEach((pt) => {
-          const g = c.createRadialGradient(pt[0], pt[1], 0, pt[0], pt[1], F.cheekR);
-          g.addColorStop(0, "rgba(255,124,142,0.48)"); g.addColorStop(1, "rgba(255,150,160,0)");
-          c.fillStyle = g; c.beginPath(); c.arc(pt[0], pt[1], F.cheekR, 0, Math.PI * 2); c.fill();
+    };
+
+    if (id === "laughEyes") {
+      if (faceCfg.closedTex) { rt.faceTexCache[id] = false; return false; }
+      faceCfg.eyes.forEach((e) => {
+        coverPupil(c, e);
+        stroke(c, INK, 2.6, (cc) => { cc.moveTo(e.x - e.r * 0.95, e.y + e.r * 0.3); cc.quadraticCurveTo(e.x, e.y - e.r * 0.95, e.x + e.r * 0.95, e.y + e.r * 0.3); });
+      });
+    } else if (id === "laugh") {
+      eraseMouth(c); dMouth(c, faceCfg.mouth);
+    } else if (id === "sad") {
+      brows(c, "sad");
+      const g = faceCfg.gloom;
+      for (let i = 0; i < 4; i++) {
+        const x = g.x + ((i - 1.5) * g.w) / 3, h = g.h * (i % 2 ? 0.8 : 1);
+        const gr = c.createLinearGradient(0, g.y, 0, g.y + h);
+        gr.addColorStop(0, "rgba(96,124,210,.78)"); gr.addColorStop(1, "rgba(96,124,210,0)");
+        stroke(c, gr, 1.5, (cc) => { cc.moveTo(x, g.y); cc.lineTo(x, g.y + h); });
+      }
+      if (faceCfg.eraseMouth) {
+        eraseMouth(c); const m = faceCfg.mouth, w = m.w * 0.36;
+        stroke(c, INK, 2.2, (cc) => { cc.moveTo(m.x - w, m.y + 6); cc.quadraticCurveTo(m.x, m.y - 12, m.x + w, m.y + 6); });
+      }
+    } else if (id === "thinkL" || id === "thinkR") {
+      const side = id === "thinkL" ? -1 : 1;
+      brows(c, "think", side);
+      faceCfg.eyes.forEach((e) => movePupil(c, e, faceCfg.lookUp[0] * side, faceCfg.lookUp[1]));
+      if (faceCfg.eraseMouth) {
+        eraseMouth(c); const m = faceCfg.mouth, w = m.w * 0.3;
+        stroke(c, INK, 2.1, (cc) => {
+          for (let i = 0; i <= 24; i++) {
+            const t = i / 24, x = m.x - w + 2 * w * t, y = m.y + Math.sin(t * Math.PI * 4) * 4.5;
+            if (i) cc.lineTo(x, y); else cc.moveTo(x, y);
+          }
         });
       }
-    } else if (kind === "sad") {
-      F.eyes.forEach((e, idx) => {
-        c.save(); c.strokeStyle = "rgba(52,38,32,0.9)"; c.lineWidth = lw(2.0); c.lineCap = "round";
-        const dir = idx === 0 ? -1 : 1;
-        c.beginPath(); c.moveTo(e.x - dir * 22, e.y - e.r - 15); c.lineTo(e.x + dir * 16, e.y - e.r - 24); c.stroke(); c.restore();
+    } else if (id === "cute") {
+      if (faceCfg.closedTex) { rt.faceTexCache[id] = false; return false; }
+      faceCfg.eyes.forEach((e) => {
+        coverPupil(c, e); const d = e.x < CX ? 1 : -1, r = e.r;
+        stroke(c, INK, 2.6, (cc) => { cc.moveTo(e.x - d * r * 0.7, e.y - r * 0.62); cc.lineTo(e.x + d * r * 0.62, e.y); cc.lineTo(e.x - d * r * 0.7, e.y + r * 0.62); });
       });
-    } else if (kind === "think") {
-      F.eyes.forEach((e) => {
-        coverPupil(e); const R = e.r + 2;
-        c.save(); c.beginPath(); c.ellipse(e.ex, e.ey, e.erx, e.ery, 0, 0, Math.PI * 2); c.clip();
-        c.drawImage(rt.hitCtx.canvas, e.x - R, e.y - R, 2 * R, 2 * R, e.x - R + F.lookUp[0], e.y - R + F.lookUp[1], 2 * R, 2 * R);
-        c.restore();
-      });
+      eraseMouth(c); const m = faceCfg.mouth, r = m.w * 0.13;
+      stroke(c, INK, 2.2, (cc) => { cc.moveTo(m.x - 2 * r, m.y - 2); cc.quadraticCurveTo(m.x - r, m.y + r * 1.6, m.x, m.y - 2); cc.quadraticCurveTo(m.x + r, m.y + r * 1.6, m.x + 2 * r, m.y - 2); });
     }
+
     const t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, t); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cnv);
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    rt.faceTextures[kind] = t;
+    gl.activeTexture(gl.TEXTURE0);
+    rt.faceTexCache[id] = t;
     return t;
   }
 
-  /* ---------- 11. 网格形变与姿态循环 ---------- */
+  /* ---------- 13. 网格形变、四情绪节拍粒子与全姿态状态机 ---------- */
   const KEYS = ["hopY", "rot", "sx", "sy", "breath", "headRot", "headTx", "headTy", "earL", "earR", "lean", "wClosed", "wDoze", "shS", "shO"];
-  function P(o) {
+  function makePose(o) {
     const p = { hopY: 0, rot: 0, sx: 1, sy: 1, breath: 0, headRot: 0, headTx: 0, headTy: 0, earL: 0, earR: 0, lean: 0, wClosed: 0, wDoze: 0, shS: 1, shO: 1 };
-    if (o) for (const k in o) p[k] = o[k];
+    if (o) for (const k in o) if (Object.prototype.hasOwnProperty.call(o, k)) p[k] = o[k];
     return p;
   }
-  function mixPose(a, b, t) { const p = P({}); KEYS.forEach((k) => { p[k] = lerp(a[k], b[k], t); }); return p; }
-  function kfPose(list, u) {
-    u = clamp(u, 0, 1); let a = list[0], b = list[list.length - 1];
-    for (let i = 1; i < list.length; i++) if (u <= list[i].o) { a = list[i - 1]; b = list[i]; break; }
-    let t = clamp((u - a.o) / ((b.o - a.o) || 1), 0, 1);
+  function mixPose(a, b, t) { const p = makePose(); KEYS.forEach((k) => { p[k] = lerp(a[k], b[k], t); }); return p; }
+  function kf(list, u) {
+    const cu = clamp(u, 0, 1); let a = list[0], b = list[list.length - 1];
+    for (let i = 1; i < list.length; i++) if (cu <= list[i].o) { a = list[i - 1]; b = list[i]; break; }
+    let t = clamp((cu - a.o) / ((b.o - a.o) || 1), 0, 1);
     t = a.e === "out" ? easeOutCubic(t) : a.e === "in" ? t * t * t : a.e === "back" ? easeOutBack(t) : a.e === "io" ? easeInOut(t) : t;
-    return mixPose(P(a), P(b), t);
+    return mixPose(makePose(a), makePose(b), t);
   }
 
   function deformVertex(cfg, x, y, p, eL, eR) {
-    const CX = cfg.cx, FEET_Y = cfg.feetY, NECK = cfg.neck, HEAD = cfg.head;
-    const hd = Math.sqrt(Math.pow((x - HEAD.x) / HEAD.rx, 2) + Math.pow((y - HEAD.y) / HEAD.ry, 2));
-    const out = sstep(0.9, 1.04, hd) * sstep(HEAD.y - 60, HEAD.y - 160, y);
+    const h = cfg.head;
+    const hd = Math.sqrt(Math.pow((x - h.x) / h.rx, 2) + Math.pow((y - h.y) / h.ry, 2));
+    const earTop = cfg.id === "yutu" ? cfg.earL.y + 82 : cfg.earL.y + 24;
+    const earBot = cfg.id === "yutu" ? cfg.earL.y - 18 : cfg.earL.y - 70;
+    const out = sstep(0.9, 1.04, hd) * sstep(earTop, earBot, y);
     if (out > 0) {
-      const side = sstep(CX - 30, CX + 30, x);
+      const side = sstep(cfg.cx - 30, cfg.cx + 30, x);
       const piv = side < 0.5 ? cfg.earL : cfg.earR;
-      const along = clamp((piv.y - y) / (cfg.id === "koi" ? 85 : 320), 0, 1);
+      const span = cfg.id === "yutu" ? 330 : 80;
+      const along = clamp((piv.y - y) / span, 0, 1);
       const ang = lerp(eL, eR, side) * out * (0.55 + 0.45 * along) * (cfg.earAmp || 1);
-      const r = rotPt(x, y, piv.x, piv.y, ang); x = r[0]; y = r[1];
+      const r = rot2d(x, y, piv.x, piv.y, ang); x = r[0]; y = r[1];
     }
-    x += (x - CX) * p.breath * Math.exp(-Math.pow((y - cfg.bodyY) / 130, 2));
-    const wBody = sstep(NECK.y - 65, NECK.y + 70, y);
-    const neckY = FEET_Y + (NECK.y - FEET_Y) * p.sy;
-    const feetPin = sstep(FEET_Y - 140, FEET_Y - 20, y);
+    const bSpan = cfg.id === "yutu" ? 140 : h.ry * 0.9;
+    x += (x - cfg.cx) * p.breath * Math.exp(-Math.pow((y - cfg.bodyY) / bSpan, 2));
+
+    const wBody = cfg.id === "yutu" ? sstep(cfg.neck.y - 68, cfg.neck.y + 72, y) : sstep(cfg.neck.y - 70, cfg.neck.y + 24, y);
+    const neckY = cfg.feetY + (cfg.neck.y - cfg.feetY) * p.sy;
+    const feetPin = cfg.id === "yutu" ? sstep(cfg.feetY - 145, cfg.feetY - 25, y) : sstep(cfg.feetY - 130, cfg.feetY - 12, y);
     const kx = lerp(p.sx, 1 + (p.sx - 1) * 0.12, 1 - wBody);
-    x = CX + (x - CX) * lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
-    y = lerp(y + (neckY - NECK.y), FEET_Y + (y - FEET_Y) * p.sy, wBody);
-    const wh = sstep(NECK.y + 140, NECK.y - 45, y);
+    x = cfg.cx + (x - cfg.cx) * lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
+    y = lerp(y + (neckY - cfg.neck.y), cfg.feetY + (y - cfg.feetY) * p.sy, wBody);
+
+    const wh = cfg.id === "yutu" ? sstep(cfg.neck.y + 152, cfg.neck.y - 48, y) : sstep(cfg.neck.y + 36, cfg.neck.y - 80, y);
     if (wh > 0) {
-      const r = rotPt(x, y, NECK.x, neckY, p.headRot * wh);
+      const r = rot2d(x, y, cfg.neck.x, neckY, p.headRot * wh);
       x = r[0] + p.headTx * wh; y = r[1] + p.headTy * wh;
     }
-    x += p.lean * 20 * sstep(FEET_Y - 25, HEAD.y + 40, y);
+    const leanAmp = cfg.id === "yutu" ? 20 : 16;
+    const leanTop = cfg.id === "yutu" ? cfg.neck.y - 108 : h.y;
+    x += p.lean * leanAmp * sstep(cfg.feetY, leanTop, y);
     return [x, y];
   }
 
-  let isFittingOpen = false;
-  let workingSetId = state.savedSet[state.petId];
-  let activeWardrobeFilter = "all";
   let petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
   let hopMove = null;
   const spring = { r: 0, vr: 0, y: 0, vy: 0, t: -1 };
-  let animMode = "idle", modeT0 = performance.now(), idleT0 = modeT0, nextBlink = 2400;
-  let lastPose = P({}), blendFrom = null, blendUntil = 0, petLean = 0;
-  let activeEmote = { kind: null, alpha: 0, until: 0 };
+  let animMode = "idle", modeT0 = performance.now(), nextBlinkAt = modeT0 + 2200, sleepAt = modeT0 + 7500;
+  let lastPose = makePose(), blendFrom = null, blendUntil = 0, petLean = 0, scrubLean = 0;
+  const emo = { kind: null, side: 1, t0: 0, u: 0, beat: 0, last: null };
 
-  const JUMP_KF = [
-    { o: 0, sx: 1, sy: 1, hopY: 0, shS: 1, shO: 1, e: "out" },
-    { o: 0.18, sx: 1.09, sy: 0.90, hopY: 6, earL: -6, earR: 6, shS: 1.08, shO: 1.05, e: "out" },
-    { o: 0.48, sx: 0.94, sy: 1.07, hopY: -135, wClosed: 0.95, earL: 8, earR: -8, shS: 0.72, shO: 0.55, e: "io" },
-    { o: 0.78, sx: 1.08, sy: 0.92, hopY: 4, wClosed: 0.2, earL: -5, earR: 5, shS: 1.08, shO: 1.05, e: "back" },
-    { o: 1, sx: 1, sy: 1, hopY: 0, shS: 1, shO: 1 }
+  const JUMP_KFS = [
+    { o: 0, e: "in", sx: 1, sy: 1 },
+    { o: 0.13, e: "out", sx: 1.10, sy: 0.84, earL: -10, earR: 10, shS: 1.15 },
+    { o: 0.24, e: "out", sx: 0.93, sy: 1.10, hopY: -65, earL: -22, earR: 22, rot: -1.5, shS: 0.9 },
+    { o: 0.44, e: "in", sx: 1.0, sy: 1.02, hopY: -165, earL: -4, earR: 4, rot: 1.5, shS: 0.72, shO: 0.55 },
+    { o: 0.70, e: "out", sx: 0.95, sy: 1.07, hopY: -45, earL: 8, earR: -8, rot: -1 },
+    { o: 0.80, e: "back", sx: 1.13, sy: 0.84, hopY: 0, earL: -20, earR: 20, shS: 1.18 },
+    { o: 0.90, e: "io", sx: 0.97, sy: 1.04, earL: 6, earR: -6 },
+    { o: 1, e: "out", sx: 1, sy: 1 }
   ];
-  const MINIHOP_KF = [
-    { o: 0, sx: 1, sy: 1, hopY: 0, e: "out" },
-    { o: 0.25, sx: 1.06, sy: 0.94, hopY: 4, e: "out" },
-    { o: 0.55, sx: 0.96, sy: 1.04, hopY: -72, wClosed: 0.85, shS: 0.82, shO: 0.7, e: "io" },
-    { o: 0.82, sx: 1.04, sy: 0.96, hopY: 2, e: "back" },
-    { o: 1, sx: 1, sy: 1, hopY: 0 }
+  const MINI_KFS = [
+    { o: 0, e: "in", hopY: 0, sx: 1, sy: 1, shS: 1, shO: 1 },
+    { o: 0.18, e: "out", hopY: 6, sx: 1.08, sy: 0.9, shS: 1.12, shO: 0.9 },
+    { o: 0.42, e: "out", hopY: -72, sx: 0.96, sy: 1.06, earL: -10, earR: 10, shS: 0.7, shO: 0.5 },
+    { o: 0.78, e: "back", hopY: 4, sx: 1.08, sy: 0.9, shS: 1.12, shO: 0.88 },
+    { o: 1, e: "out", hopY: 0, sx: 1, sy: 1, shS: 1, shO: 1 }
   ];
-  const TILT_KF = [
-    { o: 0, headRot: 0, e: "out" },
-    { o: 0.30, headRot: 9.5, headTx: 12, earL: 5, earR: 10, wClosed: 0.9, e: "io" },
-    { o: 0.72, headRot: 8.0, headTx: 10, earL: 4, earR: 8, wClosed: 0, e: "io" },
-    { o: 1, headRot: 0 }
+  const EAT_KFS = [
+    { o: 0, e: "out", sx: 1, sy: 1, wClosed: 0 },
+    { o: 0.14, e: "io", sx: 1.09, sy: 0.91, headTy: 5, headRot: -4, wClosed: 0.95, earL: -10, earR: 10, shS: 1.09 },
+    { o: 0.30, e: "io", sx: 0.96, sy: 1.06, headTy: -3, headRot: 4, wClosed: 1, earL: 5, earR: -5, hopY: -16 },
+    { o: 0.46, e: "io", sx: 1.09, sy: 0.91, headTy: 5, headRot: -4, wClosed: 1, earL: -10, earR: 10, shS: 1.09 },
+    { o: 0.64, e: "io", sx: 0.96, sy: 1.07, headTy: -4, headRot: 3, wClosed: 1, earL: 6, earR: -6, hopY: -28 },
+    { o: 0.82, e: "back", sx: 1.05, sy: 0.95, headTy: 1, headRot: 0, wClosed: 0.55, hopY: 0 },
+    { o: 1, e: "out", sx: 1, sy: 1, wClosed: 0 }
   ];
-
-  function startAnim(mode, now) {
-    blendFrom = Object.assign({}, lastPose);
-    blendUntil = now + 130;
-    animMode = mode;
-    modeT0 = now;
-  }
-
-  function triggerEmote(kind, durationMs) {
-    activeEmote = { kind, alpha: 1, until: performance.now() + (durationMs || 2000) };
-  }
-
-  function envTintForPeriod(pd, forceNeutral) {
-    if (forceNeutral || pd === "day") return [1.0, 1.0, 1.0];
-    if (pd === "sunset") return [1.02, 0.95, 0.88];
-    return [0.84, 0.88, 0.97];
-  }
 
   function deskDepthScale(y) {
-    return isFittingOpen ? 1.0 : lerp(0.88, 1.05, clamp((y - 1020) / 360, 0, 1));
+    if (isFittingOpen || isCustomBgActive()) return 1.04;
+    return lerp(0.88, 1.05, clamp((y - 1020) / 360, 0, 1));
   }
-
   function isWebGLActive() {
     return isFittingOpen || state.roomState === "free_stand";
   }
 
-  function computePose(now) {
+  function startAnim(nextMode, now) {
+    blendFrom = Object.assign({}, lastPose);
+    blendUntil = now + 140;
+    animMode = nextMode;
+    modeT0 = now;
+    sleepAt = now + 7500;
+    if (nextMode !== "doze") sleepZzEl.hidden = true;
+  }
+
+  function getEmoKeys(rt, kind, s) {
+    const key = `${rt.id}:${kind}${s > 0 ? "+" : "-"}`;
+    if (!rt.emoKeyCache[key]) {
+      const fc = rt.faceCfg;
+      rt.emoKeyCache[key] = EMO_DEFS[kind].keys(s).map((k) => {
+        const cp = Object.assign({}, k);
+        if (fc.stalk) {
+          const v = (cp.stalk || 0) * (fc.stalkK || 1.5);
+          cp.earL = v; cp.earR = v;
+        }
+        if (!fc.closedTex && cp.wClosed) cp.wClosed = 0;
+        return cp;
+      });
+    }
+    return rt.emoKeyCache[key];
+  }
+
+  function computeEmotePose(rt, kind, u, s, ms) {
+    const def = EMO_DEFS[kind];
+    const list = getEmoKeys(rt, kind, s);
+    const p = kf(list, u);
+    if (def.lag && !rt.faceCfg.stalk) {
+      for (const k in def.lag) p[k] = kf(list, u - def.lag[k])[k];
+    }
+    if (def.add) {
+      const a = def.add(u, ms, s);
+      for (const k in a) {
+        if (k === "stalk") {
+          if (rt.faceCfg.stalk) { p.earL += a[k] * rt.faceCfg.stalkK; p.earR += a[k] * rt.faceCfg.stalkK; }
+        } else p[k] += a[k];
+      }
+    }
+    return p;
+  }
+
+  function petCanvasPtToBoxPx(rt, cxPt, cyPt, pose) {
+    const cfg = rt.cfg;
+    const S = cfg.baseScale * deskDepthScale(petPos.y);
+    const OX = petPos.x - cfg.cx * S;
+    const OY = petPos.y - cfg.feetY * S;
+    const cr = Math.cos((pose.rot * Math.PI) / 180), sr = Math.sin((pose.rot * Math.PI) / 180);
+    const d = deformVertex(cfg, cxPt, cyPt, pose, 0, 0);
+    const dx = d[0] - cfg.cx, dy = d[1] - cfg.feetY;
+    const px = OX + (cfg.cx + dx * cr - dy * sr) * S;
+    const py = OY + (cfg.feetY + dx * sr + dy * cr) * S + pose.hopY;
+    return [px * geom.panoScale, py * geom.panoScale];
+  }
+
+  function spawnBeatFx(rt, b, s, pose) {
+    if (REDUCED_MOTION) return;
+    const fc = rt.faceCfg;
+    const A = fc.anchors, cx = rt.cfg.cx;
+    const topAnchor = (sd) => [cx + (A.top[0] - cx) * (sd || 1), A.top[1]];
+    const anchor = (at, sd) => at === "L" ? A.L : at === "R" ? A.R : at === "S" ? (sd > 0 ? A.R : A.L) : topAnchor(sd);
+
+    const n = document.createElement("div");
+    n.className = "emo-beat-node";
+    let src, frames, dur = 950;
+    if (b.fx === "haha") {
+      src = anchor(b.at, s); n.textContent = b.t; n.style.color = "#e0785a"; n.style.fontSize = "17px";
+      const dx = (b.at === "L" ? -1 : 1) * 15;
+      frames = [[0, 0, 0.5, 0, -4], [dx * 0.5, -12, 1.15, 1, 0], [dx, -32, 1, 0, 5]];
+    } else if (b.fx === "tear") {
+      const e = fc.eyes[b.eye]; const out = e.x < cx ? -1 : 1;
+      src = [e.ex + out * e.erx * 0.55, e.ey + e.ery * 0.58];
+      n.style.width = "8px"; n.style.height = "12px";
+      n.style.borderRadius = "50% 50% 50% 50% / 38% 38% 62% 62%";
+      n.style.background = "radial-gradient(circle at 36% 60%, #ffffff 0, #7cc6f8 42%, #2f80c8 100%)";
+      frames = [[0, 0, 0.5, 0, 0], [out * 2, 14, 1.1, 1, 0], [out * 4, 32, 0.9, 0, 0]];
+    } else if (b.fx === "q") {
+      src = b.flip ? (s > 0 ? A.L : A.R) : topAnchor(s); n.textContent = "?";
+      n.style.color = "#6b8fc4"; n.style.fontSize = b.big ? "24px" : "17px"; dur = 1150;
+      frames = [[0, 0, 0.3, 0, -18], [0, -10, 1.1, 1, 6], [5, -24, 1, 0, 4]];
+    } else if (b.fx === "bang") {
+      src = topAnchor(s); n.textContent = "!"; n.style.color = "#ef5b3f"; n.style.fontSize = "26px"; dur = 800;
+      frames = [[0, 4, 0.2, 0, 0], [0, -8, 1.3, 1, 0], [0, -16, 1, 0, 0]];
+    } else if (b.fx === "heart") {
+      src = anchor(b.at, s); n.textContent = "♥"; n.style.color = "#ff6f91"; n.style.fontSize = "18px"; dur = 1200;
+      const d = b.at === "L" ? -1 : 1;
+      frames = [[0, 0, 0.3, 0, 0], [d * 6, -14, 1.1, 1, -8 * d], [d * 4, -40, 0.9, 0, 0]];
+    } else {
+      src = anchor(b.at, s); n.textContent = "✦"; n.style.color = "#ffc23d"; n.style.fontSize = "18px";
+      frames = [[0, 0, 0.2, 0, 0], [0, -6, 1.25, 1, 90], [0, -10, 0.6, 0, 180]];
+    }
+    const st = petCanvasPtToBoxPx(rt, src[0], src[1], pose);
+    petFxHostEl.appendChild(n);
+    if (typeof n.animate === "function") {
+      const an = n.animate(frames.map((f, i) => ({
+        transform: `translate(${(st[0] + f[0]).toFixed(1)}px,${(st[1] + f[1]).toFixed(1)}px) translate(-50%,-50%) scale(${f[2]}) rotate(${f[4]}deg)`,
+        opacity: f[3],
+        offset: i / (frames.length - 1)
+      })), { duration: dur, easing: "ease-out", fill: "forwards" });
+      an.onfinish = () => n.remove();
+    } else {
+      setTimeout(() => n.remove(), dur);
+    }
+  }
+
+  function triggerFullEmote(sideOverride, kindOverride) {
+    const rt = petRuntimes[state.petId];
+    if (!rt) return;
+    const now = performance.now();
+    const kinds = ["laugh", "sad", "think", "cute"].filter((k) => k !== emo.last);
+    const chosen = kindOverride || kinds[Math.floor(Math.random() * kinds.length)];
+    emo.kind = chosen;
+    emo.last = chosen;
+    emo.side = sideOverride || (Math.random() < 0.5 ? -1 : 1);
+    emo.t0 = now;
+    emo.u = 0;
+    emo.beat = 0;
+    startAnim("emote", now);
+    const lines = rt.faceCfg.lines[chosen];
+    showSceneFeedback(lines[Math.floor(Math.random() * lines.length)], "dialogue");
+  }
+
+  function computePose(rt, now) {
     if (hopMove) {
       const u = clamp((now - hopMove.t0) / hopMove.dur, 0, 1);
       petPos.x = lerp(hopMove.x0, hopMove.x1, easeInOut(u));
       petPos.y = lerp(hopMove.y0, hopMove.y1, easeInOut(u));
       const arc = Math.sin(u * Math.PI);
-      const p = P({
-        hopY: -arc * 108,
-        sx: lerp(1.04, 0.95, arc),
-        sy: lerp(0.96, 1.05, arc),
+      const p = makePose({
+        hopY: -arc * 108, sx: lerp(1.04, 0.95, arc), sy: lerp(0.96, 1.05, arc),
         rot: clamp((hopMove.x1 - hopMove.x0) * 0.018, -5, 5) * arc,
-        shS: lerp(1, 0.75, arc),
-        shO: lerp(1, 0.58, arc)
+        shS: lerp(1, 0.74, arc), shO: lerp(1, 0.56, arc)
       });
-      if (u >= 1) {
-        hopMove = null;
-        startAnim("idle", now);
-      }
+      if (u >= 1) { hopMove = null; startAnim("idle", now); }
       return p;
     }
 
-    if (animMode === "jump") {
-      const u = (now - modeT0) / 680;
-      if (u >= 1) startAnim("idle", now);
-      else return kfPose(JUMP_KF, u);
+    const t = now - modeT0;
+    if (animMode === "emote" && emo.kind) {
+      const def = EMO_DEFS[emo.kind];
+      if (t >= def.ms) {
+        startAnim("idle", now);
+      } else {
+        emo.u = t / def.ms;
+        const p = computeEmotePose(rt, emo.kind, emo.u, emo.side, t);
+        while (emo.beat < def.beats.length && def.beats[emo.beat].u <= emo.u) {
+          spawnBeatFx(rt, def.beats[emo.beat], emo.side, p);
+          emo.beat++;
+        }
+        return p;
+      }
+    } else if (animMode === "jump") {
+      if (t >= 1050) startAnim("idle", now);
+      else return kf(JUMP_KFS, t / 1050);
     } else if (animMode === "minihop") {
-      const u = (now - modeT0) / 520;
-      if (u >= 1) startAnim("idle", now);
-      else return kfPose(MINIHOP_KF, u);
-    } else if (animMode === "tilt") {
-      const u = (now - modeT0) / 920;
-      if (u >= 1) startAnim("idle", now);
-      else return kfPose(TILT_KF, u);
+      if (t >= 580) startAnim("idle", now);
+      else return kf(MINI_KFS, t / 580);
+    } else if (animMode === "eat") {
+      if (t >= 1080) startAnim("idle", now);
+      else return kf(EAT_KFS, t / 1080);
+    } else if (animMode === "scrub") {
+      const w = Math.sin((now / 210) * Math.PI * 2);
+      return makePose({
+        sx: 1.03 + 0.025 * w, sy: 0.97 - 0.025 * w,
+        headRot: scrubLean * 8 + w * 4.5, headTx: scrubLean * 5, headTy: 4,
+        rot: w * 1.8, earL: -9 + w * 6, earR: 9 - w * 6,
+        lean: scrubLean * 0.75, wClosed: 0.92, wDoze: 0.92, shS: 1.05
+      });
+    } else if (animMode === "rinse") {
+      if (t >= 960) startAnim("idle", now);
+      else {
+        const u = t / 960;
+        if (u < 0.62) {
+          const shk = Math.sin((u / 0.62) * Math.PI * 6), env = Math.sin((u / 0.62) * Math.PI);
+          return makePose({
+            sx: 1 + 0.06 * Math.abs(shk) * env, sy: 1 - 0.05 * Math.abs(shk) * env,
+            rot: shk * 6.5 * env, headRot: shk * 12 * env,
+            earL: -18 * shk * env, earR: 18 * shk * env, wClosed: 0.85 * env, shS: 1.08
+          });
+        }
+        return kf(MINI_KFS, (u - 0.62) / 0.38);
+      }
     } else if (animMode === "pet") {
-      return P({ sy: 0.965, sx: 1.03, wClosed: 0.95, lean: petLean, headRot: petLean * 6, earL: -4, earR: 4 });
+      return makePose({ sx: 1.04, sy: 0.96, headRot: petLean * 9, headTx: petLean * 6, headTy: 5, earL: -8 + petLean * 4, earR: 8 + petLean * 4, lean: petLean, wClosed: 1, wDoze: 1, shS: 1.06 });
+    } else if (animMode === "doze") {
+      const b = Math.sin((now / 4400) * Math.PI * 2);
+      const isKoi = rt.id === "koi";
+      sleepZzEl.hidden = false;
+      const topPt = petCanvasPtToBoxPx(rt, rt.cfg.cx + 90, rt.cfg.head.y - rt.cfg.head.ry * 0.9, lastPose);
+      sleepZzEl.style.left = topPt[0].toFixed(1) + "px";
+      sleepZzEl.style.top = topPt[1].toFixed(1) + "px";
+      return makePose({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: isKoi ? 6 : 8, rot: 1, earL: -5 + b, earR: (isKoi ? 8 : 54) + 2.5 * b, wDoze: 1, shS: 1.03 });
     }
 
-    const t = (now - idleT0) / 1000;
-    let wClosed = 0;
-    if (now - idleT0 > nextBlink) {
-      const bu = (now - idleT0 - nextBlink) / 170;
-      if (bu <= 1) wClosed = Math.sin(bu * Math.PI);
-      else nextBlink = (now - idleT0) + 2400 + Math.random() * 2600;
+    if (!isFittingOpen && careUiMode === "none" && now >= sleepAt) {
+      startAnim("doze", now);
+      return lastPose;
     }
-    return P({
-      breath: Math.sin(t * 2.1) * 0.018,
-      sy: 1 + Math.sin(t * 2.1) * 0.008,
-      headRot: Math.sin(t * 1.1) * 1.3,
-      earL: Math.sin(t * 1.7) * 1.4,
-      earR: -Math.sin(t * 1.7 + 0.5) * 1.4,
-      wClosed
+
+    let bl = 0;
+    if (now >= nextBlinkAt) {
+      const bu = (now - nextBlinkAt) / 200;
+      if (bu <= 1) bl = bu < 0.25 ? easeOutCubic(bu / 0.25) : bu < 0.5 ? 1 : 1 - easeInOut((bu - 0.5) / 0.5);
+      else nextBlinkAt = now + 2200 + Math.random() * 2500;
+    }
+    const ps = careAll[rt.id] || careAll.koi;
+    const lowMood = ps.hunger < 30 || ps.hygiene < 30;
+    const b = Math.sin((now / (lowMood ? 3500 : 2600)) * Math.PI * 2);
+    const isKoi = rt.id === "koi";
+    return makePose({
+      sx: 1 - 0.006 * b,
+      sy: (lowMood ? 0.985 : 1) + 0.012 * b,
+      breath: (isKoi ? 0.014 : 0.018) * b,
+      headRot: (lowMood ? 3.5 : isKoi ? 5.5 : 1.0) * Math.sin((now / 3600) * Math.PI * 2),
+      headTy: lowMood ? 5 : 0,
+      earL: -0.9 + 1.8 * Math.sin((now / 2500) * Math.PI * 2 + 0.3),
+      earR: 0.9 + 1.8 * Math.sin((now / 2800) * Math.PI * 2 + 1.4),
+      wDoze: bl
     });
   }
 
-  function renderPetFrame(rt, p, setId, clock, customAnchor) {
+  function renderPetFrame(rt, p, setId, now, customAnchor) {
     if (!rt) return;
     lastPose = p;
-    const dt = spring.t < 0 ? 0 : (clock - spring.t) / 1000;
-    spring.t = clock;
+    const dt = spring.t < 0 ? 0 : (now - spring.t) / 1000;
+    spring.t = now;
     if (dt <= 0 || dt > 0.1) {
       spring.r = p.headRot; spring.vr = 0; spring.y = p.hopY; spring.vy = 0;
     } else {
@@ -1071,10 +1517,10 @@
     const ay = customAnchor ? customAnchor.y : petPos.y;
     const OX = ax - cfg.cx * S;
     const OY = ay - cfg.feetY * S;
-    const lagR = clamp(spring.r - p.headRot, -22, 22);
-    const lagY = clamp((spring.y - p.hopY) * 0.5, -18, 26);
-    const eL = p.earL + lagR * 1.05 - lagY * 0.35;
-    const eR = p.earR + lagR * 1.05 + lagY * 0.35;
+    const lagR = clamp(spring.r - p.headRot, -25, 25);
+    const lagY = clamp((spring.y - p.hopY) * 0.6, -18, 28);
+    const eL = p.earL + lagR * 1.1 - lagY * 0.4;
+    const eR = p.earR + lagR * 1.1 + lagY * 0.4;
     const cr = Math.cos((p.rot * Math.PI) / 180), sr = Math.sin((p.rot * Math.PI) / 180);
 
     for (let i = 0; i < NV; i++) {
@@ -1084,7 +1530,9 @@
       rt.pos[i * 2 + 1] = OY + (cfg.feetY + dx * sr + dy * cr) * S + p.hopY;
     }
 
-    const tint = envTintForPeriod(state.period, !!customAnchor);
+    const useRoomTint = !customAnchor && !isCustomBgActive();
+    const tint = !useRoomTint || state.period === "day" ? [1, 1, 1] : state.period === "sunset" ? [1.02, 0.95, 0.88] : [0.85, 0.89, 0.97];
+
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(prog);
@@ -1093,19 +1541,22 @@
     const setPack = (setId && rt.setTexMap[setId]) || rt.defaultTex;
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, setPack.base); gl.uniform1i(loc.t0, 0);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, setPack.closed); gl.uniform1i(loc.t1, 1);
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, setId ? rt.defaultTex.base : setPack.doze); gl.uniform1i(loc.t2, 2);
+    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, cfg.useEyeShader ? rt.defaultTex.doze : setPack.doze); gl.uniform1i(loc.t2, 2);
 
-    const hasShaderEyes = !!(setId && setPack.eyeLUV && setPack.eyeRUV);
-    gl.uniform1f(loc.uEye, hasShaderEyes ? 1.0 : 0.0);
-    if (hasShaderEyes) {
-      const happyAmt = (!customAnchor && (activeEmote.kind === "laugh" || activeEmote.kind === "cute") && performance.now() < activeEmote.until) ? 1.0 : (customAnchor && customAnchor.happy ? 1.0 : 0.0);
+    gl.uniform1f(loc.uEye, cfg.useEyeShader ? 1.0 : 0.0);
+    if (cfg.useEyeShader) {
+      const eLuv = setPack.eyeLUV || cfg.eyeLUV;
+      const eRuv = setPack.eyeRUV || cfg.eyeRUV;
+      const happyAmt = customAnchor && customAnchor.happy ? 1.0 : clamp(p.wClosed, 0, 1);
       gl.uniform1f(loc.w1, happyAmt);
-      gl.uniform1f(loc.w2, happyAmt > 0.2 ? 0.0 : p.wClosed);
-      gl.uniform4f(loc.uEyeL, setPack.eyeLUV[0], setPack.eyeLUV[1], setPack.eyeLUV[2], setPack.eyeLUV[3]);
-      gl.uniform4f(loc.uEyeR, setPack.eyeRUV[0], setPack.eyeRUV[1], setPack.eyeRUV[2], setPack.eyeRUV[3]);
+      gl.uniform1f(loc.w2, happyAmt > 0.2 ? 0.0 : clamp(p.wDoze, 0, 1));
+      gl.uniform4f(loc.uEyeL, eLuv[0], eLuv[1], eLuv[2], eLuv[3]);
+      gl.uniform4f(loc.uEyeR, eRuv[0], eRuv[1], eRuv[2], eRuv[3]);
     } else {
-      gl.uniform1f(loc.w1, p.wClosed);
-      gl.uniform1f(loc.w2, p.wDoze);
+      const rawW1 = customAnchor && customAnchor.happy ? 1.0 : clamp(p.wClosed, 0, 1);
+      const rawW2 = clamp(p.wDoze, 0, 1 - rawW1);
+      gl.uniform1f(loc.w1, rawW1);
+      gl.uniform1f(loc.w2, rawW2);
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, rt.posBuf);
@@ -1118,35 +1569,55 @@
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bodyIdxBuf);
     gl.drawElements(gl.TRIANGLES, bodyIdx.length, gl.UNSIGNED_SHORT, 0);
 
-    // 原生毛绒态面部表情叠层
-    const emKind = customAnchor ? customAnchor.emote : (performance.now() < activeEmote.until ? activeEmote.kind : null);
-    if (!setId && emKind) {
-      const fg = rt.faceGrid;
-      for (let i = 0; i < fg.nv; i++) {
-        const d = deformVertex(cfg, fg.rest[i * 2], fg.rest[i * 2 + 1], p, eL, eR);
-        const dx = d[0] - cfg.cx, dy = d[1] - cfg.feetY;
-        fg.pos[i * 2] = OX + (cfg.cx + dx * cr - dy * sr) * S;
-        fg.pos[i * 2 + 1] = OY + (cfg.feetY + dx * sr + dy * cr) * S + p.hopY;
-      }
-      gl.useProgram(progF);
-      gl.uniform3f(locF.uEnvTint, tint[0], tint[1], tint[2]);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, paintFaceOverlay(rt, emKind));
-      gl.uniform1i(locF.tF, 0);
-      gl.uniform1f(locF.uA, 1.0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, fg.posBuf);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, fg.pos);
-      gl.enableVertexAttribArray(locF.aPos);
-      gl.vertexAttribPointer(locF.aPos, 2, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ARRAY_BUFFER, fg.uvBuf);
-      gl.enableVertexAttribArray(locF.aUv);
-      gl.vertexAttribPointer(locF.aUv, 2, gl.FLOAT, false, 0, 0);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, fg.idxBuf);
-      gl.drawElements(gl.TRIANGLES, fg.idxLen, gl.UNSIGNED_SHORT, 0);
+    // 绘制原版面部表情叠层（大笑嘴巴、伤心阴云、思考眼珠、卖萌猫嘴）
+    const faceAlphas = {};
+    if (!customAnchor && animMode === "emote" && emo.kind) {
+      const def = EMO_DEFS[emo.kind];
+      const ms = emo.u * def.ms;
+      const faces = typeof def.faces === "function" ? def.faces(emo.side) : def.faces;
+      faces.forEach((f) => {
+        const a = f[1] * def.ms, b = f[2] * def.ms, fi = f[3] || 120, fo = f[4] || 120;
+        faceAlphas[f[0]] = ms < a ? 0 : ms < a + fi ? easeOutCubic((ms - a) / fi) : ms < b ? 1 : ms < b + fo ? 1 - (ms - b) / fo : 0;
+      });
+    } else if (customAnchor && customAnchor.faceId) {
+      faceAlphas[customAnchor.faceId] = 1.0;
     }
 
+    const fg = rt.faceGrid;
+    let drewAnyFace = false;
+    for (const fid in faceAlphas) {
+      if (faceAlphas[fid] <= 0.005) continue;
+      const fTex = getFaceOverlayTex(rt, fid);
+      if (!fTex) continue;
+      if (!drewAnyFace) {
+        drewAnyFace = true;
+        for (let i = 0; i < fg.nv; i++) {
+          const d = deformVertex(cfg, fg.rest[i * 2], fg.rest[i * 2 + 1], p, 0, 0);
+          const dx = d[0] - cfg.cx, dy = d[1] - cfg.feetY;
+          fg.pos[i * 2] = OX + (cfg.cx + dx * cr - dy * sr) * S;
+          fg.pos[i * 2 + 1] = OY + (cfg.feetY + dx * sr + dy * cr) * S + p.hopY;
+        }
+        gl.useProgram(progF);
+        gl.uniform3f(locF.uEnvTint, tint[0], tint[1], tint[2]);
+        gl.bindBuffer(gl.ARRAY_BUFFER, fg.uvBuf);
+        gl.enableVertexAttribArray(locF.aUv);
+        gl.vertexAttribPointer(locF.aUv, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, fg.posBuf);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, fg.pos);
+        gl.enableVertexAttribArray(locF.aPos);
+        gl.vertexAttribPointer(locF.aPos, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, fg.idxBuf);
+        gl.uniform1i(locF.tF, 3);
+      }
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, fTex);
+      gl.uniform1f(locF.uA, clamp(faceAlphas[fid], 0, 1));
+      gl.drawElements(gl.TRIANGLES, fg.idxLen, gl.UNSIGNED_SHORT, 0);
+    }
+    if (drewAnyFace) gl.activeTexture(gl.TEXTURE0);
+
     if (!customAnchor) {
-      const baseW = (rt.id === "yutu" ? 310 : 340) * deskDepthScale(petPos.y);
+      const baseW = (rt.id === "yutu" ? 315 : 345) * deskDepthScale(petPos.y);
       panoToBoxStyle(shSoftEl, ax, ay + 12, baseW * p.shS, baseW * 0.34 * p.shS);
       panoToBoxStyle(shConEl, ax, ay + 6, baseW * 0.56 * p.shS, baseW * 0.18 * p.shS);
       shSoftEl.style.opacity = String(0.92 * p.shO);
@@ -1158,43 +1629,383 @@
     if (isWebGLActive()) {
       const rt = petRuntimes[state.petId];
       if (rt) {
-        let p = computePose(now);
+        let p = computePose(rt, now);
         if (blendFrom && now < blendUntil) {
-          p = mixPose(blendFrom, p, 1 - (blendUntil - now) / 130);
+          p = mixPose(blendFrom, p, easeOutCubic(1 - (blendUntil - now) / 140));
         }
-        const setId = isFittingOpen ? workingSetId : state.savedSet[state.petId];
-        renderPetFrame(rt, p, setId, now, null);
+        renderPetFrame(rt, p, state.savedSet[state.petId], now, null);
       }
     }
     requestAnimationFrame(mainLoop);
   }
 
-  /* ---------- 12. 场景道具、热区与物理避障桌面交互 ---------- */
-  function layoutScenePropsAndHotspots() {
-    // 1. 墙面拍立得（植物画框左下方空白墙面）
-    panoToBoxStyle(wallPolaroidEl, 985, 290, 148, 175);
+  /* ---------- 14. 右侧 3D 喂食（拖拽 + 点击飞入）与 3D 搓澡泡泡 ---------- */
+  let feedingLock = false;
+  let bathProgress = 0;
+  let lastBubbleSpawn = 0;
 
-    // 2. 桌面微距原木小立镜（仅在 free_stand 展示在软木垫左后方桌面）
-    const showMirror = !isFittingOpen && state.roomState === "free_stand";
+  function positionDirtyFx() {
+    const wisp1 = dirtyLayerEl.querySelector(".stink-1");
+    const wisp2 = dirtyLayerEl.querySelector(".stink-2");
+    const flyA = dirtyLayerEl.querySelector(".fly-a");
+    const flyB = dirtyLayerEl.querySelector(".fly-b");
+    if (wisp1) panoToBoxStyle(wisp1, petPos.x - 130, petPos.y - 380);
+    if (wisp2) panoToBoxStyle(wisp2, petPos.x + 125, petPos.y - 410);
+    if (flyA) panoToBoxStyle(flyA, petPos.x - 155, petPos.y - 450);
+    if (flyB) panoToBoxStyle(flyB, petPos.x + 150, petPos.y - 430);
+  }
+
+  function setCareUiMode(nextMode) {
+    if (careUiMode === "bath" && nextMode !== "bath") {
+      if (animMode === "scrub") startAnim("idle", performance.now());
+      soapBubbleLayerEl.innerHTML = "";
+    }
+    careUiMode = careUiMode === nextMode ? "none" : nextMode;
+    if (careUiMode !== "none" && state.roomState !== "free_stand") {
+      applyRoomState("free_stand", true);
+    } else if (careUiMode !== "none") {
+      scrollToPanoX(petPos.x, true);
+    }
+
+    dockBtnFeedEl.classList.toggle("is-active", careUiMode === "feed");
+    dockBtnBathEl.classList.toggle("is-active", careUiMode === "bath");
+    feedPanelEl.hidden = careUiMode !== "feed";
+    bathPanelEl.hidden = careUiMode !== "bath";
+
+    if (careUiMode === "feed") renderSnackTray();
+    if (careUiMode === "bath") {
+      bathProgress = 0;
+      bathPctTextEl.textContent = "0%";
+      bathFillBarEl.style.width = "0%";
+      soapBubbleLayerEl.innerHTML = "";
+    }
+    syncCareIndicators();
+  }
+
+  dockBtnFeedEl.addEventListener("click", () => {
+    sfx.tap();
+    setToolboxOpen(false);
+    triggerRebound(dockBtnFeedEl);
+    setCareUiMode("feed");
+  });
+  dockBtnBathEl.addEventListener("click", () => {
+    sfx.tap();
+    setToolboxOpen(false);
+    triggerRebound(dockBtnBathEl);
+    setCareUiMode("bath");
+  });
+  dockBtnWardrobeEl.addEventListener("click", () => {
+    sfx.tap();
+    setToolboxOpen(false);
+    setCareUiMode("none");
+    triggerRebound(dockBtnWardrobeEl);
+    enterFittingRoom();
+  });
+  $("btn-close-feed").addEventListener("click", () => { sfx.tap(); setCareUiMode("none"); });
+  $("btn-close-bath").addEventListener("click", () => { sfx.tap(); setCareUiMode("none"); });
+
+  function getPetMouthClientPt() {
+    const rect = panoBoxEl.getBoundingClientRect();
+    const rt = petRuntimes[state.petId];
+    const mouthOffsetPano = rt && rt.id === "yutu" ? 265 : 230;
+    return {
+      x: rect.left + ((petPos.x / PANO_W) * rect.width),
+      y: rect.top + (((petPos.y - mouthOffsetPano) / PANO_H) * rect.height)
+    };
+  }
+
+  function consumeSnack(snack) {
+    if (!snack || feedingLock) return;
+    feedingLock = true;
+    setTimeout(() => { feedingLock = false; }, 620);
+
+    const ps = careAll[state.petId];
+    ps.hunger = clamp(ps.hunger + snack.hunger, 0, 100);
+    const leveled = addCareExp(state.petId, snack.exp);
+
+    sfx.munch();
+    startAnim("eat", performance.now());
+    const rt = petRuntimes[state.petId];
+    if (rt) {
+      spawnBeatFx(rt, { fx: "heart", at: "L" }, -1, lastPose);
+      spawnBeatFx(rt, { fx: "heart", at: "R" }, 1, lastPose);
+    }
+
+    if (leveled) {
+      setTimeout(() => {
+        sfx.levelUp();
+        animateStarsTo(state.stars + 5, 5);
+        showSceneFeedback(`升到 Lv.${careAll[state.petId].level} 啦，获得 +5 陪伴星`, "system");
+      }, 420);
+    } else {
+      animateStarsTo(state.stars + 1, 1);
+    }
+    renderMoodTab();
+    showSceneFeedback(snack.reply, "dialogue");
+  }
+
+  function launchFlyingSnack(snack, startX, startY) {
+    if (feedingLock) return;
+    const dst = getPetMouthClientPt();
+    flyingSnackImgEl.src = snack.icon;
+    flyingSnackEl.style.transition = "none";
+    flyingSnackEl.style.left = startX + "px";
+    flyingSnackEl.style.top = startY + "px";
+    flyingSnackEl.hidden = false;
+    void flyingSnackEl.offsetWidth;
+    flyingSnackEl.style.transition = "left 0.32s cubic-bezier(0.22, 1, 0.36, 1), top 0.32s cubic-bezier(0.22, 1, 0.36, 1)";
+    flyingSnackEl.style.left = dst.x + "px";
+    flyingSnackEl.style.top = dst.y + "px";
+    setTimeout(() => {
+      flyingSnackEl.hidden = true;
+      consumeSnack(snack);
+    }, 330);
+  }
+
+  let snackDrag = null;
+  function renderSnackTray() {
+    const list = SNACKS_BY_PET[state.petId] || SNACKS_BY_PET.koi;
+    snackGridEl.innerHTML = "";
+    list.forEach((sn) => {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "snack-3d-card";
+      card.innerHTML =
+        `<img src="${sn.icon}" alt="${sn.name}" />` +
+        `<span class="snack-3d-card__name">${sn.name}</span>` +
+        `<span class="snack-3d-card__meta">+${sn.hunger}饱食 · +${sn.exp}亲密</span>`;
+
+      card.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        snackDrag = { snack: sn, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, moved: false, overPet: false };
+      });
+      snackGridEl.appendChild(card);
+    });
+  }
+
+  window.addEventListener("pointermove", (ev) => {
+    if (!snackDrag) return;
+    snackDrag.x = ev.clientX;
+    snackDrag.y = ev.clientY;
+    if (!snackDrag.moved && Math.hypot(ev.clientX - snackDrag.x0, ev.clientY - snackDrag.y0) > 10) {
+      snackDrag.moved = true;
+      dragSnackImgEl.src = snackDrag.snack.icon;
+      dragSnackEl.hidden = false;
+    }
+    if (snackDrag.moved) {
+      dragSnackEl.style.left = ev.clientX + "px";
+      dragSnackEl.style.top = ev.clientY + "px";
+      const pt = clientToPano(ev.clientX, ev.clientY);
+      snackDrag.overPet = isPanoPointOnPet(pt.x, pt.y, 65);
+      dragSnackEl.classList.toggle("is-over-pet", snackDrag.overPet);
+    }
+  });
+
+  window.addEventListener("pointerup", () => {
+    if (!snackDrag) return;
+    const d = snackDrag;
+    snackDrag = null;
+    dragSnackEl.hidden = true;
+    dragSnackEl.classList.remove("is-over-pet");
+    if (!d.moved) {
+      launchFlyingSnack(d.snack, d.x0, d.y0);
+    } else if (d.overPet) {
+      consumeSnack(d.snack);
+    }
+  });
+
+  /* ---------- 15. 桌面互动、搓澡揉搓与居家贴片热区 ---------- */
+  function clientToPano(clientX, clientY) {
+    const rect = panoBoxEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { x: CORK_HOME.x, y: CORK_HOME.y };
+    return {
+      x: ((clientX - rect.left) / rect.width) * PANO_W,
+      y: ((clientY - rect.top) / rect.height) * PANO_H
+    };
+  }
+
+  function isPanoPointOnPet(px, py, padPano) {
+    const rt = petRuntimes[state.petId];
+    if (!rt) return false;
+    const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
+    const halfW = 240 * S + (padPano || 0);
+    const topY = petPos.y - rt.cfg.feetY * S - (padPano || 0);
+    return Math.abs(px - petPos.x) <= halfW && py >= topY && py <= petPos.y + 35 + (padPano || 0);
+  }
+
+  function spawnSoapBubble(px, py) {
+    const b = document.createElement("span");
+    b.className = "soap-bubble";
+    const sz = 16 + Math.round(Math.random() * 18);
+    b.style.width = sz + "px";
+    b.style.height = sz + "px";
+    panoToBoxStyle(b, px + (Math.random() - 0.5) * 90, py + (Math.random() - 0.5) * 70);
+    soapBubbleLayerEl.appendChild(b);
+    if (soapBubbleLayerEl.children.length > 26) {
+      soapBubbleLayerEl.firstElementChild.remove();
+    }
+  }
+
+  function completeBath() {
+    careUiMode = "none";
+    dockBtnBathEl.classList.remove("is-active");
+    bathPanelEl.hidden = true;
+
+    Array.from(soapBubbleLayerEl.children).forEach((el) => el.classList.add("is-popping"));
+    setTimeout(() => { soapBubbleLayerEl.innerHTML = ""; }, 450);
+
+    rinseFlashEl.hidden = false;
+    setTimeout(() => { rinseFlashEl.hidden = true; }, 920);
+
+    const ps = careAll[state.petId];
+    ps.hygiene = 100;
+    const leveled = addCareExp(state.petId, 24);
+    sfx.splash();
+    startAnim("rinse", performance.now());
+    animateStarsTo(state.stars + 3, 3);
+    renderMoodTab();
+    showSceneFeedback(leveled ? `洗得香喷喷的，升到 Lv.${ps.level} 啦～` : "哗啦啦，洗得香喷喷的，毛毛好蓬松～", "dialogue");
+  }
+
+  let petTouch = null;
+  let lastPetStarAt = 0;
+
+  hitLayerEl.addEventListener("pointerdown", (ev) => {
+    if (!isWebGLActive()) return;
+    const pt = clientToPano(ev.clientX, ev.clientY);
+    if (isPanoPointOnPet(pt.x, pt.y, 30)) {
+      petTouch = { x0: ev.clientX, y0: ev.clientY, lastX: ev.clientX, lastY: ev.clientY, pt0: pt, moved: false };
+    }
+  });
+
+  window.addEventListener("pointermove", (ev) => {
+    if (!petTouch || !isWebGLActive()) return;
+    const dx = ev.clientX - petTouch.x0;
+    const stepDist = Math.hypot(ev.clientX - petTouch.lastX, ev.clientY - petTouch.lastY);
+    petTouch.lastX = ev.clientX;
+    petTouch.lastY = ev.clientY;
+
+    if (careUiMode === "bath") {
+      if (stepDist > 4) {
+        petTouch.moved = true;
+        const pt = clientToPano(ev.clientX, ev.clientY);
+        scrubLean = clamp((pt.x - petPos.x) / 160, -1, 1);
+        if (animMode !== "scrub") startAnim("scrub", performance.now());
+        bathProgress = Math.min(100, bathProgress + stepDist * 0.26);
+        bathPctTextEl.textContent = Math.round(bathProgress) + "%";
+        bathFillBarEl.style.width = Math.round(bathProgress) + "%";
+
+        const now = Date.now();
+        if (now - lastBubbleSpawn > 65) {
+          lastBubbleSpawn = now;
+          spawnSoapBubble(pt.x, pt.y);
+          sfx.bubble();
+        }
+        if (bathProgress >= 100) {
+          petTouch = null;
+          completeBath();
+        }
+      }
+      return;
+    }
+
+    if (Math.abs(dx) > 14) {
+      petTouch.moved = true;
+      petLean = clamp(dx / 55, -1, 1);
+      if (animMode !== "pet") startAnim("pet", performance.now());
+      const now = Date.now();
+      if (now - lastPetStarAt > 8500) {
+        lastPetStarAt = now;
+        sfx.star();
+        addCareExp(state.petId, 10);
+        animateStarsTo(state.stars + 2, 2);
+        renderMoodTab();
+        showSceneFeedback("呼噜呼噜～摸头最舒服啦♡", "dialogue");
+      }
+    }
+  });
+
+  window.addEventListener("pointerup", () => {
+    if (!petTouch) return;
+    const t = petTouch;
+    petTouch = null;
+    petLean = 0;
+    scrubLean = 0;
+
+    if (t.moved) {
+      if (animMode === "pet" || animMode === "scrub") startAnim("idle", performance.now());
+      return;
+    }
+    if (careUiMode === "bath") {
+      showSceneFeedback("在身上左右来回滑动就能搓出泡泡哦～", "system");
+      return;
+    }
+    const rt = petRuntimes[state.petId];
+    if (!rt) return;
+    if (animMode === "doze") {
+      sfx.hop();
+      startAnim("minihop", performance.now());
+      return;
+    }
+    const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
+    const neckPanoY = petPos.y - (rt.cfg.feetY - rt.cfg.neck.y) * S;
+    if (t.pt0.y < neckPanoY + 35) {
+      sfx.tap();
+      triggerFullEmote(t.pt0.x < petPos.x ? -1 : 1);
+    } else {
+      sfx.hop();
+      startAnim("jump", performance.now());
+    }
+  });
+
+  function clampSafeDeskTarget(px, py) {
+    if (isCustomBgActive()) return { x: clamp(px, 980, 1820), y: clamp(py, 1060, 1320) };
+    let x = clamp(px, 1185, 2120);
+    let y = clamp(py, 1035, 1430);
+    const dx = x - 1815, dy = y - 1095;
+    if (Math.hypot(dx, dy) < 205) {
+      const ang = Math.atan2(dy || 1, dx || -1);
+      x = clamp(1815 + Math.cos(ang) * 210, 1185, 2120);
+      y = clamp(1095 + Math.sin(ang) * 210, 1035, 1430);
+    }
+    if (x < 1230 && y > 1300) x = 1245;
+    return { x, y };
+  }
+
+  hitLayerEl.addEventListener("click", (ev) => {
+    if ((mousePan && mousePan.moved) || isFittingOpen || careUiMode !== "none" || state.roomState !== "free_stand") return;
+    const pt = clientToPano(ev.clientX, ev.clientY);
+    if (isPanoPointOnPet(pt.x, pt.y, 24) || pt.y < 970) return;
+
+    const dst = clampSafeDeskTarget(pt.x, pt.y);
+    sfx.hop();
+    const rip = document.createElement("span");
+    rip.className = "desk-ripple";
+    panoToBoxStyle(rip, dst.x, dst.y);
+    panoBoxEl.appendChild(rip);
+    setTimeout(() => rip.remove(), 600);
+
+    hopMove = {
+      x0: petPos.x, y0: petPos.y, x1: dst.x, y1: dst.y,
+      t0: performance.now(),
+      dur: clamp(280 + Math.hypot(dst.x - petPos.x, dst.y - petPos.y) * 0.42, 300, 620)
+    };
+  });
+
+  function layoutScenePropsAndHotspots() {
+    const inLivingRoom = !isCustomBgActive();
+    wallPolaroidEl.hidden = !inLivingRoom || state.postcards.length === 0;
+    if (!wallPolaroidEl.hidden) panoToBoxStyle(wallPolaroidEl, 985, 290, 148, 175);
+
+    const showMirror = !isFittingOpen && inLivingRoom && state.roomState === "free_stand";
     deskMirrorPropEl.hidden = !showMirror;
     if (showMirror) panoToBoxStyle(deskMirrorPropEl, 1192, 884, 182, 182);
 
-    // 3. 脱下的叠放针织衣物包裹（仅在 8 种居家动作态且穿有套装时展示，外出态隐藏）
     const def = ROOM_STATES[state.roomState];
-    const hasEquipped = !!state.savedSet[state.petId];
-    const showFolded = !isFittingOpen && def && def.track === "baked" && hasEquipped;
+    const showFolded = !isFittingOpen && def && def.track === "baked" && !!state.savedSet[state.petId];
     foldedOutfitPropEl.hidden = !showFolded;
-    if (showFolded) {
-      if (def.screen === 0) {
-        // 睡觉/小憩时叠放在右屏圆边几或床顶右侧
-        panoToBoxStyle(foldedOutfitPropEl, 412, 462, 168, 168);
-      } else {
-        // 中/右屏活动时叠放在床顶台灯左侧木板
-        panoToBoxStyle(foldedOutfitPropEl, 412, 462, 168, 168);
-      }
-    }
+    if (showFolded) panoToBoxStyle(foldedOutfitPropEl, 412, 462, 168, 168);
 
-    // 4. 居家动作全景角色热区与呼吸微光点
     if (!isFittingOpen && def && (def.track === "baked" || def.track === "away")) {
       const anc = def.anchors[state.petId];
       if (anc && anc.c) {
@@ -1214,185 +2025,48 @@
       charHotspotEl.hidden = true;
       actionGlowEl.hidden = true;
     }
+    if (!dirtyLayerEl.hidden) positionDirtyFx();
   }
 
-  deskMirrorPropEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    sfx.tap();
-    enterFittingRoom();
-  });
-
+  deskMirrorPropEl.addEventListener("click", (ev) => { ev.stopPropagation(); sfx.tap(); enterFittingRoom(); });
   foldedOutfitPropEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    sfx.tap();
-    const name = getSetName(state.petId, state.savedSet[state.petId]) || "新衣服";
+    ev.stopPropagation(); sfx.tap();
+    const name = getSetName(state.petId, state.savedSet[state.petId]) || "外套";
     showSceneFeedback(`脱下来的「${name}」叠好放在床头啦`, "system");
   });
-
   charHotspotEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    sfx.tap();
+    ev.stopPropagation(); sfx.tap();
     const def = ROOM_STATES[state.roomState];
     if (def) showSceneFeedback(def.line, "dialogue");
   });
-
   actionGlowEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     const def = ROOM_STATES[state.roomState];
     if (!def) return;
-    const actKey = `${state.petId}:${state.roomState}`;
-    state.actedStates[actKey] = true;
+    state.actedStates[`${state.petId}:${state.roomState}`] = true;
     actionGlowEl.hidden = true;
     sfx.star();
-
-    let msg = def.actionFeedback;
     if (def.keepsakeId && !state.keepsakes.includes(def.keepsakeId)) {
       state.keepsakes.unshift(def.keepsakeId);
       tbAlbumDotEl.hidden = false;
-      const ks = KEPSAKE_DEFS[def.keepsakeId];
-      if (ks) showSceneFeedback(`纪念册收进了「${ks.name}」`, "system", "neutral", 2400);
     }
     animateStarsTo(state.stars + 3, 3);
-    if (msg) showSceneFeedback(msg, "dialogue", "neutral", 2600);
+    if (def.actionFeedback) showSceneFeedback(def.actionFeedback, "dialogue");
   });
 
-  // WebGL 桌面点击互动（点头歪头、点身大跳、横滑摸头、点空地跳跃避障）
-  let petDrag = null;
-  let lastPetRewardAt = 0;
-
-  function clientToPano(clientX, clientY) {
-    const rect = panoBoxEl.getBoundingClientRect();
-    if (!rect.width || !rect.height) return { x: CORK_HOME.x, y: CORK_HOME.y };
-    return {
-      x: ((clientX - rect.left) / rect.width) * PANO_W,
-      y: ((clientY - rect.top) / rect.height) * PANO_H
-    };
-  }
-
-  function clampSafeDeskTarget(px, py) {
-    // 避开左床盒 (x<1165)、咖啡杯圆心 (1815, 1095, r=195) 与前景卷笔刀
-    let x = clamp(px, 1185, 2120);
-    let y = clamp(py, 1035, 1430);
-    const dx = x - 1815, dy = y - 1095;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 205) {
-      const ang = Math.atan2(dy || 1, dx || -1);
-      x = clamp(1815 + Math.cos(ang) * 210, 1185, 2120);
-      y = clamp(1095 + Math.sin(ang) * 210, 1035, 1430);
-    }
-    if (x < 1230 && y > 1300) x = 1245;
-    return { x, y };
-  }
-
-  hitLayerEl.addEventListener("pointerdown", (ev) => {
-    if (!isWebGLActive()) return;
-    const pt = clientToPano(ev.clientX, ev.clientY);
-    const rt = petRuntimes[state.petId];
-    if (!rt) return;
-    const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
-    const topY = petPos.y - rt.cfg.feetY * S;
-    const halfW = 240 * S;
-    if (Math.abs(pt.x - petPos.x) <= halfW && pt.y >= topY && pt.y <= petPos.y + 30) {
-      petDrag = { x0: ev.clientX, y0: ev.clientY, pt0: pt, petting: false };
-    }
-  });
-
-  window.addEventListener("pointermove", (ev) => {
-    if (!petDrag || !isWebGLActive()) return;
-    const dx = ev.clientX - petDrag.x0;
-    if (Math.abs(dx) > 14) {
-      if (!petDrag.petting) {
-        petDrag.petting = true;
-        startAnim("pet", performance.now());
-      }
-      petLean = clamp(dx / 55, -1, 1);
-      const now = Date.now();
-      if (now - lastPetRewardAt > 8000) {
-        lastPetRewardAt = now;
-        sfx.star();
-        animateStarsTo(state.stars + 2, 2);
-        const lines = EMOTE_LINES[state.petId].cute;
-        showSceneFeedback(lines[Math.floor(Math.random() * lines.length)], "dialogue");
-      }
-    }
-  });
-
-  window.addEventListener("pointerup", (ev) => {
-    if (petDrag) {
-      const wasPetting = petDrag.petting;
-      const pt = petDrag.pt0;
-      petDrag = null;
-      petLean = 0;
-      if (wasPetting) {
-        startAnim("idle", performance.now());
-        return;
-      }
-      const rt = petRuntimes[state.petId];
-      if (rt) {
-        const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
-        const neckPanoY = petPos.y - (rt.cfg.feetY - rt.cfg.neck.y) * S;
-        if (pt.y < neckPanoY) {
-          sfx.tap();
-          startAnim("tilt", performance.now());
-          const kinds = ["laugh", "think", "cute"];
-          const k = kinds[Math.floor(Math.random() * kinds.length)];
-          triggerEmote(k, 1900);
-          const pool = EMOTE_LINES[state.petId][k];
-          showSceneFeedback(pool[Math.floor(Math.random() * pool.length)], "dialogue");
-        } else {
-          sfx.hop();
-          startAnim("jump", performance.now());
-          triggerEmote("laugh", 1700);
-        }
-      }
-      return;
-    }
-  });
-
-  hitLayerEl.addEventListener("click", (ev) => {
-    if (mousePan && mousePan.moved) return;
-    if (isFittingOpen || state.roomState !== "free_stand") return;
-    const pt = clientToPano(ev.clientX, ev.clientY);
-    const rt = petRuntimes[state.petId];
-    if (rt) {
-      const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
-      if (Math.abs(pt.x - petPos.x) <= 240 * S && pt.y >= petPos.y - rt.cfg.feetY * S && pt.y <= petPos.y + 30) {
-        return; // 由 pointerup 处理角色点击
-      }
-    }
-    if (pt.y < 970) return; // 墙面与窗户不触发跳跃
-
-    const dst = clampSafeDeskTarget(pt.x, pt.y);
-    sfx.hop();
-    const rip = document.createElement("span");
-    rip.className = "desk-ripple";
-    panoToBoxStyle(rip, dst.x, dst.y);
-    panoBoxEl.appendChild(rip);
-    setTimeout(() => rip.remove(), 600);
-
-    const dist = Math.hypot(dst.x - petPos.x, dst.y - petPos.y);
-    hopMove = {
-      x0: petPos.x, y0: petPos.y,
-      x1: dst.x, y1: dst.y,
-      t0: performance.now(),
-      dur: clamp(280 + dist * 0.42, 300, 620)
-    };
-  });
-
-  /* ---------- 13. 状态切换、左下信封与右下 3D 百宝箱 ---------- */
+  /* ---------- 16. 角色切换、状态切换与右下 3D 百宝箱 ---------- */
   function renderContextEntry() {
     const showEnvelope = state.unreadMail || state.roomState === "away";
     btnContextEntryEl.classList.toggle("scene-action-button--flat-envelope", showEnvelope);
     btnContextEntryEl.classList.toggle("scene-action-button--companion-chat", !showEnvelope);
     contextIconEl.classList.toggle("scene-action-icon-image--flat-envelope", showEnvelope);
     contextIconEl.classList.toggle("scene-action-icon-image--companion-chat", !showEnvelope);
-
     if (showEnvelope) {
-      contextIconEl.src = "./ui/envelope.png";
+      contextIconEl.src = "./living-room-dress/ui/envelope.png";
       contextUnreadDotEl.hidden = !state.unreadMail;
       letterPlaneFxEl.hidden = !state.unreadMail;
     } else {
-      contextIconEl.src = state.petId === "yutu" ? "./ui/chat_yutu.png" : "./ui/chat_koi.png";
+      contextIconEl.src = state.petId === "yutu" ? "./living-room-dress/ui/chat_yutu.png" : "./living-room-dress/ui/chat_koi.png";
       contextUnreadDotEl.hidden = true;
       letterPlaneFxEl.hidden = true;
     }
@@ -1400,39 +2074,56 @@
 
   function applyRoomState(nextKey, smoothScroll) {
     if (!ROOM_STATES[nextKey]) return;
+    if (nextKey !== "free_stand" && careUiMode !== "none") setCareUiMode("none");
     state.roomState = nextKey;
     const def = ROOM_STATES[nextKey];
     appEl.dataset.state = nextKey;
     appEl.classList.toggle("is-baked-action", def.track === "baked");
+    sleepZzEl.hidden = true;
 
     if (nextKey === "free_stand") {
       petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
       hopMove = null;
     }
-    if (nextKey === "away") {
-      state.unreadMail = true;
-    }
+    if (nextKey === "away") state.unreadMail = true;
 
     syncPanoramaImage(false);
     layoutScenePropsAndHotspots();
     renderContextEntry();
     renderMoodTab();
     updateDevTesterLabels();
-
     tbDeskToggleLabelEl.textContent = nextKey === "free_stand" ? "日常动作" : "唤回桌面";
-    tbSwitchPetLabelEl.textContent = state.petId === "yutu" ? "换锦鲤" : "换玉兔";
-
-    if (def.screen !== undefined) {
+    if (def.screen !== undefined && !isCustomBgActive()) {
       scrollToScreen(def.screen, smoothScroll !== false);
     }
   }
 
-  // 百宝箱开关动效
+  async function switchPet(nextPet) {
+    if (!catalog.pets[nextPet]) return;
+    state.petId = nextPet;
+    petFxHostEl.innerHTML = "";
+    sleepZzEl.hidden = true;
+    await initPet(nextPet);
+    if (state.savedSet[nextPet]) await ensureSetLoaded(petRuntimes[nextPet], state.savedSet[nextPet]);
+    startAnim("minihop", performance.now());
+    syncPanoramaImage(false);
+    layoutScenePropsAndHotspots();
+    renderMoodTab();
+    renderContextEntry();
+    updateDevTesterLabels();
+    if (careUiMode === "feed") renderSnackTray();
+    document.querySelectorAll("[data-fit-pet]").forEach((b) => b.classList.toggle("is-active", b.dataset.fitPet === nextPet));
+    if (isFittingOpen) {
+      renderWardrobeGrid();
+      applyFittingCameraTransform();
+    }
+    persistState();
+  }
+
   let toolboxOpen = false;
   function setToolboxOpen(open) {
     if (toolboxOpen === open) return;
     toolboxOpen = open;
-    sfx.tap();
     btnToolboxEl.setAttribute("aria-expanded", String(open));
     toolboxEl.setAttribute("aria-hidden", String(!open));
     actionDockEl.classList.toggle("scene-action-dock--toolbox-open", open);
@@ -1440,21 +2131,12 @@
     chestClosedEl.classList.toggle("companion-toolbox-button__lid--visible", !open);
     chestOpenEl.classList.toggle("companion-toolbox-button__lid--visible", open);
     triggerRebound(toolboxBtnMotionEl);
-
-    if (open) {
-      toolboxEl.className = "companion-toolbox companion-toolbox--opening";
-      setTimeout(() => {
-        if (toolboxOpen) toolboxEl.className = "companion-toolbox companion-toolbox--open";
-      }, 310);
-    } else {
-      toolboxEl.className = "companion-toolbox companion-toolbox--closing";
-      setTimeout(() => {
-        if (!toolboxOpen) toolboxEl.className = "companion-toolbox companion-toolbox--closed";
-      }, 170);
-    }
+    toolboxEl.className = open ? "companion-toolbox companion-toolbox--opening" : "companion-toolbox companion-toolbox--closing";
+    setTimeout(() => {
+      if (toolboxOpen === open) toolboxEl.className = "companion-toolbox companion-toolbox--" + (open ? "open" : "closed");
+    }, open ? 290 : 165);
   }
-
-  btnToolboxEl.addEventListener("click", () => setToolboxOpen(!toolboxOpen));
+  btnToolboxEl.addEventListener("click", () => { sfx.tap(); setToolboxOpen(!toolboxOpen); });
   toolboxDismissEl.addEventListener("click", () => setToolboxOpen(false));
 
   $("tb-btn-album").addEventListener("click", () => {
@@ -1462,10 +2144,10 @@
     tbAlbumDotEl.hidden = true;
     openKeepsakeAlbum("postcards");
   });
-
   $("tb-btn-desk-toggle").addEventListener("click", () => {
     setToolboxOpen(false);
     if (state.roomState === "free_stand") {
+      state.stageBgId = "living_room";
       const cycle = ["drawing", "sleep", "reading", "window", "gaming", "music", "lazy", "stare"];
       const pick = cycle[Math.floor(Math.random() * cycle.length)];
       applyRoomState(pick, true);
@@ -1474,17 +2156,13 @@
       applyRoomState("free_stand", true);
       sfx.hop();
       startAnim("minihop", performance.now());
-      showSceneFeedback("回到软木垫上啦，看看我的穿搭吧。", "dialogue");
+      showSceneFeedback("回到桌面软木垫啦～", "dialogue");
     }
   });
-
-  $("tb-btn-switch-pet").addEventListener("click", async () => {
+  $("tb-btn-wallpaper").addEventListener("click", async () => {
     setToolboxOpen(false);
-    const nextPet = state.petId === "yutu" ? "koi" : "yutu";
-    await switchPet(nextPet);
-    showSceneFeedback(nextPet === "yutu" ? "已切换伙伴：糯米团子" : "已切换伙伴：锦小鲤", "system");
+    await exportLockscreenWallpaperJpg();
   });
-
   $("tb-btn-sfx").addEventListener("click", () => {
     state.sfxOn = !state.sfxOn;
     tbSfxLabelEl.textContent = state.sfxOn ? "音效：开" : "音效：关";
@@ -1495,26 +2173,8 @@
   });
   tbSfxLabelEl.textContent = state.sfxOn ? "音效：开" : "音效：关";
 
-  async function switchPet(nextPet) {
-    state.petId = nextPet;
-    workingSetId = state.savedSet[nextPet];
-    await initPet(nextPet);
-    if (workingSetId) await ensureSetLoaded(petRuntimes[nextPet], workingSetId);
-    syncPanoramaImage(false);
-    layoutScenePropsAndHotspots();
-    renderMoodTab();
-    renderContextEntry();
-    updateDevTesterLabels();
-    document.querySelectorAll("[data-fit-pet]").forEach((b) => b.classList.toggle("is-active", b.dataset.fitPet === nextPet));
-    if (isFittingOpen) {
-      renderWardrobeGrid();
-      applyFittingCameraTransform();
-    }
-    persistState();
-  }
-
-  /* ---------- 14. 专属试衣间（同场景推镜 + 全身零遮挡安全框 + 先试后买） ---------- */
-  let preFittingState = "free_stand";
+  /* ---------- 17. 全量开放衣橱抽屉（套装 12/24 + 背景 12）与 780×1688 壁纸导出 ---------- */
+  let activeWardrobeTab = "items"; // "items" | "bgs"
 
   function applyFittingCameraTransform() {
     if (!isFittingOpen) {
@@ -1523,38 +2183,35 @@
     }
     scrollToPanoX(CORK_HOME.x, false);
     const rt = petRuntimes[state.petId];
-    const petPanoH = rt ? (rt.cfg.feetY * rt.cfg.baseScale * 0.92) : 520;
+    const petPanoH = rt ? (rt.cfg.feetY * rt.cfg.baseScale * 0.94) : 530;
     const petScreenH = petPanoH * geom.panoScale;
-
     const topClearY = 58;
     const sheetTopY = geom.vh * 0.59;
     const availH = Math.max(180, sheetTopY - topClearY);
-    const z = clamp((availH - 28) / Math.max(petScreenH, 1), 1.05, 1.32);
+    const z = clamp((availH - 26) / Math.max(petScreenH, 1), 1.04, 1.32);
 
     const petMidPanoY = CORK_HOME.y - petPanoH * 0.50;
     const curMidScreenY = geom.oy + petMidPanoY * geom.panoScale;
     const targetMidY = topClearY + availH * 0.53;
-    const ty = targetMidY - curMidScreenY;
-
     const originX = geom.ox + CORK_HOME.x * geom.panoScale;
+
     cameraRigEl.style.transformOrigin = `${originX.toFixed(1)}px ${curMidScreenY.toFixed(1)}px`;
-    cameraRigEl.style.transform = `translate3d(0px, ${ty.toFixed(1)}px, 0) scale(${z.toFixed(3)})`;
+    cameraRigEl.style.transform = `translate3d(0px, ${(targetMidY - curMidScreenY).toFixed(1)}px, 0) scale(${z.toFixed(3)})`;
   }
 
   async function enterFittingRoom() {
     if (isFittingOpen) return;
-    setToolboxOpen(false);
-    preFittingState = state.roomState === "fitting" ? "free_stand" : state.roomState;
+    if (state.roomState !== "free_stand") applyRoomState("free_stand", false);
     isFittingOpen = true;
-    workingSetId = state.savedSet[state.petId];
     petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
     hopMove = null;
+    sleepZzEl.hidden = true;
 
     await initPet(state.petId);
     appEl.classList.add("is-fitting");
-    appEl.classList.remove("is-baked-action");
     fittingTopbarEl.setAttribute("aria-hidden", "false");
     wardrobeSheetEl.setAttribute("aria-hidden", "false");
+    document.querySelectorAll("[data-fit-pet]").forEach((b) => b.classList.toggle("is-active", b.dataset.fitPet === state.petId));
 
     syncPanoramaImage(false);
     layoutScenePropsAndHotspots();
@@ -1564,210 +2221,202 @@
     startAnim("minihop", performance.now());
   }
 
-  function exitFittingRoom(restoreSaved) {
+  function exitFittingRoom() {
     if (!isFittingOpen) return;
-    const hadUnownedPreview = workingSetId && !state.owned[state.petId].includes(workingSetId);
-    if (restoreSaved) {
-      workingSetId = state.savedSet[state.petId];
-    }
     isFittingOpen = false;
     appEl.classList.remove("is-fitting");
     fittingTopbarEl.setAttribute("aria-hidden", "true");
     wardrobeSheetEl.setAttribute("aria-hidden", "true");
     cameraRigEl.style.transform = "none";
-
-    const backState = restoreSaved ? (preFittingState === "away" ? "free_stand" : preFittingState) : "free_stand";
-    applyRoomState(backState, true);
-
-    if (restoreSaved && hadUnownedPreview) {
-      showSceneFeedback("已退出试穿，恢复原穿搭", "system");
-    }
+    layoutScenePropsAndHotspots();
+    renderMoodTab();
+    scrollToPanoX(CORK_HOME.x, true);
   }
 
-  btnOpenFittingEl.addEventListener("click", () => {
+  $("btn-exit-fitting").addEventListener("click", () => { sfx.tap(); exitFittingRoom(); });
+  $("sheet-grabber").addEventListener("click", () => { sfx.tap(); exitFittingRoom(); });
+  $("btn-confirm-outfit").addEventListener("click", () => {
     sfx.tap();
-    triggerRebound(btnOpenFittingEl);
-    enterFittingRoom();
-  });
-  $("btn-exit-fitting").addEventListener("click", () => {
-    sfx.tap();
-    exitFittingRoom(true);
-  });
-  $("sheet-grabber").addEventListener("click", () => {
-    sfx.tap();
-    exitFittingRoom(true);
+    exitFittingRoom();
+    const eqName = getSetName(state.petId, state.savedSet[state.petId]);
+    showSceneFeedback(eqName ? `已换好「${eqName}」` : "已恢复原生毛绒造型", "system");
   });
 
   document.querySelectorAll("[data-fit-pet]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       sfx.tap();
       await switchPet(btn.dataset.fitPet);
-      startAnim("minihop", performance.now());
     });
   });
 
-  document.querySelectorAll(".wardrobe-filter").forEach((btn) => {
+  document.querySelectorAll("[data-wtab]").forEach((btn) => {
     btn.addEventListener("click", () => {
       sfx.tap();
-      activeWardrobeFilter = btn.dataset.filter;
-      document.querySelectorAll(".wardrobe-filter").forEach((b) => b.classList.toggle("is-active", b === btn));
+      activeWardrobeTab = btn.dataset.wtab;
+      document.querySelectorAll("[data-wtab]").forEach((b) => b.classList.toggle("is-active", b === btn));
       renderWardrobeGrid();
     });
   });
 
   function renderWardrobeGrid() {
-    if (!catalog) return;
     const pCfg = catalog.pets[state.petId];
-    const ownedList = state.owned[state.petId] || [];
+    if (!pCfg) return;
+    const bgTotal = 1 + (catalog.backgrounds ? catalog.backgrounds.length : 0);
+    tabWardrobeItemsEl.textContent = `套装 (${pCfg.items.length})`;
+    tabWardrobeBgsEl.textContent = `背景 (${bgTotal})`;
     wardrobeGridEl.innerHTML = "";
 
-    // 原生毛绒卡片
-    if (activeWardrobeFilter !== "locked") {
+    if (activeWardrobeTab === "items") {
+      const curSet = state.savedSet[state.petId];
       const bareCard = document.createElement("button");
       bareCard.type = "button";
-      bareCard.className = "outfit-card" + (!workingSetId ? " is-selected" : "");
+      bareCard.className = "outfit-card" + (!curSet ? " is-selected" : "");
       bareCard.innerHTML =
         `<span class="outfit-card__plush-dot">原生毛绒</span>` +
         `<span class="outfit-card__name">不穿外套</span>` +
-        (!workingSetId ? `<span class="outfit-card__check">✓</span>` : "");
+        (!curSet ? `<span class="outfit-card__check">✓</span>` : "");
       bareCard.addEventListener("click", () => {
         sfx.tap();
-        workingSetId = null;
-        startAnim("tilt", performance.now());
+        state.savedSet[state.petId] = null;
+        persistState();
+        startAnim("minihop", performance.now());
         renderWardrobeGrid();
       });
       wardrobeGridEl.appendChild(bareCard);
-    }
 
-    pCfg.items.forEach((item, idx) => {
-      const isOwned = ownedList.includes(item.id);
-      if (activeWardrobeFilter === "owned" && !isOwned) return;
-      if (activeWardrobeFilter === "locked" && isOwned) return;
+      pCfg.items.forEach((item) => {
+        const selected = state.savedSet[state.petId] === item.id;
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "outfit-card" + (selected ? " is-selected" : "");
+        card.innerHTML =
+          (selected ? `<span class="outfit-card__check">✓</span>` : "") +
+          `<img class="outfit-card__thumb" src="${sharedUrl(item.thumb)}" alt="${item.name}" loading="lazy" />` +
+          `<span class="outfit-card__name">${item.name}</span>`;
 
-      const price = setPriceFor(item, idx);
-      const selected = workingSetId === item.id;
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "outfit-card" + (selected ? " is-selected" : "");
-      card.innerHTML =
-        (!isOwned ? `<span class="outfit-card__price"><img src="./ui/star_neutral.png" alt="" />${price}</span>` : "") +
-        (selected ? `<span class="outfit-card__check">✓</span>` : "") +
-        `<img class="outfit-card__thumb" src="${sharedUrl(item.thumb)}" alt="${item.name}" loading="lazy" />` +
-        `<span class="outfit-card__name">${item.name}</span>`;
-
-      card.addEventListener("click", async () => {
-        sfx.tap();
-        if (workingSetId === item.id && isOwned) {
-          workingSetId = null;
-        } else {
-          workingSetId = item.id;
-          const rt = petRuntimes[state.petId];
-          await ensureSetLoaded(rt, item.id);
-          sfx.hop();
-          startAnim("minihop", performance.now());
-          triggerEmote("cute", 1800);
-          if (!isOwned) {
-            showSceneFeedback(`正在试穿「${item.name}」，喜欢就帮我留下来吧。`, "dialogue");
+        card.addEventListener("click", async () => {
+          sfx.tap();
+          if (state.savedSet[state.petId] === item.id) {
+            state.savedSet[state.petId] = null;
+          } else {
+            state.savedSet[state.petId] = item.id;
+            await ensureSetLoaded(petRuntimes[state.petId], item.id);
+            sfx.hop();
+            startAnim("minihop", performance.now());
           }
-        }
-        renderWardrobeGrid();
+          persistState();
+          renderWardrobeGrid();
+        });
+        wardrobeGridEl.appendChild(card);
       });
-      wardrobeGridEl.appendChild(card);
-    });
+    } else {
+      // 背景页签：破壳起居室实景 + 11 套插画小屋背景
+      const allBgs = [{ id: "living_room", name: "破壳起居室", thumbUrl: `./living-room-dress/panoramas/empty_${state.period}.png` }]
+        .concat((catalog.backgrounds || []).map((b) => ({ id: b.id, name: b.name, thumbUrl: sharedUrl(b.file) })));
 
-    updateWardrobeFooter(pCfg, ownedList);
+      allBgs.forEach((bg) => {
+        const selected = state.stageBgId === bg.id;
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "outfit-card" + (selected ? " is-selected" : "");
+        card.innerHTML =
+          (selected ? `<span class="outfit-card__check">✓</span>` : "") +
+          `<img class="outfit-card__bg-thumb" src="${bg.thumbUrl}" alt="${bg.name}" loading="lazy" />` +
+          `<span class="outfit-card__name">${bg.name}</span>`;
+        card.addEventListener("click", () => {
+          sfx.tap();
+          state.stageBgId = bg.id;
+          persistState();
+          syncCustomStageBg();
+          layoutScenePropsAndHotspots();
+          renderWardrobeGrid();
+        });
+        wardrobeGridEl.appendChild(card);
+      });
+    }
   }
 
-  function updateWardrobeFooter(pCfg, ownedList) {
-    const isOwned = !workingSetId || ownedList.includes(workingSetId);
-    if (isOwned) {
-      btnRevertOutfitEl.hidden = true;
-      btnConfirmOutfitEl.disabled = false;
-      confirmOutfitTextEl.textContent = "穿好啦";
-      return;
-    }
-    const idx = pCfg.items.findIndex((x) => x.id === workingSetId);
-    const item = pCfg.items[idx];
-    const price = setPriceFor(item, idx);
-    btnRevertOutfitEl.hidden = false;
-
-    if (state.stars >= price) {
-      btnConfirmOutfitEl.disabled = false;
-      confirmOutfitTextEl.textContent = `用 ★ ${price} 解锁并换上`;
-    } else {
-      btnConfirmOutfitEl.disabled = true;
-      confirmOutfitTextEl.textContent = `还差 ★ ${price - state.stars}（拆来信可得）`;
-    }
-  }
-
-  btnRevertOutfitEl.addEventListener("click", () => {
-    sfx.tap();
-    workingSetId = state.savedSet[state.petId];
-    renderWardrobeGrid();
-    showSceneFeedback("已还原为原来的穿搭", "system");
-  });
-
-  btnConfirmOutfitEl.addEventListener("click", () => {
-    const pCfg = catalog.pets[state.petId];
-    const ownedList = state.owned[state.petId];
-    const isOwned = !workingSetId || ownedList.includes(workingSetId);
-
-    if (!isOwned) {
-      const idx = pCfg.items.findIndex((x) => x.id === workingSetId);
-      const item = pCfg.items[idx];
-      const price = setPriceFor(item, idx);
-      if (state.stars < price) return;
-      ownedList.push(workingSetId);
-      state.savedSet[state.petId] = workingSetId;
-      sfx.unlock();
-      animateStarsTo(state.stars - price, 0);
-      exitFittingRoom(false);
-      startAnim("jump", performance.now());
-      triggerEmote("cute", 2200);
-      showSceneFeedback(`已解锁并换上「${item.name}」`, "system");
-    } else {
-      state.savedSet[state.petId] = workingSetId;
-      persistState();
-      sfx.tap();
-      exitFittingRoom(false);
-      startAnim("minihop", performance.now());
-      const outfitName = getSetName(state.petId, workingSetId);
-      showSceneFeedback(outfitName ? `已换上「${outfitName}」` : "已恢复原生毛绒造型", "system");
-    }
-  });
-
-  $("btn-snap-lookbook").addEventListener("click", async () => {
-    sfx.tap();
-    // 若试穿的是已拥有套装，先同步为当前定妆；若未拥有则按已拥有正式穿搭拍摄
-    const ownedList = state.owned[state.petId];
-    if (!workingSetId || ownedList.includes(workingSetId)) {
-      state.savedSet[state.petId] = workingSetId;
-      persistState();
-    }
-    exitFittingRoom(true);
-    await openLetterOverlay("studio_desk", false);
-  });
-
-  /* ---------- 15. 零 Token 带妆插画拍立得合成 + 红线折角信笺 ---------- */
-  const imgObjCache = new Map();
+  // 复用 wallpaperExporter.js 规格导出 780×1688 高清手机锁屏壁纸
+  const htmlImgCache = new Map();
   function loadHtmlImg(src) {
-    if (imgObjCache.has(src)) return Promise.resolve(imgObjCache.get(src));
+    if (htmlImgCache.has(src)) return Promise.resolve(htmlImgCache.get(src));
     return new Promise((resolve, reject) => {
       const im = new Image();
-      im.onload = () => { imgObjCache.set(src, im); resolve(im); };
+      im.crossOrigin = "anonymous";
+      im.onload = () => { htmlImgCache.set(src, im); resolve(im); };
       im.onerror = reject;
       im.src = src;
     });
   }
 
+  async function exportLockscreenWallpaperJpg() {
+    sfx.star();
+    const W = 780, H = 1688;
+    const pCfg = catalog.pets[state.petId];
+    const setId = state.savedSet[state.petId];
+    const setItem = setId ? pCfg.items.find((x) => x.id === setId) : null;
+    const bodyUrl = sharedUrl(setItem ? setItem.tex : pCfg.textures.base);
+
+    let bgUrl = `./living-room-dress/panoramas/empty_${state.period}.png`;
+    let shadowRgba = "rgba(52, 32, 16, 0.34)";
+    let cropCenter = true;
+    if (state.stageBgId && state.stageBgId !== "living_room") {
+      const foundBg = (catalog.backgrounds || []).find((b) => b.id === state.stageBgId);
+      if (foundBg) {
+        bgUrl = sharedUrl(foundBg.file);
+        shadowRgba = foundBg.exportShadowRgba || shadowRgba;
+        cropCenter = false;
+      }
+    }
+
+    const [bgImg, bodyImg] = await Promise.all([loadHtmlImg(bgUrl), loadHtmlImg(bodyUrl)]);
+    const cnv = document.createElement("canvas");
+    cnv.width = W; cnv.height = H;
+    const ctx = cnv.getContext("2d");
+
+    const sc = Math.max(W / bgImg.width, H / bgImg.height);
+    const nw = bgImg.width * sc, nh = bgImg.height * sc;
+    ctx.drawImage(bgImg, cropCenter ? -(nw - W) * 0.49 : (W - nw) / 2, (H - nh) / 2, nw, nh);
+
+    const fx = pCfg.exportFeetX || 390, fy = pCfg.exportFeetY || 1312;
+    ctx.save();
+    ctx.translate(fx + 10, fy - 4);
+    ctx.scale(1, 0.28);
+    const grad = ctx.createRadialGradient(0, 0, 12, 0, 0, 170);
+    grad.addColorStop(0, shadowRgba);
+    grad.addColorStop(0.55, "rgba(40, 26, 16, 0.12)");
+    grad.addColorStop(1, "rgba(40, 26, 16, 0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(0, 0, 170, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    const es = pCfg.exportScale || (state.petId === "yutu" ? 0.7 : 0.88);
+    ctx.drawImage(bodyImg, fx - pCfg.cx * es, fy - pCfg.feetY * es, pCfg.canvasW * es, pCfg.canvasH * es);
+
+    const a = document.createElement("a");
+    a.href = cnv.toDataURL("image/jpeg", 0.92);
+    a.download = `eggbabe_wallpaper_${state.petId}_${state.stageBgId}.jpg`;
+    a.click();
+    showSceneFeedback("780×1688 高清手机壁纸已保存", "system");
+  }
+
+  $("btn-export-wallpaper").addEventListener("click", exportLockscreenWallpaperJpg);
+  $("btn-snap-lookbook").addEventListener("click", async () => {
+    sfx.tap();
+    exitFittingRoom();
+    const targetScene = state.stageBgId && state.stageBgId !== "living_room" ? state.stageBgId : "living_room";
+    await openLetterOverlay(targetScene, false);
+  });
+
+  /* ---------- 18. 零 Token 带妆插画拍立得 × 红线折角信笺 × 纪念册 ---------- */
   const postcardArtCache = new Map();
 
-  // 生成纯净 800×920 画心（严禁在画心内绘制任何文字框！）
   async function composeCleanIllustrationUrl(petId, setId, sceneId) {
-    const cacheKey = `${petId}|${setId || "bare"}|${sceneId}`;
+    const cacheKey = `${petId}|${setId || "bare"}|${sceneId}|${state.period}`;
     if (postcardArtCache.has(cacheKey)) return postcardArtCache.get(cacheKey);
 
-    const sc = POSTCARD_SCENES.find((s) => s.id === sceneId) || POSTCARD_SCENES[0];
+    const scenes = getAllPostcardScenes();
+    const sc = scenes.find((s) => s.id === sceneId) || scenes[0];
     const rt = await initPet(petId);
     if (setId) await ensureSetLoaded(rt, setId);
     const bgImg = await loadHtmlImg(sc.src);
@@ -1777,57 +2426,42 @@
     out.width = W; out.height = H;
     const ctx = out.getContext("2d");
 
-    // 1. 远景插画底图 cover 裁切
     const bScale = Math.max(W / bgImg.width, H / bgImg.height);
     const bw = bgImg.width * bScale, bh = bgImg.height * bScale;
-    const bx = sc.cropCenter ? -(bw - W) * 0.49 : (W - bw) / 2;
-    const by = (H - bh) / 2;
-    ctx.drawImage(bgImg, bx, by, bw, bh);
+    ctx.drawImage(bgImg, sc.cropCenter ? -(bw - W) * 0.49 : (W - bw) / 2, (H - bh) / 2, bw, bh);
 
-    // 2. 地面双层径向接触软阴影
-    const footY = H * sc.anchorY;
+    const footY = H * 0.86;
     const gSoft = ctx.createRadialGradient(W * 0.5, footY + 6, 8, W * 0.5, footY + 6, 155);
-    gSoft.addColorStop(0, sc.shadowRgba || "rgba(48,32,20,0.30)");
+    gSoft.addColorStop(0, sc.shadowRgba);
     gSoft.addColorStop(1, "rgba(0,0,0,0)");
     ctx.save();
     ctx.translate(W * 0.5, footY + 6);
     ctx.scale(1, 0.30);
     ctx.translate(-W * 0.5, -(footY + 6));
     ctx.fillStyle = gSoft;
-    ctx.beginPath();
-    ctx.arc(W * 0.5, footY + 6, 155, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(W * 0.5, footY + 6, 155, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // 3. 离屏 WebGL 确定性姿态快照（重置弹簧确保 100% 踩实地面）
     spring.t = -1;
-    let snapPose = P({ headRot: 5.5, earL: 3, earR: 6 });
+    let snapPose = makePose({ headRot: 5.5, earL: 3, earR: 6 });
     let happy = false;
-    let emote = null;
-    if (sc.pose === "cute") { snapPose = P({ headRot: -4, sy: 0.98, sx: 1.02 }); happy = true; emote = "cute"; }
-    else if (sc.pose === "jump") { snapPose = P({ hopY: -36, sy: 1.03, sx: 0.97, earL: 6, earR: -6 }); happy = true; emote = "laugh"; }
+    let faceId = null;
+    if (sc.pose === "cute") { snapPose = makePose({ headRot: -4, sy: 0.98, sx: 1.02 }); happy = true; }
+    else if (sc.pose === "jump") { snapPose = makePose({ hopY: -36, sy: 1.03, sx: 0.97, earL: 6, earR: -6 }); happy = true; faceId = petId === "koi" ? "laugh" : null; }
 
     renderPetFrame(rt, snapPose, setId, performance.now(), {
-      x: PANO_W * 0.5,
-      y: PANO_H * 0.84,
-      scaleK: sc.scaleK,
-      happy,
-      emote
+      x: PANO_W * 0.5, y: PANO_H * 0.84, scaleK: 1.32, happy, faceId
     });
 
-    // 4. 叠入角色并施加 source-atop 场景环境光柔光层
     const petLayer = document.createElement("canvas");
     petLayer.width = W; petLayer.height = H;
     const pCtx = petLayer.getContext("2d");
     const cropH = glCanvas.height;
     const cropW = Math.round(cropH * (W / H));
-    const cropX = Math.round((glCanvas.width - cropW) / 2);
-    pCtx.drawImage(glCanvas, cropX, 0, cropW, cropH, 0, Math.round(H * (sc.anchorY - 0.84)), W, H);
-
+    pCtx.drawImage(glCanvas, Math.round((glCanvas.width - cropW) / 2), 0, cropW, cropH, 0, Math.round(H * 0.02), W, H);
     pCtx.globalCompositeOperation = "source-atop";
     pCtx.fillStyle = sc.tint;
     pCtx.fillRect(0, 0, W, H);
-
     ctx.drawImage(petLayer, 0, 0);
 
     const url = out.toDataURL("image/jpeg", 0.90);
@@ -1835,11 +2469,11 @@
     return url;
   }
 
-  // 导出带完整 #FFFDF8 拍立得白框、穿搭签名与手记的分享长图 JPG
   async function exportFullPolaroidCardJpg(meta) {
     const artUrl = await composeCleanIllustrationUrl(meta.petId, meta.setId, meta.sceneId);
     const artImg = await loadHtmlImg(artUrl);
-    const sc = POSTCARD_SCENES.find((s) => s.id === meta.sceneId) || POSTCARD_SCENES[0];
+    const scenes = getAllPostcardScenes();
+    const sc = scenes.find((s) => s.id === meta.sceneId) || scenes[0];
     const outfitName = getSetName(meta.petId, meta.setId) || "原生毛绒";
     const story = sc.copy[meta.petId];
 
@@ -1867,11 +2501,8 @@
     for (const ch of story) {
       if (c.measureText(line + ch).width > 790) {
         c.fillText(line, 44, y);
-        line = ch;
-        y += 36;
-      } else {
-        line += ch;
-      }
+        line = ch; y += 36;
+      } else line += ch;
     }
     if (line) c.fillText(line, 44, y);
 
@@ -1888,46 +2519,31 @@
   let activeLetterMeta = null;
   let letterGivesStar = false;
 
-  function renderPostcardScenePills(selectedId) {
-    postcardScenePillsEl.innerHTML = "";
-    POSTCARD_SCENES.forEach((sc) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "postcard-scene-pill" + (sc.id === selectedId ? " is-active" : "");
-      b.textContent = sc.label;
-      b.addEventListener("click", async () => {
-        sfx.tap();
-        await updateLetterScene(sc.id);
-      });
-      postcardScenePillsEl.appendChild(b);
-    });
-  }
-
   async function updateLetterScene(sceneId) {
-    const sc = POSTCARD_SCENES.find((s) => s.id === sceneId) || POSTCARD_SCENES[0];
+    const scenes = getAllPostcardScenes();
+    const sc = scenes.find((s) => s.id === sceneId) || scenes[0];
     const petId = state.petId;
     const setId = state.savedSet[petId];
     const outfitName = getSetName(petId, setId) || "原生毛绒";
     const now = new Date();
     const dateText = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, "0")}.${String(now.getDate()).padStart(2, "0")}`;
 
-    activeLetterMeta = {
-      id: `pc_${Date.now()}`,
-      sceneId: sc.id,
-      petId,
-      setId,
-      dateText,
-      createdAt: Date.now()
-    };
+    activeLetterMeta = { id: `pc_${Date.now()}`, sceneId: sc.id, petId, setId, dateText, createdAt: Date.now() };
+    postcardScenePillsEl.innerHTML = "";
+    scenes.forEach((item) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "postcard-scene-pill" + (item.id === sc.id ? " is-active" : "");
+      b.textContent = item.label;
+      b.addEventListener("click", () => { sfx.tap(); updateLetterScene(item.id); });
+      postcardScenePillsEl.appendChild(b);
+    });
 
-    renderPostcardScenePills(sc.id);
     letterTitleEl.textContent = `寄自 · ${sc.label}`;
     letterLineEl.textContent = `“${sc.copy[petId]}”`;
     polaroidPlaceEl.textContent = sc.label;
     polaroidOutfitEl.textContent = `身穿 · ${outfitName}`;
-
-    const artUrl = await composeCleanIllustrationUrl(petId, setId, sc.id);
-    letterPolaroidImgEl.src = artUrl;
+    letterPolaroidImgEl.src = await composeCleanIllustrationUrl(petId, setId, sc.id);
   }
 
   async function openLetterOverlay(defaultSceneId, awardUnreadStars) {
@@ -1937,37 +2553,22 @@
       letterAwardPlusEl.textContent = "+8";
       sfx.star();
     }
-    collectLetterTextEl.textContent = "收下";
     letterOverlayEl.hidden = false;
-    await updateLetterScene(defaultSceneId || POSTCARD_SCENES[0].id);
+    await updateLetterScene(defaultSceneId || "bg_sunset_meadow");
   }
 
   btnContextEntryEl.addEventListener("click", async () => {
     sfx.tap();
     triggerRebound(btnContextEntryEl);
-    if (state.unreadMail || state.roomState === "away") {
-      await openLetterOverlay(POSTCARD_SCENES[0].id, state.unreadMail);
-    } else {
-      const lines = [
-        "今天也想穿好看的衣服去拍一张新的拍立得给你。",
-        "点右下衣架可以帮我试新衣，或者去百宝箱翻翻纪念册吧。"
-      ];
-      showSceneFeedback(lines[Math.floor(Math.random() * lines.length)], "dialogue");
-    }
+    await openLetterOverlay(state.stageBgId !== "living_room" ? state.stageBgId : "bg_sunset_meadow", state.unreadMail);
   });
-
-  $("btn-close-letter").addEventListener("click", () => {
-    sfx.tap();
-    letterOverlayEl.hidden = true;
-  });
-
+  $("btn-close-letter").addEventListener("click", () => { sfx.tap(); letterOverlayEl.hidden = true; });
   $("btn-download-polaroid").addEventListener("click", async () => {
     if (!activeLetterMeta) return;
     sfx.tap();
     await exportFullPolaroidCardJpg(activeLetterMeta);
-    showSceneFeedback("相片已导出保存", "system");
+    showSceneFeedback("拍立得相片已保存", "system");
   });
-
   $("btn-collect-letter").addEventListener("click", async () => {
     if (!activeLetterMeta) return;
     sfx.star();
@@ -1978,41 +2579,30 @@
 
     const artUrl = await composeCleanIllustrationUrl(activeLetterMeta.petId, activeLetterMeta.setId, activeLetterMeta.sceneId);
     wallPolaroidImgEl.src = artUrl;
-    wallPolaroidEl.hidden = false;
-
     letterOverlayEl.hidden = true;
-    if (state.roomState === "away") {
-      applyRoomState("free_stand", true);
-    } else {
-      renderContextEntry();
-    }
 
-    if (letterGivesStar) {
-      animateStarsTo(state.stars + 8, 8);
-    } else {
-      persistState();
+    if (state.roomState === "away") applyRoomState("free_stand", true);
+    else {
+      renderContextEntry();
+      layoutScenePropsAndHotspots();
     }
-    showSceneFeedback("明信片已收进纪念册，并挂上了房间白墙", "system");
+    if (letterGivesStar) animateStarsTo(state.stars + 8, 8);
+    else persistState();
+    showSceneFeedback("明信片已收进纪念册", "system");
   });
 
   wallPolaroidEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    sfx.tap();
-    if (state.postcards.length > 0) {
-      openDetailView("postcard", state.postcards[0]);
-    }
+    ev.stopPropagation(); sfx.tap();
+    if (state.postcards.length > 0) openDetailView("postcard", state.postcards[0]);
   });
 
-  /* ---------- 16. 全屏 #FAFAF8 纪念册与详情页（复刻 keepsake-album） ---------- */
+  /* ---------- 19. 全屏 #FAFAF8 纪念册与详情页 ---------- */
   let currentAlbumTab = "postcards";
   let activeDetailPostcard = null;
 
   async function renderAlbumGrid() {
-    document.querySelectorAll("[data-album-tab]").forEach((t) => {
-      t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab);
-    });
+    document.querySelectorAll("[data-album-tab]").forEach((t) => t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab));
     keepsakeGridEl.innerHTML = "";
-
     if (currentAlbumTab === "keepsakes") {
       const list = state.keepsakes.map((id) => KEPSAKE_DEFS[id]).filter(Boolean);
       keepsakeEmptyEl.hidden = list.length > 0;
@@ -2021,17 +2611,15 @@
         cell.type = "button";
         cell.className = "keepsake-cell keepsake-cell--keepsake";
         cell.innerHTML = `<div class="keepsake-cell__media"><img src="${ks.img}" alt="${ks.name}" /></div><div class="keepsake-cell__label">${ks.name}</div>`;
-        cell.addEventListener("click", () => {
-          sfx.tap();
-          openDetailView("keepsake", ks);
-        });
+        cell.addEventListener("click", () => { sfx.tap(); openDetailView("keepsake", ks); });
         keepsakeGridEl.appendChild(cell);
       });
     } else {
       const list = state.postcards;
+      const scenes = getAllPostcardScenes();
       keepsakeEmptyEl.hidden = list.length > 0;
-      for (const pc of list) {
-        const sc = POSTCARD_SCENES.find((s) => s.id === pc.sceneId) || POSTCARD_SCENES[0];
+      list.forEach((pc) => {
+        const sc = scenes.find((s) => s.id === pc.sceneId) || scenes[0];
         const cell = document.createElement("button");
         cell.type = "button";
         cell.className = "keepsake-cell keepsake-cell--postcard";
@@ -2040,12 +2628,9 @@
           const im = cell.querySelector("img");
           if (im) im.src = url;
         });
-        cell.addEventListener("click", () => {
-          sfx.tap();
-          openDetailView("postcard", pc);
-        });
+        cell.addEventListener("click", () => { sfx.tap(); openDetailView("postcard", pc); });
         keepsakeGridEl.appendChild(cell);
-      }
+      });
     }
   }
 
@@ -2068,7 +2653,8 @@
       detailDownloadWrapEl.hidden = true;
     } else {
       activeDetailPostcard = item;
-      const sc = POSTCARD_SCENES.find((s) => s.id === item.sceneId) || POSTCARD_SCENES[0];
+      const scenes = getAllPostcardScenes();
+      const sc = scenes.find((s) => s.id === item.sceneId) || scenes[0];
       const outfitName = getSetName(item.petId, item.setId) || "原生毛绒";
       detailNavTitleEl.textContent = "明信片";
       detailHeroImgEl.src = await composeCleanIllustrationUrl(item.petId, item.setId, item.sceneId);
@@ -2080,24 +2666,9 @@
     }
   }
 
-  document.querySelectorAll("[data-album-tab]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      sfx.tap();
-      currentAlbumTab = btn.dataset.albumTab;
-      renderAlbumGrid();
-    });
-  });
-
-  $("btn-close-album").addEventListener("click", () => {
-    sfx.tap();
-    albumViewEl.hidden = true;
-  });
-
-  $("btn-close-detail").addEventListener("click", () => {
-    sfx.tap();
-    detailViewEl.hidden = true;
-  });
-
+  document.querySelectorAll("[data-album-tab]").forEach((b) => b.addEventListener("click", () => { sfx.tap(); currentAlbumTab = b.dataset.albumTab; renderAlbumGrid(); }));
+  $("btn-close-album").addEventListener("click", () => { sfx.tap(); albumViewEl.hidden = true; });
+  $("btn-close-detail").addEventListener("click", () => { sfx.tap(); detailViewEl.hidden = true; });
   $("btn-detail-download").addEventListener("click", async () => {
     if (!activeDetailPostcard) return;
     sfx.tap();
@@ -2105,16 +2676,11 @@
     showSceneFeedback("高清拍立得已保存", "system");
   });
 
-  /* ---------- 17. 右上 DEV-ONLY 验收工具菜单绑定 ---------- */
+  /* ---------- 20. 右上 DEV-ONLY 验收工具菜单 ---------- */
   function buildDevTesterMenus() {
-    const periodOpts = [
-      { key: "day", label: "白天" },
-      { key: "sunset", label: "落日" },
-      { key: "night", label: "黑夜" }
-    ];
     const menuPeriod = $("menu-period");
     menuPeriod.innerHTML = "";
-    periodOpts.forEach((o) => {
+    [{ key: "day", label: "白天" }, { key: "sunset", label: "落日" }, { key: "night", label: "黑夜" }].forEach((o) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "tester-option" + (state.period === o.key ? " tester-option--active" : "");
@@ -2137,6 +2703,7 @@
       b.className = "tester-option" + (state.roomState === st.key ? " tester-option--active" : "");
       b.innerHTML = `<span>${st.label}</span><span>${state.roomState === st.key ? "✓" : ""}</span>`;
       b.addEventListener("click", () => {
+        if (st.key !== "free_stand") state.stageBgId = "living_room";
         applyRoomState(st.key, true);
         closeAllTesterMenus();
         buildDevTesterMenus();
@@ -2146,7 +2713,7 @@
 
     const menuPet = $("menu-pet");
     menuPet.innerHTML = "";
-    [{ key: "yutu", label: "玉兔" }, { key: "koi", label: "锦鲤" }].forEach((p) => {
+    [{ key: "koi", label: "锦鲤 (12套)" }, { key: "yutu", label: "玉兔 (24套)" }].forEach((p) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "tester-option" + (state.petId === p.key ? " tester-option--active" : "");
@@ -2159,20 +2726,18 @@
       menuPet.appendChild(b);
     });
 
-    const menuMood = $("menu-mood");
-    menuMood.innerHTML = "";
-    Object.values(DAILY_MOODS).forEach((m) => {
+    const menuCare = $("menu-care");
+    menuCare.innerHTML = "";
+    [
+      { label: "模拟变饿 + 变脏", fn: () => { ["koi", "yutu"].forEach((id) => { careAll[id].hunger = 18; careAll[id].hygiene = 18; }); saveCareAll(); renderMoodTab(); showSceneFeedback("已模拟 8 小时后变饿变脏提醒", "system"); } },
+      { label: "恢复满状态", fn: () => { ["koi", "yutu"].forEach((id) => { careAll[id].hunger = 95; careAll[id].hygiene = 98; }); saveCareAll(); renderMoodTab(); showSceneFeedback("已恢复饱满干净状态", "system"); } }
+    ].forEach((act) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "tester-option" + (state.moodKey === m.key ? " tester-option--active" : "");
-      b.innerHTML = `<span>${m.icon} ${m.label}</span><span>${state.moodKey === m.key ? "✓" : ""}</span>`;
-      b.addEventListener("click", () => {
-        state.moodKey = m.key;
-        renderMoodTab();
-        closeAllTesterMenus();
-        buildDevTesterMenus();
-      });
-      menuMood.appendChild(b);
+      b.className = "tester-option";
+      b.innerHTML = `<span>${act.label}</span>`;
+      b.addEventListener("click", () => { act.fn(); closeAllTesterMenus(); });
+      menuCare.appendChild(b);
     });
     updateDevTesterLabels();
   }
@@ -2182,49 +2747,45 @@
     $("tester-period-label").textContent = pMap[state.period] || "白天";
     $("tester-state-label").textContent = (ROOM_STATES[state.roomState] || ROOM_STATES.free_stand).label;
     $("tester-pet-label").textContent = state.petId === "yutu" ? "玉兔" : "锦鲤";
-    const m = DAILY_MOODS[state.moodKey] || DAILY_MOODS.CURIOSITY;
-    $("tester-mood-label").textContent = `${m.icon} ${m.label}`;
   }
 
   function closeAllTesterMenus() {
-    ["menu-period", "menu-state", "menu-pet", "menu-mood"].forEach((id) => { $(id).hidden = true; });
+    ["menu-period", "menu-state", "menu-pet", "menu-care"].forEach((id) => { $(id).hidden = true; });
   }
-
   btnAcceptanceToggleEl.addEventListener("click", () => {
     const open = acceptanceStackEl.hidden;
     acceptanceStackEl.hidden = !open;
     acceptanceChevronEl.textContent = open ? "⌃" : "⌄";
     if (!open) closeAllTesterMenus();
   });
-
   document.querySelectorAll("[data-tester]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const id = "menu-" + btn.dataset.tester;
-      const target = $(id);
+      const target = $("menu-" + btn.dataset.tester);
       const wasHidden = target.hidden;
       closeAllTesterMenus();
       target.hidden = !wasHidden;
     });
   });
 
-  /* ---------- 18. 启动初始化 ---------- */
+  /* ---------- 21. 启动流程 ---------- */
   window.addEventListener("resize", updateViewportGeometry);
 
   async function boot() {
     updateViewportGeometry();
-    const res = await fetch("../assets/shared/catalog.json");
-    catalog = await res.json();
+    // 后台尝试拉取最新远程 catalog.json 热更新（失败静默使用内置快照）
+    fetch(sharedUrl("assets/shared/catalog.json")).then((r) => r.ok ? r.json() : null).then((remote) => {
+      if (remote && remote.pets && remote.backgrounds) catalog = remote;
+    }).catch(() => {});
 
     await initPet(state.petId);
     appEl.dataset.period = state.period;
     currentPanoUrl = resolveTargetPanoramaUrl();
     panoCurrEl.src = currentPanoUrl;
 
-    // 恢复墙面拍立得（若已有收藏）
     if (state.postcards.length > 0) {
       composeCleanIllustrationUrl(state.postcards[0].petId, state.postcards[0].setId, state.postcards[0].sceneId).then((url) => {
         wallPolaroidImgEl.src = url;
-        wallPolaroidEl.hidden = false;
+        layoutScenePropsAndHotspots();
       });
     }
 

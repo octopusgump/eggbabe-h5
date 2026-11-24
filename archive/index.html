@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>蛋宝宝 · 历史版本归档（Archive）</title>
+  <style>
+    :root {
+      --ink: #002900;
+      --canvas: #FAFAF8;
+      --card: #FFFFFF;
+      --hairline: #E5E3DF;
+      --text: #1A1A1A;
+      --muted: #5A675E;
+      --faint: #8C8C88;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+      padding: 24px 20px 48px;
+    }
+    .wrap {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .back-pill {
+      display: inline-flex;
+      align-items: center;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 999px;
+      background: var(--ink);
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .desc {
+      margin: 0 0 20px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+    .list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      border: 1px solid var(--hairline);
+      background: var(--card);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.16s ease, border-color 0.16s ease;
+    }
+    .item:hover {
+      border-color: rgba(0, 41, 0, 0.35);
+      transform: translateY(-1px);
+    }
+    .item__title {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .item__meta {
+      display: block;
+      margin-top: 4px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .item__tag {
+      flex: none;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #EEF0EA;
+      color: #35483C;
+      font-size: 11px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top">
+      <h1>历史版本归档（Archive）</h1>
+      <a class="back-pill" href="../">返回当前正式版</a>
+    </header>
+    <p class="desc">
+      以下为蛋宝宝早期实验原型与上一代页面归档，仅作历史对照与技术留档。当前正式主版本为「破壳起居室与装扮屋」。
+    </p>
+    <section class="list" aria-label="归档项目列表">
+      <a class="item" href="../eggbabe-uni/site/">
+        <div>
+          <span class="item__title">上一代蛋宝宝装扮屋（Uni-app H5 旧壳）</span>
+          <span class="item__meta">原主入口 H5 预览（源码保留在根目录 eggbabe-uni/ 供微信小程序编译）</span>
+        </div>
+        <span class="item__tag">旧主站</span>
+      </a>
+      <a class="item" href="./yutu-house-mod/site/index.html">
+        <div>
+          <span class="item__title">玉兔小屋 · 模块升级版（路线 B）</span>
+          <span class="item__meta">四房等距粘土模块 + 2D 寻路实验原型</span>
+        </div>
+        <span class="item__tag">已归档</span>
+      </a>
+      <a class="item" href="./yutu-house/yutu_house_demo.html">
+        <div>
+          <span class="item__title">玉兔小屋 · 早期无桥单文件版</span>
+          <span class="item__meta">最早期的四房玉兔小屋交互交接 Demo</span>
+        </div>
+        <span class="item__tag">已归档</span>
+      </a>
+      <a class="item" href="./danbaobao-meadow/site/">
+        <div>
+          <span class="item__title">蛋宝宝牧场（Three.js 3D 实验）</span>
+          <span class="item__meta">Three.js 3D 小羊草场独立场景原型</span>
+        </div>
+        <span class="item__tag">已归档</span>
+      </a>
+      <a class="item" href="./mesh-demos/koi_mesh_demo.html">
+        <div>
+          <span class="item__title">锦鲤 WebGL 网格技术验证 Demo</span>
+          <span class="item__meta">早期单角色变形网格与贴图测试页</span>
+        </div>
+        <span class="item__tag">技术 Demo</span>
+      </a>
+      <a class="item" href="./mesh-demos/yutu_mesh_demo.html">
+        <div>
+          <span class="item__title">玉兔 WebGL 网格技术验证 Demo</span>
+          <span class="item__meta">早期单角色变形网格与贴图测试页</span>
+        </div>
+        <span class="item__tag">技术 Demo</span>
+      </a>
+    </section>
+  </main>
+</body>
+</html>
