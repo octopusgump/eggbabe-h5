@@ -1,158 +1,48 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#fbf4ea">
-  <title>蛋宝宝装扮屋</title>
-  <meta name="description" content="蛋宝宝（Eggbabe）互动毛绒装扮屋：锦鲤 12 套装、玉兔 8 配饰、11 套小屋背景、一键导出高清壁纸，内含玉兔小屋与蛋宝宝牧场入口。">
-  <meta property="og:title" content="蛋宝宝装扮屋">
-  <meta property="og:description" content="BOON KOI 锦鲤与玉兔的互动毛绒装扮屋，支持换装、换背景与导出高清壁纸。">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://octopusgump.github.io/eggbabe-h5/">
-  <meta property="og:image" content="https://octopusgump.github.io/eggbabe-h5/assets/shared/png/koi_base.png">
-  <link rel="preload" as="image" href="./assets/shared/png/bgs/room_bg.png" fetchpriority="high">
-  <link rel="preload" as="image" href="./assets/shared/png/koi_base.png" fetchpriority="high">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#EEE8DB" />
+  <title>蛋宝宝 · 破壳起居室与装扮屋</title>
+  <meta name="description" content="蛋宝宝（Eggbabe）小程序 1:1 同源破壳起居室：锦鲤 12 套、玉兔 24 套全量免锁换装、12 套背景、3D 拖拽零食投喂与搓澡泡泡、零 Token 带妆拍立得与高清壁纸导出。" />
+  <meta property="og:title" content="蛋宝宝 · 破壳起居室与装扮屋" />
+  <meta property="og:description" content="BOON KOI 锦鲤与玉兔的破壳起居室与专属装扮屋，支持三屏全景陪伴、全量换装、3D 喂食搓澡与带妆明信片。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://octopusgump.github.io/eggbabe-h5/" />
+  <meta property="og:image" content="https://octopusgump.github.io/eggbabe-h5/assets/shared/png/koi_base.png" />
+  <link rel="preload" as="image" href="./living-room-dress/panoramas/empty_day.png" fetchpriority="high" />
+  <link rel="preload" as="image" href="./assets/shared/png/koi_base.png" fetchpriority="high" />
   <style>
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    * { box-sizing: border-box; }
     html, body {
       margin: 0;
-      height: 100%;
-      background: #231c15;
-      overflow: hidden;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
-    }
-    body {
-      min-height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    #app-shell {
-      position: relative;
+      padding: 0;
       width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #EEE8DB;
+    }
+    #main-frame {
+      display: block;
+      width: 100vw;
       height: 100dvh;
-      background: #fbf4ea;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
-    }
-    @media (min-width: 521px) {
-      #app-shell {
-        border-radius: 24px;
-        height: min(94dvh, 864px);
-        width: auto;
-        aspect-ratio: 9 / 16;
-        max-width: 94vw;
-      }
-    }
-    @media (max-width: 520px) {
-      html, body { background: #fbf4ea; }
-      #app-shell {
-        max-width: none;
-        max-height: none;
-        height: 100dvh;
-        border-radius: 0;
-        box-shadow: none;
-      }
-    }
-    #uni-frame {
-      width: 100%;
-      height: 100%;
       border: 0;
-      display: block;
-      background: #fbf4ea;
-    }
-    /* 独立子项目 UI Icon 悬浮快捷入口（右侧舞台空白区，不遮挡顶栏/宠物/衣橱） */
-    .world-dock {
-      position: absolute;
-      right: 10px;
-      top: calc(68px + env(safe-area-inset-top, 0px));
-      z-index: 30;
-      display: flex;
-      flex-direction: column;
-      gap: 9px;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    .world-btn {
-      width: 46px;
-      padding: 6px 4px 5px;
-      border-radius: 15px;
-      background: rgba(251, 244, 234, 0.90);
-      border: 1.5px solid rgba(201, 149, 90, 0.42);
-      box-shadow: 0 4px 12px rgba(62, 40, 18, 0.16);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      color: #5a4636;
-      text-decoration: none;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-      transition: transform .14s ease, border-color .14s ease, background .14s ease;
-    }
-    .world-btn:hover {
-      border-color: #c9955a;
-      background: rgba(255, 253, 249, 0.98);
-      transform: scale(1.04);
-    }
-    .world-btn:active {
-      transform: scale(0.95);
-    }
-    .world-btn svg {
-      width: 22px;
-      height: 22px;
-      display: block;
-    }
-    .world-btn span {
-      font-size: 10px;
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: .02em;
-      color: #5a4636;
+      background: #EEE8DB;
     }
   </style>
 </head>
 <body>
-  <div id="app-shell">
-    <iframe id="uni-frame" title="蛋宝宝装扮屋" src="./eggbabe-uni/site/"></iframe>
-    <script>
-      if (location.search) {
-        document.getElementById("uni-frame").src = "./eggbabe-uni/site/" + location.search;
+  <iframe id="main-frame" title="蛋宝宝 · 破壳起居室与装扮屋" src="./living-room-dress/" allow="autoplay"></iframe>
+  <script>
+    (function () {
+      var frame = document.getElementById("main-frame");
+      var q = window.location.search || "";
+      var h = window.location.hash || "";
+      if (q || h) {
+        frame.src = "./living-room-dress/" + q + h;
       }
-    </script>
-
-    <nav class="world-dock" aria-label="扩展场景入口">
-      <a class="world-btn" href="./living-room-dress/" title="进入破壳起居室（小程序同源 UI 版）">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="3.5" y="4.5" width="17" height="15" rx="3.2" fill="#fffdf7" stroke="#35483c" stroke-width="1.7"/>
-          <path d="M12 4.8v14.4M3.8 12h16.4" stroke="#819a54" stroke-width="1.4" stroke-linecap="round"/>
-          <circle cx="16.5" cy="8.2" r="1.5" fill="#f2c46d"/>
-        </svg>
-        <span>起居室</span>
-      </a>
-      <a class="world-btn" href="./yutu-house-mod.html" title="进入玉兔小屋">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M3.5 11.2L12 4.2l8.5 7" stroke="#c9955a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M6 10.2V19a1.4 1.4 0 0 0 1.4 1.4h9.2A1.4 1.4 0 0 0 18 19v-8.8" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.7" stroke-linejoin="round"/>
-          <path d="M10.2 20.4v-4.6a1.8 1.8 0 0 1 3.6 0v4.6" fill="#e9c89b" stroke="#7a5b3e" stroke-width="1.5"/>
-        </svg>
-        <span>小屋</span>
-      </a>
-      <a class="world-btn" href="./danbaobao-meadow.html" title="进入蛋宝宝牧场">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 18.5c2.5-2.2 5.3-3.2 8-3.2s5.5 1 8 3.2" stroke="#7ea862" stroke-width="2.2" stroke-linecap="round"/>
-          <circle cx="12" cy="11.2" r="4.2" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.6"/>
-          <circle cx="8.6" cy="10.4" r="2.1" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.5"/>
-          <circle cx="15.4" cy="10.4" r="2.1" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.5"/>
-          <circle cx="12" cy="8.2" r="2.2" fill="#fffdf9" stroke="#7a5b3e" stroke-width="1.5"/>
-          <circle cx="10.8" cy="11.4" r="0.8" fill="#4f3d2e"/>
-          <circle cx="13.2" cy="11.4" r="0.8" fill="#4f3d2e"/>
-        </svg>
-        <span>牧场</span>
-      </a>
-    </nav>
-  </div>
+    })();
+  </script>
 </body>
 </html>

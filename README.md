@@ -6,28 +6,13 @@
 
 **https://octopusgump.github.io/eggbabe-h5/**
 
-打开即直接进入 **蛋宝宝装扮屋（Uni-app 一码双端正式版）**：
-- 锦鲤 12 套全身套装、玉兔 8 款配饰、11 套小屋背景自由搭配
-- 摸头 / 跳跃 / 眨眼 WebGL 互动动画 + 一键导出 780×1688 高清壁纸
-- 舞台右侧悬浮 UI Icon 一键切换扩展场景：
-  - **🏠 小屋** → [玉兔小屋 · 模块升级版](https://octopusgump.github.io/eggbabe-h5/yutu-house-mod.html)（2D 寻路 + 四房粘土模块）
-  - **🐑 牧场** → [蛋宝宝牧场](https://octopusgump.github.io/eggbabe-h5/danbaobao-meadow.html)（Three.js 3D 小羊草场）
+打开即直接进入 **蛋宝宝破壳起居室与装扮屋（小程序 1:1 同源 UI 版）**：
+- **1:1 复刻小程序破壳房间体验**：官方三屏连续全景（白天 / 落日 / 黑夜）+ 玉兔/锦鲤全套 8 种日常动作全景、左上三阶陪伴星星牌与双模小挂钟、左下 3D 信封、右下 3D 开盖百宝箱、竖红线折角信笺与 `#FAFAF8` 纪念册；
+- **全量换装与背景免锁即穿**：锦鲤 12 套全身装、玉兔 24 套全身装、12 套舞台背景（破壳起居室 + 11 套插画小屋），支持 `780×1688` 高清手机壁纸与零 Token 带妆拍立得导出；
+- **右侧 3D 喂食 / 洗澡 / 装扮胶囊栏**：3D 哑光小零食拖拽/点击投喂、搓澡珠光泡泡与冲水欢跳、原版 `PetStage` 四大情绪互动剧场；
+- **隐藏验收工具**：URL 追加 `?demo=1` 或 `2.4s` 内连点左上状态牌 5 次可展开时段/状态/角色/养成验收菜单。
 
-> 旧版链接 `assets/dress_pets_demo.html` 已做 0 秒自动重定向至主链接；历史单页基线仅保留在仓库内作构建与资产对照，不再对外展示。
-
----
-
-## 一码双端与热更新架构（`eggbabe-uni/`）
-
-详见 [`eggbabe-uni/README.md`](eggbabe-uni/README.md)：
-
-1. **一码双端编译**：同一套 Vue 3 + Vite 代码（`eggbabe-uni/src/pages/index/index.vue` + 跨端 WebGL 引擎 `petStage.js` + 壁纸导出 `wallpaperExporter.js`）：
-   - `npm run build:h5` → 输出到 [`eggbabe-uni/site/`](eggbabe-uni/site/)（推送 `main` 即通过根入口上线）
-   - `npm run build:mp-weixin` → 输出标准原生微信小程序包 `eggbabe-uni/dist/build/mp-weixin/`
-   - `npm run build:mp-toutiao` → 预留抖音小程序构建
-2. **远程内容热更新（免审核小迭代）**：
-   - 统一清单：[`assets/shared/catalog.json`](assets/shared/catalog.json)（11 套背景 + 锦鲤 12 套装 + 玉兔 8 配饰）
-   - H5 与微信小程序启动时均通过 `eggbabe-uni/src/config/catalogLoader.js` 拉取线上清单（离线自动回退本地快照）
+> 历史实验原型与上一代页面已统一收敛至 **[历史归档索引](https://octopusgump.github.io/eggbabe-h5/archive/)**（`archive/`）。
 
 ---
 
@@ -35,12 +20,10 @@
 
 | 路径 | 说明 |
 | :--- | :--- |
-| [`index.html`](index.html) | 唯一对外主入口（直接呈现 `eggbabe-uni/site/` + 右侧小屋/牧场 UI Icon） |
-| [`eggbabe-uni/`](eggbabe-uni/) | **主工程**：Uni-app Vue 3 一码双端装扮与轻陪伴电子宠物（H5 + 微信小程序） |
-| [`docs/prd/`](docs/prd/0001-light-companion-pet.md) | **产品需求文档（PRD）**：[`0001` 轻陪伴电子宠物](docs/prd/0001-light-companion-pet.md) · [`0002` 破壳起居室、试衣间与带妆明信片](docs/prd/0002-living-room-fitting-and-postcard.md) |
-| [`living-room-dress/`](living-room-dress/) | **破壳起居室 × 专属试衣间**：小程序 1:1 同源三屏全景、WebGL 试衣台与零 Token 带妆明信片 |
-| [`assets/shared/catalog.json`](assets/shared/catalog.json) | 换装与背景统一热更新清单 |
-| [`yutu-house-mod/`](yutu-house-mod/) | 玉兔小屋模块升级版工程（路线 B） |
-| [`danbaobao-meadow/`](danbaobao-meadow/) | 蛋宝宝牧场 Three.js 工程 |
-| [`yutu-house/`](yutu-house/) | 早期无桥玉兔小屋单文件交接归档 |
-| [`PLAN.md`](PLAN.md) / [`CONTEXT.md`](CONTEXT.md) | 历史规划与技术基线记录 |
+| [`index.html`](index.html) | 唯一对外主入口（直接呈现 [`living-room-dress/`](living-room-dress/)） |
+| [`living-room-dress/`](living-room-dress/) | **主版本工程**：破壳起居室 × 专属装扮屋 × 3D 喂食搓澡 × 零 Token 带妆明信片 |
+| [`assets/shared/catalog.json`](assets/shared/catalog.json) | 换装与背景统一热更新清单（全仓强制压缩 PNG，零 `.webp`） |
+| [`eggbabe-uni/`](eggbabe-uni/) | Uni-app Vue 3 小程序双端编译工程（保留用于 `npm run build:mp-weixin`） |
+| [`docs/prd/`](docs/prd/0002-living-room-fitting-and-postcard.md) | **产品需求文档（PRD）**：[`0001` 轻陪伴电子宠物](docs/prd/0001-light-companion-pet.md) · [`0002` 破壳起居室、试衣间与带妆明信片](docs/prd/0002-living-room-fitting-and-postcard.md) |
+| [`archive/`](archive/index.html) | **历史版本统一归档**：四房玉兔小屋（`yutu-house` / `yutu-house-mod`）、3D 牧场（`danbaobao-meadow`）、早期网格 Demo |
+| [`AGENTS.md`](AGENTS.md) | 项目强制规范（PNG-only 与玉兔审美红线） |
