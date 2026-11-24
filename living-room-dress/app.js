@@ -567,7 +567,7 @@
   const chestOpenEl = $("chest-lid-open");
   const tbAlbumDotEl = $("tb-album-dot");
   const tbDeskToggleLabelEl = $("tb-desk-toggle-label");
-  const tbSfxLabelEl = $("tb-sfx-label");
+  const settingsOverlayEl = $("settings-overlay");
 
   const devTestersEl = $("dev-testers");
   const btnAcceptanceToggleEl = $("btn-acceptance-toggle");
@@ -3190,15 +3190,38 @@
     setToolboxOpen(false);
     await exportLockscreenWallpaperJpg();
   });
-  $("tb-btn-sfx").addEventListener("click", () => {
-    state.sfxOn = !state.sfxOn;
-    tbSfxLabelEl.textContent = state.sfxOn ? "音效：开" : "音效：关";
-    if (state.sfxOn) sfx.tap();
-    persistState();
-    setToolboxOpen(false);
-    showSceneFeedback(state.sfxOn ? "互动音效已开启" : "互动音效已静音", "system");
-  });
-  tbSfxLabelEl.textContent = state.sfxOn ? "音效：开" : "音效：关";
+  const settingsPanel = window.EggBabeSettingsPanel && settingsOverlayEl
+    ? window.EggBabeSettingsPanel.createSettingsPanel({
+        overlayEl: settingsOverlayEl,
+        storeApi: Store,
+        getStore: () => crossStore,
+        persist: () => persistState(),
+        getSfxOn: () => !!state.sfxOn,
+        setSfxOn: (next) => {
+          state.sfxOn = !!next;
+        },
+        getTickNoiseOn: () => !!(crossStore && crossStore.clockWidget && crossStore.clockWidget.tickWhiteNoiseOn),
+        setTickNoiseOn: (next) => {
+          if (crossStore && crossStore.clockWidget) {
+            crossStore.clockWidget.tickWhiteNoiseOn = !!next;
+          }
+        },
+        getOutfitName: (petId, setId) => getSetName(petId, setId),
+        onOpenProfile: () => openProfileModal(),
+        onOpenAlbum: () => openKeepsakeAlbum("postcards"),
+        onPlayTap: () => sfx.tap(),
+        onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type)
+      })
+    : null;
+
+  const tbSettingsBtn = $("tb-btn-settings");
+  if (tbSettingsBtn) {
+    tbSettingsBtn.addEventListener("click", () => {
+      sfx.tap();
+      setToolboxOpen(false);
+      if (settingsPanel) settingsPanel.open("home");
+    });
+  }
 
   /* ---------- 17. 全量开放衣橱抽屉（套装 12/24 + 背景 12）与 780×1688 壁纸导出 ---------- */
   let activeWardrobeTab = "items"; // "items" | "bgs"

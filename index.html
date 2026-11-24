@@ -416,9 +416,9 @@
                   <img src="./living-room-dress/ui/tb_card.png" alt="" />
                   <span>存壁纸</span>
                 </button>
-                <button id="tb-btn-sfx" class="companion-toolbox__item" type="button">
+                <button id="tb-btn-settings" class="companion-toolbox__item" type="button" aria-label="打开设置">
                   <img src="./living-room-dress/ui/tb_settings.png" alt="" />
-                  <span id="tb-sfx-label">音效：开</span>
+                  <span>设置</span>
                 </button>
               </div>
             </div>
@@ -1137,12 +1137,16 @@
       </div>
       <iframe id="activity-player-frame" class="activity-player__frame" title="活动小游戏" allow="autoplay; fullscreen"></iframe>
     </div>
+
+    <!-- 设置中心全屏分层弹窗（1:1 迁移自 eggbabe-miniprogram：我的 + 系统设置 + 帮助中心 + 合规协议） -->
+    <div id="settings-overlay" class="settings-overlay" role="dialog" aria-modal="true" aria-label="设置" hidden aria-hidden="true"></div>
   </div>
 
   <script src="./living-room-dress/catalog-snapshot.js"></script>
   <script src="./living-room-dress/cross-end-store.js"></script>
   <script src="./living-room-dress/diary-engine.js"></script>
   <script src="./living-room-dress/p5-rooms-and-games.js"></script>
+  <script src="./living-room-dress/settings-panel.js"></script>
   <script src="./living-room-dress/app.js"></script>
 </body>
 </html>
