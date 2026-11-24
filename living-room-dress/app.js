@@ -16,6 +16,8 @@
   const ACC_COLS = 12, ACC_ROWS = 12;
   const PAGES_CDN = "https://octopusgump.github.io/eggbabe-h5";
   const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const DiaryEngine = window.EggBabeDiaryEngine;
+  const P5Data = window.EggBabeP5Data;
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -667,6 +669,17 @@
       if (u < 1) starRollRaf = requestAnimationFrame(step);
     }
     starRollRaf = requestAnimationFrame(step);
+  }
+
+  // P5 日常微照料星星软上限保护（≤15✦/日，超限后照常加饱食/清洁与 EXP）
+  function grantCareStars(amount) {
+    const res = Store.awardCareStars(crossStore, amount);
+    if (res.starsAwarded > 0) {
+      animateStarsTo(Number(crossStore.companion.starBalance || state.stars), res.starsAwarded);
+    } else {
+      persistState();
+    }
+    return res;
   }
 
   const CLOCK_SHIFT_DEFS = {
@@ -1388,7 +1401,8 @@
   });
   $("fp-btn-diaries").addEventListener("click", () => {
     sfx.tap();
-    showSceneFeedback("陪伴日记本正在装订筹备中，敬请期待", "system");
+    closeProfileModal();
+    openDiaryCover();
   });
   $("fp-btn-postcards").addEventListener("click", () => {
     sfx.tap();
@@ -2466,7 +2480,12 @@
         showSceneFeedback(`升到 Lv.${careAll[state.petId].level} 啦，获得 +5 陪伴星`, "system");
       }, 420);
     } else {
-      animateStarsTo(state.stars + 1, 1);
+      grantCareStars(1);
+    }
+    if (snack.crafted && Store.consumeCraftedSnack) {
+      Store.consumeCraftedSnack(crossStore, snack.id);
+      renderSnackTray();
+      if (typeof syncAltRoomProps === "function") syncAltRoomProps();
     }
     renderMoodTab();
     showSceneFeedback(snack.reply, "dialogue");
@@ -2492,7 +2511,25 @@
 
   let snackDrag = null;
   function renderSnackTray() {
-    const list = SNACKS_BY_PET[state.petId] || SNACKS_BY_PET.koi;
+    const baseList = SNACKS_BY_PET[state.petId] || SNACKS_BY_PET.koi;
+    const craftedList = [];
+    if (P5Data && crossStore.house && crossStore.house.craftedSnacks) {
+      P5Data.CRAFTED_SNACKS.forEach((cs) => {
+        const qty = Number(crossStore.house.craftedSnacks[cs.id] || 0);
+        if (qty > 0) {
+          craftedList.push({
+            id: cs.id,
+            name: `${cs.name} ×${qty}`,
+            icon: cs.img,
+            hunger: cs.hungerGain,
+            exp: cs.expGain,
+            crafted: true,
+            reply: `刚出炉的${cs.name}真香呀！捧着脸颊开心得摇晃起来～`
+          });
+        }
+      });
+    }
+    const list = craftedList.concat(baseList);
     snackGridEl.innerHTML = "";
     list.forEach((sn) => {
       const card = document.createElement("button");
@@ -2592,7 +2629,7 @@
     const leveled = addCareExp(state.petId, 24);
     sfx.splash();
     startAnim("rinse", performance.now());
-    animateStarsTo(state.stars + 3, 3);
+    grantCareStars(3);
     renderMoodTab();
     showSceneFeedback(leveled ? `洗得香喷喷的，升到 Lv.${ps.level} 啦～` : "哗啦啦，洗得香喷喷的，毛毛好蓬松～", "dialogue");
   }
@@ -2649,7 +2686,7 @@
         sfx.star();
         Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { visitedState: "petted" });
         addCareExp(state.petId, 10);
-        animateStarsTo(state.stars + 2, 2);
+        grantCareStars(2);
         renderMoodTab();
         showSceneFeedback("呼噜呼噜～摸头最舒服啦♡", "dialogue");
       }
@@ -2762,9 +2799,22 @@
     }
     roomLampGlowEl.hidden = !lampLit;
 
-    // ② 三层原木书架：未读来信微晃提示
+    // ② 三层原木书架：未读来信微晃提示 + 暖黄日记书签 + 中层实时微缩映射多宝格前 3 件藏品
     if (modBooksPlaneEl) {
       modBooksPlaneEl.hidden = !state.unreadMail;
+    }
+    const modBooksDiaryMarkEl = $("mod-books-diary-mark");
+    if (modBooksDiaryMarkEl) {
+      const hasDiaries = Array.isArray(crossStore.diaries) && crossStore.diaries.length > 0;
+      const todayKey = Store.getUtc8DateKey();
+      const todayLog = crossStore.dailyEventLog && crossStore.dailyEventLog[todayKey];
+      const hasTodayActivity = DiaryEngine && todayLog && (
+        DiaryEngine.hasRealInteraction(todayLog.yutu) || DiaryEngine.hasRealInteraction(todayLog.koi)
+      );
+      modBooksDiaryMarkEl.hidden = !(hasDiaries || hasTodayActivity);
+    }
+    if (typeof syncBookshelfCurioMinis === "function") {
+      syncBookshelfCurioMinis();
     }
 
     // ③ 窗角木质首饰盒：闭合 (closed) / 微开露微光 (peek_gleam)
@@ -2780,6 +2830,23 @@
     // ④ 桌面软木垫与杯具：咖啡热气开关
     const steamOn = !(mods.mod_desk_set && mods.mod_desk_set.state === "cooled");
     modDeskSetEl.dataset.steam = steamOn ? "on" : "off";
+
+    // ⑤ P5 家具模组软装风格同步（data-decor-style）
+    if (P5Data) {
+      const styleBindings = [
+        [modBedBlanketEl, mods.mod_bed && mods.mod_bed.styleId],
+        [modLampEl, mods.mod_lamp && mods.mod_lamp.styleId],
+        [modBooksEl, mods.mod_books && mods.mod_books.styleId],
+        [modJewelryBoxEl, mods.mod_jewelry_box && mods.mod_jewelry_box.styleId],
+        [modWallArtEl, mods.mod_wall_art && mods.mod_wall_art.styleId],
+        [modDeskSetEl, mods.mod_desk_set && mods.mod_desk_set.styleId]
+      ];
+      styleBindings.forEach(([el, styleId]) => {
+        if (!el) return;
+        const def = P5Data.getDecorById(styleId);
+        el.dataset.decorStyle = (def && def.cssStyle) || "default";
+      });
+    }
   }
 
   function layoutScenePropsAndHotspots() {
@@ -2900,17 +2967,13 @@
     );
   });
 
-  // 模组②：三层原木书架点击（优先查看未读来信，否则打开纪念册）
-  hitBookshelfEl.addEventListener("click", async (ev) => {
+  // 模组②：三层原木书架点击 → 打开三层原木书架中枢弹窗（PRD-0003 P3）
+  hitBookshelfEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
     sfx.tap();
     triggerModuleNudge(modBooksEl);
-    if (state.unreadMail) {
-      await openLetterOverlay(state.stageBgId !== "living_room" ? state.stageBgId : "bg_sunset_meadow", true);
-    } else {
-      openKeepsakeAlbum("postcards");
-    }
+    openBookshelfHub();
   });
 
   // 模组③：窗角木质首饰盒点击切换「闭合 / 微开露微光」
@@ -3669,6 +3732,9 @@
       });
       curioShelfGridEl.appendChild(cell);
     }
+    if (typeof syncBookshelfCurioMinis === "function") {
+      syncBookshelfCurioMinis();
+    }
   }
 
   function handleCurioSlotClick(slotIdx) {
@@ -3831,15 +3897,27 @@
 
   async function renderAlbumGrid() {
     document.querySelectorAll("[data-album-tab]").forEach((t) => t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab));
+    const lookbookViewEl = $("lookbook-album-view");
+    const diaryViewEl = $("diary-book-view");
     keepsakeGridEl.innerHTML = "";
+    if (lookbookViewEl) lookbookViewEl.hidden = currentAlbumTab !== "album";
+    if (diaryViewEl) diaryViewEl.hidden = currentAlbumTab !== "diary";
+    curioCabinetViewEl.hidden = currentAlbumTab !== "keepsakes";
+
     if (currentAlbumTab === "keepsakes") {
-      curioCabinetViewEl.hidden = false;
       keepsakeEmptyEl.hidden = true;
       keepsakeGridEl.hidden = true;
       renderCurioShelf();
       renderCurioCatalog();
+    } else if (currentAlbumTab === "album") {
+      keepsakeEmptyEl.hidden = true;
+      keepsakeGridEl.hidden = true;
+      if (typeof renderLookbookAlbum === "function") renderLookbookAlbum();
+    } else if (currentAlbumTab === "diary") {
+      keepsakeEmptyEl.hidden = true;
+      keepsakeGridEl.hidden = true;
+      if (typeof renderDiaryView === "function") await renderDiaryView();
     } else {
-      curioCabinetViewEl.hidden = true;
       keepsakeGridEl.hidden = false;
       const list = state.postcards;
       const scenes = getAllPostcardScenes();
@@ -4057,8 +4135,24 @@
         fn: () => {
           ["k_a01_prayer_stick", "k_a02_copper_coin", "k_r01_yellow_rubber_duck", "jade_rabbit_helmet", "k_k01_lotus_leaf_bookmark", "k_k07_dried_paint_palette", "old_wooden_button", "dried_tea_tag"].forEach((id) => unlockKeepsake(id, "demo_tester"));
           renderMoodTab();
+          syncRoomModules();
           if (!albumViewEl.hidden) renderAlbumGrid();
           showSceneFeedback("已模拟解锁 8 件含 A/B/D 线藏品", "system");
+        }
+      },
+      {
+        label: "模拟陪伴 +7 天 & +180✦（测厨房/小院）",
+        fn: () => {
+          crossStore.companion.totalCompanionDays = Math.max(7, Number(crossStore.companion.totalCompanionDays || 1) + 7);
+          crossStore.companion.companionDays = Math.max(7, Number(crossStore.companion.companionDays || 1) + 7);
+          state.totalCompanionDays = crossStore.companion.totalCompanionDays;
+          state.companionDays = crossStore.companion.companionDays;
+          state.stars = Number(state.stars || 0) + 180;
+          crossStore.companion.starBalance = state.stars;
+          persistState();
+          renderMoodTab();
+          updateEdgeRoomSigns();
+          showSceneFeedback("已模拟累计陪伴 +7 天与 +180✦，可测试解锁小厨房与小院子", "system");
         }
       }
     ].forEach((act) => {
@@ -4126,7 +4220,979 @@
     });
   });
 
-  /* ---------- 21. 启动流程 ---------- */
+  /* ---------- 21. P3 原木书架中枢、缝线手帐日记 & P5 软装/多房间/轻小游戏 ---------- */
+  let activeDiaryIndex = 0;
+  let pendingWelcomeBackNote = "";
+  let activeHouseTab = "rooms";
+  let activeMiniGameCleanup = null;
+
+  function syncBookshelfCurioMinis() {
+    const slots = ensureShelfSlots();
+    const top3 = slots.slice(0, 3);
+    const roomMiniEl = $("mod-books-curio-minis");
+    const hubMiniEl = $("shelf-hub-curio-preview");
+    const renderInto = (container, isHub) => {
+      if (!container) return;
+      container.innerHTML = "";
+      top3.forEach((id) => {
+        if (!id) return;
+        const item = getKeepsakeById(id);
+        if (!item) return;
+        if (isHub) {
+          const im = document.createElement("img");
+          im.src = sharedUrl(item.img);
+          im.alt = item.name;
+          container.appendChild(im);
+        } else {
+          const wrap = document.createElement("span");
+          wrap.className = "mod-books__curio-mini";
+          wrap.innerHTML = `<img src="${sharedUrl(item.img)}" alt="${item.name}" />`;
+          container.appendChild(wrap);
+        }
+      });
+      if (isHub && container.children.length === 0) {
+        container.innerHTML = `<span class="bookshelf-slot__icon">🏺</span>`;
+      }
+    };
+    renderInto(roomMiniEl, false);
+    renderInto(hubMiniEl, true);
+  }
+
+  const bookshelfHubOverlayEl = $("bookshelf-hub-overlay");
+  function openBookshelfHub() {
+    if (!bookshelfHubOverlayEl) return;
+    syncBookshelfCurioMinis();
+    const isOrdinary = crossStore.profileMode === "wx-mp-ordinary";
+    const diaryCount = Array.isArray(crossStore.diaries) ? crossStore.diaries.length : 0;
+    const unlockedCount = (crossStore.curioCabinet && crossStore.curioCabinet.unlockedIds || []).length;
+    const lookbookCount = Array.isArray(crossStore.lookbookPhotos) ? crossStore.lookbookPhotos.length : 0;
+    const unlockedRooms = (crossStore.house && crossStore.house.unlockedRoomIds || ["living_room"]).length;
+
+    const shelfDiarySub = $("shelf-diary-sub");
+    const shelfMailSub = $("shelf-mail-sub");
+    const shelfCurioSub = $("shelf-curio-sub");
+    const shelfAlbumSub = $("shelf-album-sub");
+    const shelfGamesTitle = $("shelf-games-title");
+    const shelfHouseSub = $("shelf-house-sub");
+
+    if (shelfDiarySub) shelfDiarySub.textContent = diaryCount > 0 ? `已装订 ${diaryCount} 篇冷幽默手帐` : "轻触翻开缝线手帐本";
+    if (shelfMailSub) shelfMailSub.textContent = state.unreadMail ? "✨ 有一封待拆新来信" : `已收藏 ${state.postcards.length} 张明信片`;
+    if (shelfCurioSub) shelfCurioSub.textContent = isOrdinary ? `已留存 ${unlockedCount} 件` : `已收集 ${unlockedCount} / ${getAllKeepsakes().length}`;
+    if (shelfAlbumSub) shelfAlbumSub.textContent = lookbookCount > 0 ? `已定格 ${lookbookCount} 张定妆照` : "36 套穿搭零 Token 随时拍";
+    if (shelfGamesTitle) shelfGamesTitle.textContent = isOrdinary ? "陪伴互动匣" : "小游戏玩具木盒";
+    if (shelfHouseSub) shelfHouseSub.textContent = `已开放 ${unlockedRooms} 处空间 · 软装升级`;
+
+    bookshelfHubOverlayEl.hidden = false;
+  }
+
+  function closeBookshelfHub() {
+    if (bookshelfHubOverlayEl) bookshelfHubOverlayEl.hidden = true;
+  }
+
+  $("btn-close-bookshelf-hub")?.addEventListener("click", () => { sfx.tap(); closeBookshelfHub(); });
+  bookshelfHubOverlayEl?.addEventListener("click", (ev) => { if (ev.target === bookshelfHubOverlayEl) closeBookshelfHub(); });
+
+  $("shelf-slot-diary")?.addEventListener("click", () => { sfx.tap(); closeBookshelfHub(); openDiaryCover(); });
+  $("shelf-slot-mail")?.addEventListener("click", async () => {
+    sfx.tap();
+    closeBookshelfHub();
+    if (state.unreadMail) {
+      await openLetterOverlay(state.stageBgId !== "living_room" ? state.stageBgId : "bg_sunset_meadow", true);
+    } else {
+      openKeepsakeAlbum("postcards");
+    }
+  });
+  $("shelf-slot-curio")?.addEventListener("click", () => { sfx.tap(); closeBookshelfHub(); openKeepsakeAlbum("keepsakes"); });
+  $("shelf-slot-album")?.addEventListener("click", () => { sfx.tap(); closeBookshelfHub(); openKeepsakeAlbum("album"); });
+  $("shelf-slot-games")?.addEventListener("click", () => { sfx.tap(); closeBookshelfHub(); openActivityModal(); });
+  $("shelf-slot-house")?.addEventListener("click", () => { sfx.tap(); closeBookshelfHub(); openHouseGuide("rooms"); });
+
+  /* ---------- P3 缝线布面手帐飞出动效 + 800×920 零 Token 拍立得日记内页 ---------- */
+  const diaryCoverOverlayEl = $("diary-cover-overlay");
+  const diaryCoverBookEl = $("diary-cover-book");
+  const diaryCoverCrestEl = $("diary-cover-crest");
+  const diaryCoverPetTagEl = $("diary-cover-pet-tag");
+  const diaryCoverHintEl = $("diary-cover-hint");
+
+  function openDiaryCover() {
+    if (!diaryCoverOverlayEl || !diaryCoverBookEl) {
+      openKeepsakeAlbum("diary");
+      return;
+    }
+    const isYutu = state.petId === "yutu";
+    diaryCoverBookEl.dataset.petTheme = isYutu ? "yutu" : "koi";
+    diaryCoverBookEl.classList.remove("is-opening");
+    if (diaryCoverCrestEl) diaryCoverCrestEl.textContent = isYutu ? "🐰" : "🐟";
+    if (diaryCoverPetTagEl) diaryCoverPetTagEl.textContent = `${getPetName(state.petId)}的桌角记录`;
+
+    const hasDiaries = Array.isArray(crossStore.diaries) && crossStore.diaries.length > 0;
+    const todayKey = Store.getUtc8DateKey();
+    const todayLog = crossStore.dailyEventLog && crossStore.dailyEventLog[todayKey];
+    const hasTodayAct = DiaryEngine && todayLog && (
+      DiaryEngine.hasRealInteraction(todayLog.yutu) || DiaryEngine.hasRealInteraction(todayLog.koi)
+    );
+    if (diaryCoverHintEl) {
+      diaryCoverHintEl.textContent = (hasDiaries || hasTodayAct)
+        ? "轻触布搭扣「啪嗒」翻开手帐"
+        : "还没有写下第一页手帐，先喂块小点心或陪它待一会儿吧";
+    }
+    diaryCoverOverlayEl.hidden = false;
+  }
+
+  function flipOpenDiaryFromCover() {
+    if (!diaryCoverBookEl || !diaryCoverOverlayEl) return;
+    sfx.tap();
+    diaryCoverBookEl.classList.add("is-opening");
+    setTimeout(() => {
+      diaryCoverOverlayEl.hidden = true;
+      diaryCoverBookEl.classList.remove("is-opening");
+      openKeepsakeAlbum("diary");
+    }, REDUCED_MOTION ? 40 : 340);
+  }
+
+  diaryCoverBookEl?.addEventListener("click", flipOpenDiaryFromCover);
+  diaryCoverBookEl?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); flipOpenDiaryFromCover(); }
+  });
+  $("btn-close-diary-cover")?.addEventListener("click", () => { sfx.tap(); if (diaryCoverOverlayEl) diaryCoverOverlayEl.hidden = true; });
+  diaryCoverOverlayEl?.addEventListener("click", (ev) => { if (ev.target === diaryCoverOverlayEl) diaryCoverOverlayEl.hidden = true; });
+
+  async function writeTodayDiary(silent) {
+    if (!DiaryEngine) return null;
+    const todayKey = Store.getUtc8DateKey();
+    const todayLog = crossStore.dailyEventLog && crossStore.dailyEventLog[todayKey];
+    const hasAct = todayLog && (DiaryEngine.hasRealInteraction(todayLog.yutu) || DiaryEngine.hasRealInteraction(todayLog.koi));
+    if (!hasAct) {
+      // 若尚无互动，先记录当前穿搭与到访以便玩家主动写下今日第一页
+      Store.recordDailyEvent(crossStore, todayKey, state.petId, {
+        outfitId: state.savedSet[state.petId] || Store.DEFAULT_SET_BY_PET[state.petId],
+        visitedState: state.roomState || "free_stand",
+        countsAsEffective: true
+      });
+    }
+    const existingIdx = (crossStore.diaries || []).findIndex((d) => d && d.dateKey === todayKey);
+    if (existingIdx >= 0) {
+      activeDiaryIndex = existingIdx;
+      if (!silent) showSceneFeedback("今天的手帐已经装订好啦", "system");
+      await renderDiaryView();
+      return crossStore.diaries[existingIdx];
+    }
+    const res = await DiaryEngine.checkAndSettleDiary(crossStore, catalog, {
+      forceToday: true,
+      todayOnly: true,
+      weather: state.period === "sunset" ? "sunset" : state.period === "night" ? "night" : "sunny"
+    });
+    if (res && res.generated) {
+      activeDiaryIndex = 0;
+      persistState();
+      syncRoomModules();
+      if (!silent) {
+        sfx.star();
+        showSceneFeedback(`沙沙～《${res.generated.title}》已写进陪伴手帐`, "dialogue");
+      }
+      await renderDiaryView();
+      return res.generated;
+    }
+    return null;
+  }
+
+  async function renderDiaryView() {
+    if (!DiaryEngine) return;
+    // 若晚间 >=21:00 且有当日互动则自动结算
+    const autoRes = await DiaryEngine.checkAndSettleDiary(crossStore, catalog, {
+      weather: state.period === "sunset" ? "sunset" : state.period === "night" ? "night" : "sunny"
+    });
+    if (autoRes && autoRes.generated) {
+      persistState();
+      syncRoomModules();
+    }
+    if (autoRes && autoRes.welcomeBackNote) {
+      pendingWelcomeBackNote = autoRes.welcomeBackNote;
+    }
+
+    const diaries = Array.isArray(crossStore.diaries) ? crossStore.diaries : [];
+    const welcomeEl = $("diary-welcome-note");
+    const emptyEl = $("diary-empty-state");
+    const spreadEl = $("diary-spread");
+    const countNumEl = $("diary-count-num");
+    const btnPrev = $("btn-diary-prev");
+    const indexDrawer = $("diary-index-drawer");
+
+    if (welcomeEl) {
+      const note = pendingWelcomeBackNote || (diaries[0] && diaries[0].welcomeBackNote) || "";
+      welcomeEl.textContent = note ? `🌿 等门小涂鸦：${note}` : "";
+      welcomeEl.hidden = !note;
+    }
+    if (countNumEl) countNumEl.textContent = String(diaries.length);
+
+    if (diaries.length === 0) {
+      if (emptyEl) emptyEl.hidden = false;
+      if (spreadEl) spreadEl.hidden = true;
+      if (btnPrev) btnPrev.disabled = true;
+      if (indexDrawer) indexDrawer.hidden = true;
+      return;
+    }
+
+    if (emptyEl) emptyEl.hidden = true;
+    if (spreadEl) spreadEl.hidden = false;
+    activeDiaryIndex = clamp(activeDiaryIndex, 0, diaries.length - 1);
+    const entry = diaries[activeDiaryIndex];
+
+    const weatherMap = { sunny: "☀️ 晴", sunset: "🌇 落日", rain: "🌧️ 雨", night: "🌙 夜" };
+    const dateLabelEl = $("diary-date-label");
+    const dayPillEl = $("diary-day-pill");
+    const polaroidImgEl = $("diary-polaroid-img");
+    const tagsListEl = $("diary-tags-list");
+    const archChipEl = $("diary-archetype-chip");
+    const titleEl = $("diary-entry-title");
+    const salEl = $("diary-entry-salutation");
+    const bodyEl = $("diary-entry-body");
+    const psEl = $("diary-entry-ps");
+    const signEl = $("diary-entry-signoff");
+
+    if (dateLabelEl) dateLabelEl.textContent = `📅 ${String(entry.dateKey || "").replace(/-/g, ".")} · ${weatherMap[entry.weather] || "☀️ 晴"}`;
+    if (dayPillEl) dayPillEl.textContent = `陪伴第 ${state.totalCompanionDays || 1} 天`;
+    if (titleEl) titleEl.textContent = `《${entry.title || "桌角小记"}》`;
+    if (salEl) salEl.textContent = entry.salutation || `${crossStore.user.nickname || "蛋宝好友"}，`;
+    if (bodyEl) bodyEl.textContent = entry.body || "";
+    if (psEl) psEl.textContent = entry.ps ? `P.S. ${entry.ps}` : "";
+    if (signEl) signEl.textContent = `${entry.signOff || getPetName(entry.petId)} 🐾`;
+    if (archChipEl) archChipEl.textContent = `冷幽默 · ${DiaryEngine.ARCHETYPE_LABELS[entry.humorArchetype] || "桌角微观察"}`;
+
+    if (tagsListEl) {
+      tagsListEl.innerHTML = (entry.tags || []).map((t) => `<span class="diary-tag-pill">🏷️ ${t}</span>`).join("");
+    }
+    if (polaroidImgEl) {
+      composeCleanIllustrationUrl(entry.petId || state.petId, entry.outfitId, entry.sceneId || "living_room").then((url) => {
+        polaroidImgEl.src = url;
+      });
+    }
+    if (btnPrev) btnPrev.disabled = activeDiaryIndex >= diaries.length - 1;
+
+    if (indexDrawer) {
+      indexDrawer.innerHTML = diaries.map((d, idx) => `
+        <button class="diary-index-item${idx === activeDiaryIndex ? " is-active" : ""}" type="button" data-diary-idx="${idx}">
+          <span>${d.dateKey} · 《${d.title}》</span>
+          <span>${d.petId === "yutu" ? "🐰" : "🐟"}</span>
+        </button>
+      `).join("");
+      indexDrawer.querySelectorAll("[data-diary-idx]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          sfx.tap();
+          activeDiaryIndex = Number(btn.dataset.diaryIdx) || 0;
+          indexDrawer.hidden = true;
+          await renderDiaryView();
+        });
+      });
+    }
+  }
+
+  $("btn-diary-write-empty")?.addEventListener("click", () => { sfx.tap(); writeTodayDiary(false); });
+  $("btn-diary-write-today")?.addEventListener("click", () => { sfx.tap(); writeTodayDiary(false); });
+  $("btn-diary-prev")?.addEventListener("click", async () => {
+    const diaries = crossStore.diaries || [];
+    if (activeDiaryIndex < diaries.length - 1) {
+      sfx.tap();
+      activeDiaryIndex += 1;
+      await renderDiaryView();
+    }
+  });
+  $("btn-diary-index")?.addEventListener("click", () => {
+    sfx.tap();
+    const drawer = $("diary-index-drawer");
+    if (drawer) drawer.hidden = !drawer.hidden;
+  });
+  $("btn-diary-share")?.addEventListener("click", async () => {
+    const diaries = crossStore.diaries || [];
+    const entry = diaries[activeDiaryIndex];
+    if (!entry) return;
+    sfx.tap();
+    const artUrl = await composeCleanIllustrationUrl(entry.petId, entry.outfitId, entry.sceneId || "living_room");
+    const a = document.createElement("a");
+    a.href = artUrl;
+    a.download = `eggbabe_diary_${entry.dateKey}_${entry.petId}.png`;
+    a.click();
+    showSceneFeedback("当日手帐拍立得已保存到本地", "system");
+  });
+
+  /* ---------- P3 穿搭定妆相册（仅存轻配方元数据，零 Base64） ---------- */
+  function snapLookbookPhoto() {
+    if (!Array.isArray(crossStore.lookbookPhotos)) crossStore.lookbookPhotos = [];
+    const setId = state.savedSet[state.petId] || Store.DEFAULT_SET_BY_PET[state.petId];
+    const sceneId = state.stageBgId || "living_room";
+    const rec = {
+      id: "lb_" + Date.now(),
+      petId: state.petId,
+      outfitId: setId,
+      setId: setId,
+      sceneId: sceneId,
+      dateText: Store.getUtc8DateKey(),
+      createdAt: Store.getUtc8IsoString()
+    };
+    crossStore.lookbookPhotos.unshift(rec);
+    if (crossStore.lookbookPhotos.length > 40) crossStore.lookbookPhotos.length = 40;
+    Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, {
+      outfitId: setId,
+      countsAsEffective: true
+    });
+    persistState();
+    renderLookbookAlbum();
+    showSceneFeedback("已定格今日穿搭定妆照 📸", "dialogue");
+  }
+
+  function renderLookbookAlbum() {
+    const list = Array.isArray(crossStore.lookbookPhotos) ? crossStore.lookbookPhotos : [];
+    const gridEl = $("lookbook-album-grid");
+    const emptyEl = $("lookbook-album-empty");
+    if (!gridEl || !emptyEl) return;
+    gridEl.innerHTML = "";
+    emptyEl.hidden = list.length > 0;
+    list.forEach((ph) => {
+      const outfitName = getSetName(ph.petId, ph.outfitId || ph.setId) || "原生毛绒";
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "keepsake-cell keepsake-cell--postcard";
+      cell.innerHTML = `<div class="keepsake-cell__media"><img alt="${outfitName}" /></div><div class="keepsake-cell__label">${outfitName}</div>`;
+      composeCleanIllustrationUrl(ph.petId, ph.outfitId || ph.setId, ph.sceneId || "living_room").then((url) => {
+        const im = cell.querySelector("img");
+        if (im) im.src = url;
+      });
+      cell.addEventListener("click", () => {
+        sfx.tap();
+        openDetailView("postcard", Object.assign({ setId: ph.outfitId || ph.setId }, ph));
+      });
+      gridEl.appendChild(cell);
+    });
+  }
+  $("btn-album-snap-now")?.addEventListener("click", () => { sfx.tap(); snapLookbookPhoto(); });
+
+  /* ---------- P5 房间切换、边缘木门牌、小厨房 & 小院子（含户外原木信箱） ---------- */
+  const houseGuideOverlayEl = $("house-guide-overlay");
+  const houseRoomsPaneEl = $("house-rooms-pane");
+  const houseDecorPaneEl = $("house-decor-pane");
+  const roomSwitcherPillEl = $("room-switcher-pill");
+  const roomSwitcherLabelEl = $("room-switcher-label");
+  const roomTransitionVeilEl = $("room-transition-veil");
+  const altRoomStageEl = $("alt-room-stage");
+  const kitchenRoomPropsEl = $("kitchen-room-props");
+  const yardRoomPropsEl = $("yard-room-props");
+  const edgeSignKitchenEl = $("edge-sign-kitchen");
+  const edgeSignYardEl = $("edge-sign-yard");
+
+  function getActiveRoomId() {
+    Store.ensureModularAndClockDefaults(crossStore);
+    return crossStore.house.activeRoomId || "living_room";
+  }
+
+  function ensureDailyYardMailboxDelivery() {
+    if (!P5Data || !crossStore.house) return;
+    if ((crossStore.house.unlockedRoomIds || []).indexOf("sunlit_yard") < 0) return;
+    const todayKey = Store.getUtc8DateKey();
+    if (crossStore.house.lastMailboxDeliveryDate === todayKey) return;
+    const list = P5Data.YARD_MAILBOX_DELIVERIES;
+    const picked = list[Math.floor(Math.random() * list.length)];
+    Store.deliverYardMailboxItem(crossStore, {
+      id: `yard_mail_${todayKey}`,
+      dateKey: todayKey,
+      sceneId: picked.sceneId,
+      title: picked.title,
+      text: picked.text,
+      starBonus: picked.starBonus,
+      keepsakeHint: picked.keepsakeHint,
+      petId: state.petId,
+      outfitId: state.savedSet[state.petId] || Store.DEFAULT_SET_BY_PET[state.petId]
+    });
+    crossStore.house.lastMailboxDeliveryDate = todayKey;
+    persistState();
+  }
+
+  function syncAltRoomProps() {
+    const roomId = getActiveRoomId();
+    const roomDef = P5Data ? P5Data.getRoomById(roomId) : { icon: "🏠", shortName: "起居室" };
+    if (roomSwitcherLabelEl) roomSwitcherLabelEl.textContent = `${roomDef.icon} ${roomDef.shortName}`;
+
+    const isKitchen = roomId === "cozy_kitchen";
+    const isYard = roomId === "sunlit_yard";
+    if (altRoomStageEl) altRoomStageEl.hidden = !(isKitchen || isYard);
+    if (kitchenRoomPropsEl) kitchenRoomPropsEl.hidden = !isKitchen;
+    if (yardRoomPropsEl) yardRoomPropsEl.hidden = !isYard;
+
+    if (isKitchen) {
+      const unlockedCount = (crossStore.curioCabinet && crossStore.curioCabinet.unlockedIds || []).length;
+      const fridgeSub = $("kitchen-fridge-sub");
+      if (fridgeSub) fridgeSub.textContent = `已贴 ${Math.min(12, unlockedCount)} 枚回忆磁贴`;
+      const crafted = (crossStore.house && crossStore.house.craftedSnacks) || {};
+      const jarSub = $("kitchen-jar-sub");
+      if (jarSub) jarSub.textContent = `松饼 ${crafted.osmanthus_pancake || 0} · 鲷鱼烧 ${crafted.crispy_taiyaki || 0}`;
+    }
+
+    if (isYard) {
+      ensureDailyYardMailboxDelivery();
+      const unread = (crossStore.house && crossStore.house.mailboxUnreadIds) || [];
+      const flagEl = $("yard-mailbox-flag");
+      const subEl = $("yard-mailbox-sub");
+      if (flagEl) flagEl.hidden = unread.length === 0;
+      if (subEl) subEl.textContent = unread.length > 0 ? `小红旗翘起啦 · ${unread.length} 封新邮袋` : "查看历史院子明信片";
+    }
+
+    // 拓展房间渲染背景 + 实时 WebGL 伙伴
+    if (isKitchen || isYard) {
+      const bgRel = isYard && state.period === "day" && roomDef.dayBgFile ? roomDef.dayBgFile : roomDef.bgFile;
+      appEl.classList.add("has-custom-bg");
+      customStageBgEl.src = sharedUrl(bgRel);
+      customStageBgEl.hidden = false;
+      screenDotsEl.style.display = "none";
+      if (clockDutyHintEl) clockDutyHintEl.classList.add("is-hidden-edge");
+    } else {
+      syncCustomStageBg();
+      updateClockDutyHintVisibility();
+    }
+    updateEdgeRoomSigns();
+  }
+
+  function updateEdgeRoomSigns() {
+    if (!edgeSignKitchenEl || !edgeSignYardEl) return;
+    const roomId = getActiveRoomId();
+    if (roomId !== "living_room" || isCustomBgActive() || isFittingOpen) {
+      edgeSignKitchenEl.classList.add("is-hidden-edge");
+      edgeSignYardEl.classList.add("is-hidden-edge");
+      return;
+    }
+    const maxS = worldTrackEl.offsetWidth - worldScrollEl.clientWidth;
+    if (maxS <= 6) {
+      edgeSignKitchenEl.classList.add("is-hidden-edge");
+      edgeSignYardEl.classList.add("is-hidden-edge");
+      return;
+    }
+    const r = worldScrollEl.scrollLeft / maxS;
+    const kUnlocked = (crossStore.house.unlockedRoomIds || []).includes("cozy_kitchen");
+    const yUnlocked = (crossStore.house.unlockedRoomIds || []).includes("sunlit_yard");
+    $("edge-sign-kitchen-text").textContent = kUnlocked ? "🍳 去小厨房" : "🔒 小厨房";
+    $("edge-sign-yard-text").textContent = yUnlocked ? "🌿 去小院子" : "🔒 小院子";
+    edgeSignKitchenEl.classList.toggle("is-hidden-edge", r > 0.14);
+    edgeSignYardEl.classList.toggle("is-hidden-edge", r < 0.86);
+  }
+  worldScrollEl.addEventListener("scroll", updateEdgeRoomSigns);
+
+  function switchActiveRoom(roomId, skipTransition) {
+    if (!P5Data) return;
+    const def = P5Data.getRoomById(roomId);
+    if (!def) return;
+    const unlocked = (crossStore.house.unlockedRoomIds || []).includes(def.id);
+    if (!unlocked) {
+      openHouseGuide("rooms");
+      return;
+    }
+    const apply = () => {
+      crossStore.house.activeRoomId = def.id;
+      if (def.id === "living_room") {
+        state.stageBgId = "living_room";
+      }
+      Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { roomId: def.id, countsAsEffective: true });
+      persistState();
+      syncAltRoomProps();
+      layoutScenePropsAndHotspots();
+      showSceneFeedback(`推开门，来到「${def.name}」${def.icon}`, "system");
+    };
+    if (skipTransition || REDUCED_MOTION || !roomTransitionVeilEl) {
+      apply();
+      return;
+    }
+    roomTransitionVeilEl.hidden = false;
+    void roomTransitionVeilEl.offsetWidth;
+    roomTransitionVeilEl.classList.add("is-active");
+    setTimeout(() => {
+      apply();
+      roomTransitionVeilEl.classList.remove("is-active");
+      setTimeout(() => { roomTransitionVeilEl.hidden = true; }, 240);
+    }, 240);
+  }
+
+  edgeSignKitchenEl?.addEventListener("click", () => { sfx.tap(); switchActiveRoom("cozy_kitchen"); });
+  edgeSignYardEl?.addEventListener("click", () => { sfx.tap(); switchActiveRoom("sunlit_yard"); });
+  roomSwitcherPillEl?.addEventListener("click", () => { sfx.tap(); openHouseGuide("rooms"); });
+
+  $("kitchen-oven-btn")?.addEventListener("click", () => { sfx.tap(); openNativeMinigame("bakery-tap"); });
+  $("kitchen-fridge-btn")?.addEventListener("click", () => {
+    sfx.tap();
+    openKeepsakeAlbum("keepsakes");
+    showSceneFeedback("旅途冰箱贴与多宝格同步珍藏中 🧲", "system");
+  });
+  $("kitchen-jar-btn")?.addEventListener("click", () => {
+    sfx.tap();
+    openCarePanel("feed");
+  });
+  $("yard-chair-btn")?.addEventListener("click", () => { sfx.tap(); openNativeMinigame("meadow-breeze"); });
+  $("yard-mailbox-btn")?.addEventListener("click", () => { sfx.tap(); openYardMailboxModal(); });
+
+  const yardMailboxOverlayEl = $("yard-mailbox-overlay");
+  const yardMailboxListEl = $("yard-mailbox-list");
+  function openYardMailboxModal() {
+    if (!yardMailboxOverlayEl || !yardMailboxListEl) return;
+    ensureDailyYardMailboxDelivery();
+    const items = (crossStore.house && crossStore.house.mailboxItems) || [];
+    if (items.length === 0) {
+      yardMailboxListEl.innerHTML = `<div class="mg-result-box"><p class="mg-result-box__sub">信箱里暂时还没有新邮袋，明天再来院子看看红旗吧。</p></div>`;
+    } else {
+      yardMailboxListEl.innerHTML = items.map((m) => `
+        <div class="room-tour-card${m.claimed ? "" : " is-active"}">
+          <div class="room-tour-card__body">
+            <div class="room-tour-card__title">📮 ${m.title} ${m.claimed ? "" : "· 新"}</div>
+            <p class="room-tour-card__desc">${m.text}</p>
+            <span class="room-tour-card__cond">${m.dateKey} · 附赠 +${m.starBonus || 6}✦ 与明信片</span>
+          </div>
+          <button class="room-tour-card__btn${m.claimed ? " room-tour-card__btn--locked" : ""}" type="button" data-claim-mail="${m.id}" ${m.claimed ? "disabled" : ""}>
+            ${m.claimed ? "已收信" : "收下邮袋"}
+          </button>
+        </div>
+      `).join("");
+      yardMailboxListEl.querySelectorAll("[data-claim-mail]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const claimed = Store.claimYardMailboxItem(crossStore, btn.dataset.claimMail);
+          if (!claimed) return;
+          sfx.star();
+          state.stars = Number(crossStore.companion.starBalance || state.stars);
+          state.postcards.unshift({
+            id: "pc_yard_" + Date.now(),
+            petId: claimed.petId || state.petId,
+            setId: claimed.outfitId || state.savedSet[state.petId],
+            outfitId: claimed.outfitId || state.savedSet[state.petId],
+            sceneId: claimed.sceneId || "bg_moon_courtyard",
+            text: claimed.text,
+            dateText: claimed.dateKey || Store.getUtc8DateKey(),
+            createdAt: Store.getUtc8IsoString()
+          });
+          if (claimed.keepsakeHint) unlockKeepsake(claimed.keepsakeHint, "yard_mailbox");
+          persistState();
+          renderMoodTab();
+          syncAltRoomProps();
+          openYardMailboxModal();
+          showSceneFeedback(`收到小院来信「${claimed.title}」+${claimed.starBonus || 6}✦ 并收入明信片册！`, "dialogue");
+        });
+      });
+    }
+    yardMailboxOverlayEl.hidden = false;
+  }
+  $("btn-close-yard-mailbox")?.addEventListener("click", () => { sfx.tap(); if (yardMailboxOverlayEl) yardMailboxOverlayEl.hidden = true; });
+  yardMailboxOverlayEl?.addEventListener("click", (ev) => { if (ev.target === yardMailboxOverlayEl) yardMailboxOverlayEl.hidden = true; });
+
+  /* ---------- P5 家园软装改造与多房间导览弹窗 ---------- */
+  function openHouseGuide(tab) {
+    if (!houseGuideOverlayEl || !P5Data) return;
+    activeHouseTab = tab || "rooms";
+    renderHouseGuide();
+    houseGuideOverlayEl.hidden = false;
+  }
+  function closeHouseGuide() {
+    if (houseGuideOverlayEl) houseGuideOverlayEl.hidden = true;
+  }
+  function renderHouseGuide() {
+    const balEl = $("house-guide-balance");
+    if (balEl) balEl.textContent = `当前星星：${state.stars} ✦ · 累计陪伴 ${state.totalCompanionDays || 1} 天`;
+    document.querySelectorAll("[data-house-tab]").forEach((b) => {
+      b.classList.toggle("is-active", b.dataset.houseTab === activeHouseTab);
+    });
+    if (houseRoomsPaneEl) houseRoomsPaneEl.hidden = activeHouseTab !== "rooms";
+    if (houseDecorPaneEl) houseDecorPaneEl.hidden = activeHouseTab !== "decor";
+    if (activeHouseTab === "rooms") renderHouseRoomsPane();
+    else renderHouseDecorPane();
+  }
+
+  function renderHouseRoomsPane() {
+    if (!houseRoomsPaneEl || !P5Data) return;
+    const curRoom = getActiveRoomId();
+    houseRoomsPaneEl.innerHTML = P5Data.ROOMS_CATALOG.map((room) => {
+      const check = Store.canUnlockRoom(crossStore, room);
+      const isHere = curRoom === room.id;
+      let btnLabel = "进入房间";
+      let btnCls = "room-tour-card__btn";
+      let condText = "已开放 · 随时切换";
+      if (isHere) {
+        btnLabel = "当前所在";
+        btnCls += " room-tour-card__btn--locked";
+      } else if (!check.unlocked) {
+        if (check.comingSoon) {
+          btnLabel = "远期筹备";
+          btnCls += " room-tour-card__btn--locked";
+          condText = `累计陪伴 ${room.minDays} 天 + ${room.starCost}✦（即将开放）`;
+        } else if (check.eligible) {
+          btnLabel = `${room.starCost}✦ 开启`;
+          condText = `已达标！累计陪伴满 ${room.minDays} 天`;
+        } else {
+          btnLabel = "待解锁";
+          btnCls += " room-tour-card__btn--locked";
+          const parts = [];
+          if (check.missingDays > 0) parts.push(`再相伴 ${check.missingDays} 天`);
+          if (check.missingStars > 0) parts.push(`再攒 ${check.missingStars}✦`);
+          condText = `条件：陪伴 ${room.minDays} 天 + ${room.starCost}✦（${parts.join(" · ")}）`;
+        }
+      }
+      return `
+        <div class="room-tour-card${isHere ? " is-active" : ""}">
+          <img class="room-tour-card__thumb" src="${sharedUrl(room.bgFile)}" alt="${room.name}" />
+          <div class="room-tour-card__body">
+            <div class="room-tour-card__title">${room.icon} ${room.name}</div>
+            <p class="room-tour-card__desc">${room.desc}</p>
+            <span class="room-tour-card__cond">${condText}</span>
+          </div>
+          <button class="${btnCls}" type="button" data-room-action="${room.id}">${btnLabel}</button>
+        </div>
+      `;
+    }).join("");
+
+    houseRoomsPaneEl.querySelectorAll("[data-room-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const room = P5Data.getRoomById(btn.dataset.roomAction);
+        if (!room) return;
+        sfx.tap();
+        const check = Store.canUnlockRoom(crossStore, room);
+        if (check.unlocked) {
+          closeHouseGuide();
+          switchActiveRoom(room.id);
+          return;
+        }
+        if (check.comingSoon) {
+          showSceneFeedback("阁楼茶室与陈列馆正在软装筹备中，敬请期待 ✨", "system");
+          return;
+        }
+        const res = Store.unlockRoom(crossStore, room);
+        if (!res.ok) {
+          if (res.reason === "insufficient_days") {
+            showSceneFeedback(`再相伴 ${res.missingDays} 天，就能一起推开「${room.name}」的门啦`, "system");
+          } else {
+            showSceneFeedback(`还差 ${res.missingStars}✦ 星星，玩会儿小游戏就能攒够啦`, "system");
+          }
+          return;
+        }
+        state.stars = Number(crossStore.companion.starBalance || 0);
+        persistState();
+        renderMoodTab();
+        sfx.star();
+        closeHouseGuide();
+        switchActiveRoom(room.id);
+      });
+    });
+  }
+
+  function renderHouseDecorPane() {
+    if (!houseDecorPaneEl || !P5Data) return;
+    const unlockedSet = new Set((crossStore.house && crossStore.house.unlockedDecorIds) || []);
+    const mods = getLivingRoomModules();
+    houseDecorPaneEl.innerHTML = P5Data.DECOR_SLOTS.map((slot) => {
+      const items = P5Data.getDecorBySlot(slot.id);
+      const equippedId = mods[slot.id] && mods[slot.id].styleId;
+      return `
+        <div class="decor-slot-group">
+          <div class="decor-slot-group__title">${slot.icon} ${slot.label}</div>
+          <div class="decor-items-row">
+            ${items.map((it) => {
+              const owned = unlockedSet.has(it.id);
+              const equipped = equippedId === it.id;
+              const meta = equipped ? "已布置" : owned ? "已拥有 · 点击换上" : `${it.price}✦ 解锁`;
+              return `
+                <button class="decor-item-card${equipped ? " is-equipped" : ""}" type="button" data-decor-id="${it.id}">
+                  <span class="decor-item-card__swatch" style="background:${it.swatch}"></span>
+                  <span class="decor-item-card__name">${it.name}</span>
+                  <span class="decor-item-card__meta">${meta}</span>
+                </button>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    houseDecorPaneEl.querySelectorAll("[data-decor-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const def = P5Data.getDecorById(btn.dataset.decorId);
+        if (!def) return;
+        sfx.tap();
+        const res = Store.unlockDecorItem(crossStore, def);
+        if (!res.ok) {
+          showSceneFeedback(`星星还差 ${res.missing}✦，去玩「一起画」或「听你说」赚星星吧`, "system");
+          return;
+        }
+        state.stars = Number(crossStore.companion.starBalance || 0);
+        persistState();
+        renderMoodTab();
+        syncRoomModules();
+        renderHouseGuide();
+        if (!res.alreadyOwned) sfx.star();
+        showSceneFeedback(res.alreadyOwned ? `已换上「${def.name}」` : `已解锁并布置「${def.name}」✨`, "dialogue");
+      });
+    });
+  }
+
+  document.querySelectorAll("[data-house-tab]").forEach((b) => {
+    b.addEventListener("click", () => {
+      sfx.tap();
+      activeHouseTab = b.dataset.houseTab;
+      renderHouseGuide();
+    });
+  });
+  $("btn-close-house-guide")?.addEventListener("click", () => { sfx.tap(); closeHouseGuide(); });
+  houseGuideOverlayEl?.addEventListener("click", (ev) => { if (ev.target === houseGuideOverlayEl) closeHouseGuide(); });
+
+  /* ---------- P5 内置轻小游戏（《听你说》《寻宝翻翻乐》《暖炉烘焙拍》《小院牧歌》） ---------- */
+  const nativeMgOverlayEl = $("native-minigame-overlay");
+  const nativeMgTitleEl = $("native-mg-title");
+  const nativeMgSubEl = $("native-mg-sub");
+  const nativeMgBodyEl = $("native-mg-body");
+
+  function getTodayMiniGameStarsEarned() {
+    const dk = Store.getUtc8DateKey();
+    const map = crossStore.companion && crossStore.companion.dailyMiniGameStars;
+    return Math.max(0, Number(map && map[dk] || 0));
+  }
+
+  function closeNativeMinigame() {
+    if (typeof activeMiniGameCleanup === "function") {
+      try { activeMiniGameCleanup(); } catch (_) {}
+      activeMiniGameCleanup = null;
+    }
+    if (nativeMgOverlayEl) nativeMgOverlayEl.hidden = true;
+  }
+  $("btn-close-native-mg")?.addEventListener("click", () => { sfx.tap(); closeNativeMinigame(); });
+  nativeMgOverlayEl?.addEventListener("click", (ev) => { if (ev.target === nativeMgOverlayEl) closeNativeMinigame(); });
+
+  function finishNativeMinigame(miniGameId, rawStars, summaryTitle, extraHtml) {
+    const res = Store.awardActivityStars(crossStore, rawStars, {
+      petId: state.petId,
+      miniGameId
+    });
+    state.stars = Number(crossStore.companion.starBalance || state.stars);
+    persistState();
+    renderMoodTab();
+    if (typeof syncAltRoomProps === "function") syncAltRoomProps();
+    if (res.starsAwarded > 0) {
+      sfx.star();
+      animateStarsTo(state.stars, res.starsAwarded);
+    }
+    const rewardText = res.starsAwarded > 0
+      ? `获得 +${res.starsAwarded}✦ 星星（今日游艺 ${res.earnedToday}/${res.cap}✦）`
+      : `今日游艺星星已满 ${res.cap}✦，改获 +${res.expAwarded} 亲密经验 💛`;
+    if (nativeMgSubEl) nativeMgSubEl.textContent = `今日游艺获星 ${res.earnedToday} / ${res.cap} ✦`;
+    if (nativeMgBodyEl) {
+      nativeMgBodyEl.innerHTML = `
+        <div class="mg-result-box">
+          <div class="mg-result-box__big">${summaryTitle}</div>
+          <p class="mg-result-box__sub">${rewardText}</p>
+          ${extraHtml || ""}
+          <button id="btn-mg-finish-close" class="btn btn--primary btn--small" type="button"><span class="btn-text">回到小屋</span></button>
+        </div>
+      `;
+      $("btn-mg-finish-close")?.addEventListener("click", () => { sfx.tap(); closeNativeMinigame(); });
+    }
+  }
+
+  function openNativeMinigame(gameId) {
+    if (!nativeMgOverlayEl || !nativeMgBodyEl || !P5Data) return;
+    closeNativeMinigame();
+    const earned = getTodayMiniGameStarsEarned();
+    if (nativeMgSubEl) nativeMgSubEl.textContent = `今日游艺获星 ${earned} / ${Store.DAILY_MINIGAME_STAR_CAP} ✦`;
+    nativeMgOverlayEl.hidden = false;
+
+    if (gameId === "listen-qa") {
+      if (nativeMgTitleEl) nativeMgTitleEl.textContent = "💬 听你说";
+      const questions = P5Data.pickListenSessionQuestions(Store.getUtc8DateKey() + ":" + Date.now());
+      let step = 0;
+      const tags = [];
+      const renderStep = () => {
+        const q = questions[step];
+        nativeMgBodyEl.innerHTML = `
+          <div class="mg-question-card">
+            <span class="mg-question-cat">${q.category} · 第 ${step + 1} / ${questions.length} 题</span>
+            <p class="mg-question-text">${q.question}</p>
+            <div class="mg-option-list">
+              ${q.options.map((opt, idx) => `<button class="mg-option-btn" type="button" data-opt-idx="${idx}">${opt.text}</button>`).join("")}
+            </div>
+            <div id="mg-listen-reply" class="mg-pet-reply" hidden style="margin-top:10px;"></div>
+          </div>
+        `;
+        nativeMgBodyEl.querySelectorAll("[data-opt-idx]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const opt = q.options[Number(btn.dataset.optIdx)];
+            if (!opt) return;
+            sfx.tap();
+            tags.push(opt.tag);
+            const rep = $("mg-listen-reply");
+            if (rep) {
+              rep.textContent = `${getPetName(state.petId)}：${opt.reply}`;
+              rep.hidden = false;
+            }
+            nativeMgBodyEl.querySelectorAll("[data-opt-idx]").forEach((b) => { b.disabled = true; });
+            setTimeout(() => {
+              step += 1;
+              if (step < questions.length) {
+                renderStep();
+              } else {
+                const dk = Store.getUtc8DateKey();
+                const firstToday = crossStore.companion.dailyListenClaimedDate !== dk;
+                crossStore.companion.dailyListenClaimedDate = dk;
+                const reward = firstToday ? 10 : 0;
+                const tagHtml = `<p class="mg-result-box__sub">今日伙伴印象签：${tags.map((t) => `「${t}」`).join(" ")}</p>`;
+                finishNativeMinigame("listen_qa", reward, firstToday ? "听你说完成 +10✦" : "今天已经聊过一轮啦", tagHtml);
+              }
+            }, 680);
+          });
+        });
+      };
+      renderStep();
+      return;
+    }
+
+    if (gameId === "treasure-memory") {
+      if (nativeMgTitleEl) nativeMgTitleEl.textContent = "🃏 寻宝翻翻乐";
+      const allKs = getAllKeepsakes();
+      const pool = allKs.slice().sort(() => Math.random() - 0.5).slice(0, 6);
+      const deck = pool.concat(pool).map((item, idx) => ({ idx, item, open: false, matched: false })).sort(() => Math.random() - 0.5);
+      let firstCard = null;
+      let lockBoard = false;
+      let matchedPairs = 0;
+
+      const renderBoard = () => {
+        nativeMgBodyEl.innerHTML = `
+          <p class="bookshelf-hub-head__sub" style="margin:0;">翻开相同的 6 对纪念小物（已配对 ${matchedPairs} / 6）</p>
+          <div class="mg-memory-grid">
+            ${deck.map((c, i) => `
+              <button class="mg-memory-card${c.open ? " is-open" : ""}${c.matched ? " is-matched" : ""}" type="button" data-card-i="${i}">
+                ${(c.open || c.matched) ? `<img src="${sharedUrl(c.item.img)}" alt="${c.item.name}" />` : "🪵"}
+              </button>
+            `).join("")}
+          </div>
+        `;
+        nativeMgBodyEl.querySelectorAll("[data-card-i]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            if (lockBoard) return;
+            const c = deck[Number(btn.dataset.cardI)];
+            if (!c || c.open || c.matched) return;
+            sfx.tap();
+            c.open = true;
+            if (!firstCard) {
+              firstCard = c;
+              renderBoard();
+              return;
+            }
+            if (firstCard.item.id === c.item.id) {
+              firstCard.matched = true;
+              c.matched = true;
+              firstCard = null;
+              matchedPairs += 1;
+              renderBoard();
+              if (matchedPairs >= 6) {
+                setTimeout(() => finishNativeMinigame("treasure_memory", 10, "寻宝翻翻乐通关！"), 260);
+              }
+            } else {
+              lockBoard = true;
+              renderBoard();
+              setTimeout(() => {
+                firstCard.open = false;
+                c.open = false;
+                firstCard = null;
+                lockBoard = false;
+                renderBoard();
+              }, 520);
+            }
+          });
+        });
+      };
+      renderBoard();
+      return;
+    }
+
+    if (gameId === "bakery-tap") {
+      if (nativeMgTitleEl) nativeMgTitleEl.textContent = "🔥 暖炉烘焙拍";
+      let hits = 0;
+      let pos = 10;
+      let dir = 1;
+      let rafId = 0;
+      const targetHits = 3;
+      const craftedSnack = Math.random() < 0.5 ? P5Data.CRAFTED_SNACKS[0] : P5Data.CRAFTED_SNACKS[1];
+
+      nativeMgBodyEl.innerHTML = `
+        <div class="mg-bakery-oven">
+          <div style="font-size:32px;">🧁</div>
+          <div style="font-weight:800;font-size:15px;margin-top:4px;">正在烤制「${craftedSnack.name}」</div>
+          <p id="mg-bakery-status" class="bookshelf-hub-head__sub">火候指针落进绿色甜香区时拍一下！（0 / ${targetHits}）</p>
+          <div class="mg-bakery-track">
+            <div class="mg-bakery-sweet"></div>
+            <div id="mg-bakery-cursor" class="mg-bakery-cursor" style="left:10%;"></div>
+          </div>
+          <button id="btn-mg-bakery-tap" class="btn btn--primary btn--small" type="button"><span class="btn-text">🔥 拍一下翻烤</span></button>
+        </div>
+      `;
+      const cursorEl = $("mg-bakery-cursor");
+      const statusEl = $("mg-bakery-status");
+      const tick = () => {
+        pos += dir * 1.45;
+        if (pos >= 94) { pos = 94; dir = -1; }
+        if (pos <= 6) { pos = 6; dir = 1; }
+        if (cursorEl) cursorEl.style.left = pos.toFixed(1) + "%";
+        rafId = requestAnimationFrame(tick);
+      };
+      rafId = requestAnimationFrame(tick);
+      activeMiniGameCleanup = () => cancelAnimationFrame(rafId);
+
+      $("btn-mg-bakery-tap")?.addEventListener("click", () => {
+        if (pos >= 36 && pos <= 64) {
+          sfx.star();
+          hits += 1;
+          if (statusEl) statusEl.textContent = `火候刚刚好！香喷喷～（${hits} / ${targetHits}）`;
+          if (hits >= targetHits) {
+            cancelAnimationFrame(rafId);
+            Store.addCraftedSnack(crossStore, craftedSnack.id, 1);
+            renderSnackTray();
+            finishNativeMinigame(
+              "bakery_tap",
+              10,
+              `${craftedSnack.name} 出炉啦！`,
+              `<p class="mg-result-box__sub">已存入零食罐（+38 饱食度），打开「喂食」即可投喂给它～</p>`
+            );
+          }
+        } else {
+          sfx.tap();
+          if (statusEl) statusEl.textContent = `再等指针滑到中间绿色区拍一下哦（${hits} / ${targetHits}）`;
+        }
+      });
+      return;
+    }
+
+    if (gameId === "meadow-breeze") {
+      if (nativeMgTitleEl) nativeMgTitleEl.textContent = "🌿 小院牧歌";
+      let caught = 0;
+      const goal = 5;
+      nativeMgBodyEl.innerHTML = `
+        <p id="mg-meadow-status" class="bookshelf-hub-head__sub" style="margin:0;">轻触接住 5 朵随风飘来的桂花瓣（0 / ${goal}）</p>
+        <div id="mg-meadow-field" class="mg-meadow-field"></div>
+      `;
+      const fieldEl = $("mg-meadow-field");
+      const statusEl = $("mg-meadow-status");
+      const spawnPetal = () => {
+        if (!fieldEl || caught >= goal) return;
+        fieldEl.innerHTML = "";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mg-meadow-target";
+        btn.textContent = Math.random() < 0.5 ? "🌼" : "🍃";
+        btn.style.left = (12 + Math.random() * 72).toFixed(1) + "%";
+        btn.style.top = (14 + Math.random() * 64).toFixed(1) + "%";
+        btn.addEventListener("click", () => {
+          sfx.tap();
+          caught += 1;
+          if (statusEl) statusEl.textContent = `接住了一朵小院桂花！（${caught} / ${goal}）`;
+          if (caught >= goal) {
+            finishNativeMinigame("meadow_breeze", 8, "小院微风收集完成！");
+          } else {
+            spawnPetal();
+          }
+        });
+        fieldEl.appendChild(btn);
+      };
+      spawnPetal();
+    }
+  }
+
+  /* ---------- 22. 启动流程 ---------- */
   window.addEventListener("resize", () => {
     Store.injectCapsuleSafeAreaVars(document.documentElement);
     updateViewportGeometry();
@@ -4158,21 +5224,40 @@
     }
 
     checkAndSettleFocusSession();
+    // 静默检查昨日/历史活跃日补结日记与缺席零愧疚等门小涂鸦（严禁补发空白日）
+    if (DiaryEngine) {
+      const diaryBoot = await DiaryEngine.checkAndSettleDiary(crossStore, catalog, {
+        weather: state.period === "sunset" ? "sunset" : state.period === "night" ? "night" : "sunny"
+      });
+      if (diaryBoot && diaryBoot.welcomeBackNote) {
+        pendingWelcomeBackNote = diaryBoot.welcomeBackNote;
+      }
+      if (diaryBoot && diaryBoot.generated) {
+        persistState();
+      }
+    }
+
     buildDevTesterMenus();
     renderMoodTab();
     renderContextEntry();
     layoutScenePropsAndHotspots();
     syncRoomModules();
+    syncAltRoomProps();
     renderBlackCatClockUI();
     scrollToScreen(1, false);
     updateClockDutyHintVisibility();
-    if (new URLSearchParams(window.location.search).get("open") === "curio") {
-      openKeepsakeAlbum("keepsakes");
-    }
+    updateEdgeRoomSigns();
+
+    const openParam = qs.get("open");
+    if (openParam === "curio") openKeepsakeAlbum("keepsakes");
+    else if (openParam === "diary") openKeepsakeAlbum("diary");
+    else if (openParam === "bookshelf") openBookshelfHub();
+    else if (openParam === "house") openHouseGuide("rooms");
+
     requestAnimationFrame(mainLoop);
   }
 
-  /* ---------- 活动列表（小游戏合集） ---------- */
+  /* ---------- 活动列表（小游戏合集 + 每日 ≤45✦ 软上限闭环） ---------- */
   const ACTIVITIES = [
     {
       id: "doodle-together",
@@ -4182,6 +5267,42 @@
       thumb: sharedUrl("assets/shared/png/doodle/palette_3d.png"),
       containThumb: true,
       url: "./living-room-dress/doodle/"
+    },
+    {
+      id: "listen-qa",
+      name: "听你说",
+      tag: "治愈轻问答 · +10✦",
+      desc: "5 大生活话题轻问答，生成今日伙伴印象签与每日首组星星",
+      thumb: "./living-room-dress/ui/chat_koi.png",
+      containThumb: true,
+      native: true
+    },
+    {
+      id: "treasure-memory",
+      name: "寻宝翻翻乐",
+      tag: "41件藏品配对 · +10✦",
+      desc: "用现成 3D 小物件玩 3×4 翻牌记忆配对，轻松赚星星",
+      thumb: "./living-room-dress/ui/tb_keepsakes.png",
+      containThumb: true,
+      native: true
+    },
+    {
+      id: "bakery-tap",
+      name: "暖炉烘焙拍",
+      tag: "小厨房联动 · +10✦",
+      desc: "把握烤箱绿区火候，亲手烤制桂花蜜松饼与香酥鲷鱼烧",
+      thumb: "./living-room-dress/ui/snack_cake.png",
+      containThumb: true,
+      native: true
+    },
+    {
+      id: "meadow-breeze",
+      name: "小院牧歌",
+      tag: "微风接花 · +8✦",
+      desc: "在晴日小院接住随风飘落的桂花瓣，轻松放松赚星星",
+      thumb: "./living-room-dress/ui/tb_activity.png",
+      containThumb: true,
+      native: true
     },
     {
       id: "haixinke-bottle-game",
@@ -4225,12 +5346,23 @@
       crossStore.dailyEventLog = latest.dailyEventLog;
     }
     renderMoodTab();
+    syncRoomModules();
     if (profileModalEl && !profileModalEl.hidden) renderProfileModal();
     if (albumViewEl && !albumViewEl.hidden) renderAlbumGrid();
   }
 
   function openActivityModal() {
     if (!activityModalEl || !activityListEl) return;
+    const isOrdinary = crossStore.profileMode === "wx-mp-ordinary";
+    const titleEl = $("activity-modal-title");
+    const capBarEl = $("activity-star-cap-bar");
+    if (titleEl) titleEl.textContent = isOrdinary ? "陪伴互动匣" : "活动列表";
+    const earned = getTodayMiniGameStarsEarned();
+    if (capBarEl) {
+      capBarEl.textContent = earned >= Store.DAILY_MINIGAME_STAR_CAP
+        ? `今日游艺获星已满 ${Store.DAILY_MINIGAME_STAR_CAP}/${Store.DAILY_MINIGAME_STAR_CAP}✦（继续游玩仍得 +5 EXP 与自制点心）`
+        : `今日游艺获星：${earned} / ${Store.DAILY_MINIGAME_STAR_CAP} ✦（满额后仍得 +5 EXP）`;
+    }
     activityListEl.innerHTML = ACTIVITIES.map((item) => `
       <button class="activity-card" type="button" data-activity-id="${item.id}">
         <img class="activity-card__thumb${item.containThumb ? " activity-card__thumb--contain" : ""}" src="${item.thumb}" alt="" />
@@ -4250,7 +5382,11 @@
         if (!target) return;
         sfx.tap();
         closeActivityModal();
-        openActivityPlayer(target);
+        if (target.native) {
+          openNativeMinigame(target.id);
+        } else {
+          openActivityPlayer(target);
+        }
       });
     });
     activityModalEl.hidden = false;
