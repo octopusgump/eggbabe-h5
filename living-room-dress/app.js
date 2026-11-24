@@ -34,8 +34,8 @@
     if (/^(https?:|data:|blob:)/i.test(relPath)) return relPath;
     const clean = String(relPath).replace(/^(\.\.\/|\/)+/, "");
     const proto = window.location.protocol;
-    if ((proto === "http:" || proto === "https:") && window.location.pathname.indexOf("/living-room-dress/") >= 0) {
-      return "../" + clean;
+    if (proto === "http:" || proto === "https:") {
+      return window.location.pathname.indexOf("/living-room-dress/") >= 0 ? "../" + clean : "./" + clean;
     }
     return PAGES_CDN + "/" + clean;
   }
@@ -44,14 +44,14 @@
   const CARE_STORAGE_KEY = "eggbabe_care_v1";
   const SNACKS_BY_PET = {
     koi: [
-      { id: "dried_fish", name: "香酥小鱼干", icon: "./ui/snack_fish.png", hunger: 22, exp: 16, reply: "咔嚓咔嚓，最爱香酥小鱼干啦～" },
-      { id: "berry_mochi", name: "草莓大福", icon: "./ui/snack_berry.png", hunger: 26, exp: 20, reply: "软糯糯甜甜的，幸福冒泡泡～" },
-      { id: "star_candy", name: "幸运星星糖", icon: "./ui/tb_activity.png", hunger: 18, exp: 24, reply: "叮咚，吃掉一颗好运加倍～" }
+      { id: "dried_fish", name: "香酥小鱼干", icon: "./living-room-dress/ui/snack_fish.png", hunger: 22, exp: 16, reply: "咔嚓咔嚓，最爱香酥小鱼干啦～" },
+      { id: "berry_mochi", name: "草莓大福", icon: "./living-room-dress/ui/snack_berry.png", hunger: 26, exp: 20, reply: "软糯糯甜甜的，幸福冒泡泡～" },
+      { id: "star_candy", name: "幸运星星糖", icon: "./living-room-dress/ui/tb_activity.png", hunger: 18, exp: 24, reply: "叮咚，吃掉一颗好运加倍～" }
     ],
     yutu: [
-      { id: "carrot", name: "脆脆胡萝卜", icon: "./ui/snack_carrot.png", hunger: 24, exp: 16, reply: "嘎嘣脆，兔兔能量充满啦～" },
-      { id: "osmanthus_cake", name: "桂花蜜糕", icon: "./ui/snack_cake.png", hunger: 28, exp: 22, reply: "香香的桂花味，像在月宫一样～" },
-      { id: "cream_berry", name: "奶油小草莓", icon: "./ui/snack_berry.png", hunger: 20, exp: 20, reply: "酸酸甜甜，耳朵都要开心翘起来啦～" }
+      { id: "carrot", name: "脆脆胡萝卜", icon: "./living-room-dress/ui/snack_carrot.png", hunger: 24, exp: 16, reply: "嘎嘣脆，兔兔能量充满啦～" },
+      { id: "osmanthus_cake", name: "桂花蜜糕", icon: "./living-room-dress/ui/snack_cake.png", hunger: 28, exp: 22, reply: "香香的桂花味，像在月宫一样～" },
+      { id: "cream_berry", name: "奶油小草莓", icon: "./living-room-dress/ui/snack_berry.png", hunger: 20, exp: 20, reply: "酸酸甜甜，耳朵都要开心翘起来啦～" }
     ]
   };
 
@@ -114,12 +114,12 @@
   };
 
   const KEPSAKE_DEFS = {
-    "soft-button": { id: "soft-button", name: "旧木纽扣", img: "./keepsakes/soft-button.png", story: "这颗纽扣原本缝在一条很旧的围巾上。天气凉的时候握一会儿，就像有人替我把领口掖好了。" },
-    "short-pencil": { id: "short-pencil", name: "短短的铅笔", img: "./keepsakes/short-pencil.png", story: "这支铅笔越画越短，最后只剩两根手指那么长。每一道木屑里都藏着一张画。" },
-    "dali-cloud": { id: "dali-cloud", name: "苍山脚下的云石", img: "./keepsakes/dali-cloud.png", story: "我在风很大的路边看到它，白色纹路像一小片被压住的云。" },
-    "cafe-coaster": { id: "cafe-coaster", name: "软木杯垫", img: "./keepsakes/cafe-coaster.png", story: "忙乱的时候，把歪掉的杯垫扶正，桌面就会突然安静下来。" },
-    "wood-rattle": { id: "wood-rattle", name: "小拨浪鼓", img: "./keepsakes/wood-rattle.png", story: "轻轻摇一下，声音一圈圈传出去，每当想不出问题就听它开个头。" },
-    "ginkgo-leaf": { id: "ginkgo-leaf", name: "一片银杏叶", img: "./keepsakes/ginkgo-leaf.png", story: "它落下来时正好停在鞋尖，夹在纸页里带回家，边缘像金色的小扇子。" }
+    "soft-button": { id: "soft-button", name: "旧木纽扣", img: "./living-room-dress/keepsakes/soft-button.png", story: "这颗纽扣原本缝在一条很旧的围巾上。天气凉的时候握一会儿，就像有人替我把领口掖好了。" },
+    "short-pencil": { id: "short-pencil", name: "短短的铅笔", img: "./living-room-dress/keepsakes/short-pencil.png", story: "这支铅笔越画越短，最后只剩两根手指那么长。每一道木屑里都藏着一张画。" },
+    "dali-cloud": { id: "dali-cloud", name: "苍山脚下的云石", img: "./living-room-dress/keepsakes/dali-cloud.png", story: "我在风很大的路边看到它，白色纹路像一小片被压住的云。" },
+    "cafe-coaster": { id: "cafe-coaster", name: "软木杯垫", img: "./living-room-dress/keepsakes/cafe-coaster.png", story: "忙乱的时候，把歪掉的杯垫扶正，桌面就会突然安静下来。" },
+    "wood-rattle": { id: "wood-rattle", name: "小拨浪鼓", img: "./living-room-dress/keepsakes/wood-rattle.png", story: "轻轻摇一下，声音一圈圈传出去，每当想不出问题就听它开个头。" },
+    "ginkgo-leaf": { id: "ginkgo-leaf", name: "一片银杏叶", img: "./living-room-dress/keepsakes/ginkgo-leaf.png", story: "它落下来时正好停在鞋尖，夹在纸页里带回家，边缘像金色的小扇子。" }
   };
 
   const ROOM_STATES = {
@@ -603,7 +603,7 @@
       {
         id: "living_room",
         label: "破壳起居室",
-        src: `./panoramas/empty_${state.period}.png`,
+        src: `./living-room-dress/panoramas/empty_${state.period}.png`,
         cropCenter: true,
         tint: "rgba(255,224,182,0.07)",
         shadowRgba: "rgba(58,36,18,0.30)",
@@ -791,16 +791,16 @@
   });
   window.addEventListener("pointerup", () => { setTimeout(() => { mousePan = null; }, 0); });
 
-  let currentPanoUrl = "./panoramas/empty_day.png";
+  let currentPanoUrl = "./living-room-dress/panoramas/empty_day.png";
   let panoReqToken = 0;
   function resolveTargetPanoramaUrl() {
     const pd = state.period;
     if (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away") {
-      return `./panoramas/empty_${pd}.png`;
+      return `./living-room-dress/panoramas/empty_${pd}.png`;
     }
     const def = ROOM_STATES[state.roomState];
     const charFolder = state.petId === "yutu" ? "jade-rabbit" : "boon-koi";
-    return `./panoramas/${charFolder}/${def.fileKey}_${pd}.png`;
+    return `./living-room-dress/panoramas/${charFolder}/${def.fileKey}_${pd}.png`;
   }
 
   function syncPanoramaImage(immediate) {
@@ -2062,11 +2062,11 @@
     contextIconEl.classList.toggle("scene-action-icon-image--flat-envelope", showEnvelope);
     contextIconEl.classList.toggle("scene-action-icon-image--companion-chat", !showEnvelope);
     if (showEnvelope) {
-      contextIconEl.src = "./ui/envelope.png";
+      contextIconEl.src = "./living-room-dress/ui/envelope.png";
       contextUnreadDotEl.hidden = !state.unreadMail;
       letterPlaneFxEl.hidden = !state.unreadMail;
     } else {
-      contextIconEl.src = state.petId === "yutu" ? "./ui/chat_yutu.png" : "./ui/chat_koi.png";
+      contextIconEl.src = state.petId === "yutu" ? "./living-room-dress/ui/chat_yutu.png" : "./living-room-dress/ui/chat_koi.png";
       contextUnreadDotEl.hidden = true;
       letterPlaneFxEl.hidden = true;
     }
@@ -2311,7 +2311,7 @@
       });
     } else {
       // 背景页签：破壳起居室实景 + 11 套插画小屋背景
-      const allBgs = [{ id: "living_room", name: "破壳起居室", thumbUrl: `./panoramas/empty_${state.period}.png` }]
+      const allBgs = [{ id: "living_room", name: "破壳起居室", thumbUrl: `./living-room-dress/panoramas/empty_${state.period}.png` }]
         .concat((catalog.backgrounds || []).map((b) => ({ id: b.id, name: b.name, thumbUrl: sharedUrl(b.file) })));
 
       allBgs.forEach((bg) => {
@@ -2357,7 +2357,7 @@
     const setItem = setId ? pCfg.items.find((x) => x.id === setId) : null;
     const bodyUrl = sharedUrl(setItem ? setItem.tex : pCfg.textures.base);
 
-    let bgUrl = `./panoramas/empty_${state.period}.png`;
+    let bgUrl = `./living-room-dress/panoramas/empty_${state.period}.png`;
     let shadowRgba = "rgba(52, 32, 16, 0.34)";
     let cropCenter = true;
     if (state.stageBgId && state.stageBgId !== "living_room") {
