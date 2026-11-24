@@ -687,10 +687,13 @@ button:active {
 }
 .page.is-baked-action .gl-pet,
 .page.is-baked-action .pet-shadow,
+.page.is-baked-action .sleep-zz,
 .page.is-night-sleeping .gl-pet,
 .page.is-night-sleeping .pet-shadow,
+.page.is-night-sleeping .sleep-zz,
 .page[data-state="away"] .gl-pet,
-.page[data-state="away"] .pet-shadow {
+.page[data-state="away"] .pet-shadow,
+.page[data-state="away"] .sleep-zz {
   opacity: 0;
   pointer-events: none;
 }
