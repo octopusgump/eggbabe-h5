@@ -704,22 +704,34 @@
       }
     }
 
-    // 每日主动游艺星星软上限保护（≤45✦/日，单局 +10✦）
-    if (!store.companion.dailyMiniGameStars || typeof store.companion.dailyMiniGameStars !== "object") {
-      store.companion.dailyMiniGameStars = {};
+    // 每日主动游艺星星软上限保护（≤45✦/日，单局 +10✦，溢出返 +5 EXP）
+    let awardedStars = 0;
+    if (typeof Store.awardActivityStars === "function") {
+      const res = Store.awardActivityStars(store, PROP_DRAWING_REWARD, {
+        dateKey: todayKey,
+        petId,
+        miniGameId: "doodle_prop"
+      });
+      awardedStars = Number(res && res.starsAwarded || 0);
+      if (newlyUnlocked) {
+        Store.recordDailyEvent(store, todayKey, petId, { keepsakeId: currentProp.id });
+      }
+    } else {
+      if (!store.companion.dailyMiniGameStars || typeof store.companion.dailyMiniGameStars !== "object") {
+        store.companion.dailyMiniGameStars = {};
+      }
+      const earnedToday = Number(store.companion.dailyMiniGameStars[todayKey] || 0);
+      const remainCap = Math.max(0, DAILY_MINIGAME_STAR_CAP - earnedToday);
+      awardedStars = Math.min(PROP_DRAWING_REWARD, remainCap);
+      if (awardedStars > 0) {
+        store.companion.starBalance = Number(store.companion.starBalance || 0) + awardedStars;
+        store.companion.dailyMiniGameStars[todayKey] = earnedToday + awardedStars;
+      }
+      Store.recordDailyEvent(store, todayKey, petId, {
+        miniGameId: "doodle_prop",
+        keepsakeId: newlyUnlocked ? currentProp.id : undefined
+      });
     }
-    const earnedToday = Number(store.companion.dailyMiniGameStars[todayKey] || 0);
-    const remainCap = Math.max(0, DAILY_MINIGAME_STAR_CAP - earnedToday);
-    const awardedStars = Math.min(PROP_DRAWING_REWARD, remainCap);
-    if (awardedStars > 0) {
-      store.companion.starBalance = Number(store.companion.starBalance || 0) + awardedStars;
-      store.companion.dailyMiniGameStars[todayKey] = earnedToday + awardedStars;
-    }
-
-    Store.recordDailyEvent(store, todayKey, petId, {
-      miniGameId: "doodle_prop",
-      keepsakeId: newlyUnlocked ? currentProp.id : undefined
-    });
     storageAdapter.setJSON(Store.STORAGE_KEY, store);
 
     standaloneStarPillEl.textContent = `✦ ${Number(store.companion.starBalance || 0)}`;

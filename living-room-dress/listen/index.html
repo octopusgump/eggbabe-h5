@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>听你说 · 蛋宝宝陪伴小游戏</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="listen-app" class="listen-page">
+    <!-- 独立窗口顶栏（内嵌于 #activity-player 时自动隐藏避免双顶栏） -->
+    <header id="standalone-header" class="listen-topbar">
+      <a id="btn-standalone-back" class="listen-topbar__back" href="../../">← 返回房间</a>
+      <h1 id="standalone-title" class="listen-topbar__title">听你说</h1>
+      <span id="standalone-star-pill" class="listen-topbar__stars">✦ 0</span>
+    </header>
+
+    <!-- 视图一：5 题轻问答视图 (view === 'question') -->
+    <section id="view-question" class="listen-view">
+      <div class="progress-area">
+        <div class="meta-row">
+          <div class="meta-left">
+            <span id="q-category-badge" class="category-pill">日常习惯</span>
+            <span id="q-group-title" class="kicker">想听你说件小事</span>
+          </div>
+          <div class="meta-right">
+            <button id="btn-switch-topic" class="switch-topic-btn" type="button" title="换一个话题聊聊">换话题 ↻</button>
+            <span id="q-count" class="count">1 / 5</span>
+          </div>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div id="q-progress-fill" class="progress-fill" style="width: 20%"></div>
+        </div>
+      </div>
+
+      <div id="question-scroll" class="question-scroll">
+        <div class="question-content">
+          <p id="q-context-note" class="context-note" hidden></p>
+          <h2 id="q-text" class="title question-title">正在准备话题…</h2>
+
+          <div id="q-options" class="options" role="radiogroup"></div>
+
+          <button id="btn-add-note" class="add-note" type="button" hidden>✎ 补充一句（选填）</button>
+          <textarea
+            id="listen-supplement"
+            class="supplement"
+            placeholder="写下你的想法（选填）..."
+            maxlength="500"
+            aria-label="写下你的想法，选填"
+            hidden
+          ></textarea>
+          <p id="q-error" class="error" role="alert" hidden></p>
+        </div>
+      </div>
+
+      <footer class="question-footer">
+        <button id="btn-prev-q" class="prev-btn" type="button" hidden>上一题</button>
+        <button id="btn-next-q" class="primary primary--disabled" type="button" disabled>
+          <span id="next-btn-label" class="button-label">下一题</span>
+        </button>
+      </footer>
+    </section>
+
+    <!-- 视图二：伙伴心意回信与星星结算视图 (view === 'feedback') -->
+    <section id="view-feedback" class="listen-view" hidden>
+      <div class="feedback-scroll">
+        <div class="feedback-main">
+          <span id="fb-kicker" class="kicker">想听你说件小事</span>
+
+          <div class="feedback-quote">
+            <svg class="quote-mark" width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true">
+              <path d="M13.4056 8.0118C9.74189 9.84366 7.36726 13.3717 7.36726 16.3569C7.77434 16.0177 8.52065 15.8142 9.26696 15.8142C11.7773 15.8142 13.4735 17.7139 13.4735 20.1563C13.4735 22.2596 11.913 24.5664 8.85988 24.5664C5.94248 24.5664 3.5 21.8525 3.5 18.1209C3.5 12.0826 7.63865 7.40118 11.9808 5.43363L13.4056 8.0118ZM26.4322 8.0118C22.7684 9.84366 20.3938 13.3717 20.3938 16.3569C20.8009 16.0177 21.4794 15.8142 22.2257 15.8142C24.8038 15.8142 26.5 17.7139 26.5 20.1563C26.5 22.2596 24.9395 24.5664 21.8864 24.5664C18.969 24.5664 16.5265 21.8525 16.5265 18.1209C16.5265 12.0826 20.6652 7.40118 25.0074 5.43363L26.4322 8.0118Z" fill="#91A65A"/>
+            </svg>
+            <p id="fb-quote-copy" class="feedback-quote-copy" aria-live="polite"></p>
+          </div>
+
+          <div class="feedback-pet-stage">
+            <!-- 首次完成当日问答：3D 星星 +10 动效 -->
+            <div id="fb-award-box" class="today-companion-award" hidden aria-live="polite">
+              <img id="fb-star-img" class="today-companion-award__star" src="../ui/star_neutral.png" alt="" />
+              <span id="fb-award-plus" class="today-companion-award__plus">+10</span>
+            </div>
+
+            <!-- 谢谢你说给我听 + 3 枚原生微光星花 -->
+            <div id="fb-thank-box" class="feedback-reward-label" hidden aria-live="polite">
+              <img class="feedback-reward-spark feedback-reward-spark--1" src="../../assets/shared/png/listen/spark_1.png" alt="" />
+              <img class="feedback-reward-spark feedback-reward-spark--2" src="../../assets/shared/png/listen/spark_2.png" alt="" />
+              <img class="feedback-reward-spark feedback-reward-spark--3" src="../../assets/shared/png/listen/spark_3.png" alt="" />
+              <span class="feedback-reward-label__copy">
+                <span id="fb-reward-text">谢谢你说给我听</span><span class="feedback-reward-dots"> ✦</span>
+              </span>
+            </div>
+
+            <!-- 当前穿戴套装的实时伙伴立绘 -->
+            <div class="pet-portrait-wrap">
+              <img id="fb-pet-img" class="companion-pet-portrait" alt="陪伴伙伴" />
+              <span class="pet-portrait-shadow" aria-hidden="true"></span>
+              <span id="fb-pet-caption" class="pet-portrait-caption"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="feedback-footer">
+        <button id="btn-fb-continue" class="primary" type="button">
+          <span class="button-label">继续回答其他小事</span>
+        </button>
+        <button id="btn-fb-return" class="return" type="button">
+          <span class="button-label">回到房间</span>
+        </button>
+      </footer>
+    </section>
+
+    <!-- 视图三：话题选择与往期心意回信 (view === 'choices') -->
+    <section id="view-choices" class="listen-view" hidden>
+      <div class="question-scroll">
+        <div class="question-content">
+          <h2 class="title">想聊哪件小事？</h2>
+          <p class="choices-sub">涵盖 5 大日常维度共 26 组轻问答，不用多想，选最贴近你此刻感受的就好。</p>
+          <div id="choices-list" class="options"></div>
+
+          <div id="history-section" class="history-section" hidden>
+            <h3 class="history-section__title">💌 伙伴记住的小事回信</h3>
+            <div id="history-list" class="history-list"></div>
+          </div>
+        </div>
+      </div>
+      <footer class="feedback-footer">
+        <button id="btn-choices-return" class="return" type="button">
+          <span class="button-label">回到房间</span>
+        </button>
+      </footer>
+    </section>
+
+    <!-- 视图四：今日全部聊完 / 题库圆满收束视图 (view === 'end') -->
+    <section id="view-end" class="listen-view" hidden>
+      <div class="empty-content">
+        <h2 id="end-title" class="title">今天先聊到这里</h2>
+        <p id="end-text" class="reply-copy">别的小事，我们明天再接着慢慢说。</p>
+        <div class="pet-portrait-wrap pet-portrait-wrap--end">
+          <img id="end-pet-img" class="companion-pet-portrait" alt="陪伴伙伴" />
+          <span class="pet-portrait-shadow" aria-hidden="true"></span>
+        </div>
+      </div>
+      <footer class="feedback-footer">
+        <button id="btn-end-review" class="primary" type="button" hidden>
+          <span class="button-label">重新挑选话题聊聊</span>
+        </button>
+        <button id="btn-end-return" class="return" type="button">
+          <span class="button-label">回到房间</span>
+        </button>
+      </footer>
+    </section>
+  </div>
+
+  <script src="../catalog-snapshot.js"></script>
+  <script src="../cross-end-store.js"></script>
+  <script src="./listen-bank.js"></script>
+  <script src="./listen.js"></script>
+</body>
+</html>
