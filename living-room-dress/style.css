@@ -1025,8 +1025,8 @@ button:active {
 }
 .companion-toolbox__grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
 }
 .companion-toolbox__item {
   display: flex;
@@ -1037,6 +1037,10 @@ button:active {
   font-size: 12px;
   color: #35483C;
   min-height: 56px;
+  min-width: 58px;
+}
+.companion-toolbox__item > span:last-child {
+  white-space: nowrap;
 }
 .companion-toolbox__icon-wrap {
   position: relative;
@@ -5689,4 +5693,307 @@ button:active {
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
+
+/* ==========================================================================
+   「伙伴档案」极简大气暖奶油重设计（对齐起居室与百宝箱现行视觉）
+   ========================================================================== */
+#profile-modal-overlay .profile-journal-card {
+  width: min(92vw, 410px);
+  max-height: min(86vh, 660px);
+  border-radius: 26px;
+  background: #FCF9F2;
+  background-image: none;
+  border: 1.5px solid rgba(164, 134, 98, 0.22);
+  box-shadow: 0 22px 54px rgba(34, 24, 14, 0.24), 0 2px 8px rgba(74, 52, 30, 0.08);
+  padding: 0;
+  overflow: hidden;
+}
+#profile-modal-overlay .profile-journal-card__inner {
+  padding: 0;
+  gap: 0;
+}
+#profile-modal-overlay .profile-journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  background: #FCF9F2;
+  border-bottom: 1px solid rgba(164, 134, 98, 0.14);
+}
+#profile-modal-overlay .profile-journal-header__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #36281B;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+#profile-modal-overlay .profile-pet-seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: #EFE7D8;
+  border: 1px solid rgba(164, 134, 98, 0.16);
+  gap: 2px;
+}
+#profile-modal-overlay .profile-pet-seg__btn {
+  padding: 5px 15px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6B5742;
+  background: transparent;
+  border: none;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+#profile-modal-overlay .profile-pet-seg__btn.is-active {
+  background: #24402E;
+  color: #FFFDF8;
+  box-shadow: 0 2px 8px rgba(36, 64, 46, 0.22);
+}
+#profile-modal-overlay .profile-journal-scroll {
+  padding: 20px 20px 18px;
+  gap: 18px;
+  display: flex;
+  flex-direction: column;
+}
+#profile-modal-overlay .profile-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+#profile-modal-overlay .profile-pet {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#profile-modal-overlay .profile-pet__card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+#profile-modal-overlay .profile-pet__thumb-wrap {
+  width: 96px;
+  height: 96px;
+  flex: 0 0 96px;
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 38%, #FFFDF8 0%, #F2E9D9 100%);
+  border: 1px solid rgba(164, 134, 98, 0.18);
+  padding: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+#profile-modal-overlay .profile-pet__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+#profile-modal-overlay .profile-pet__name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#profile-modal-overlay .profile-pet__name {
+  font-size: 20px;
+  font-weight: 800;
+  color: #2F2318;
+  letter-spacing: 0.01em;
+}
+#profile-modal-overlay .profile-pet__meta-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+#profile-modal-overlay .profile-pet__outfit-tag,
+#profile-modal-overlay .profile-pet__mood-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #F2EBDD;
+  color: #5C4936;
+  border: none;
+  margin: 0;
+}
+#profile-modal-overlay .profile-pet__mood-quote {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #77634E;
+  margin: 2px 0 0;
+}
+
+/* 单行通栏双指标条（去废话小字、零折行） */
+#profile-modal-overlay .profile-stats-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: #F4EDE0;
+  border: 1px solid rgba(164, 134, 98, 0.14);
+  gap: 12px;
+}
+#profile-modal-overlay .profile-stat-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-width: 0;
+}
+#profile-modal-overlay .profile-stats-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(164, 134, 98, 0.24);
+  flex: 0 0 1px;
+}
+#profile-modal-overlay .profile-stat-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #78644F;
+  white-space: nowrap;
+}
+#profile-modal-overlay .profile-stat-card__val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #2E4B39;
+  white-space: nowrap;
+}
+
+/* 仅保留饱食度与清洁度两条纤细进度条 */
+#profile-modal-overlay .profile-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 2px 2px 0;
+}
+#profile-modal-overlay .profile-bar-row {
+  display: grid;
+  grid-template-columns: 48px 1fr 38px;
+  align-items: center;
+  gap: 12px;
+}
+#profile-modal-overlay .profile-bar-row__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #5C4936;
+  white-space: nowrap;
+}
+#profile-modal-overlay .profile-bar-row__track {
+  height: 8px;
+  border-radius: 999px;
+  background: #ECE4D4;
+  overflow: hidden;
+}
+#profile-modal-overlay .profile-bar-row__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6E8F58 0%, #4E7241 100%);
+}
+#profile-modal-overlay .profile-bar-row__val {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #4A3726;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* 底部极简账号与存档尾注 */
+#profile-modal-overlay .profile-account {
+  padding-top: 16px;
+  border-top: 1px solid rgba(164, 134, 98, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#profile-modal-overlay .profile-account__top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+#profile-modal-overlay .profile-avatar {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 12px;
+  font-size: 16px;
+  background: #E2ECD9;
+  color: #2E4B39;
+}
+#profile-modal-overlay .profile-account__meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+#profile-modal-overlay .profile-account__name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#profile-modal-overlay .profile-account__nickname {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #3D2E20;
+}
+#profile-modal-overlay .profile-sync-badge {
+  margin-left: auto;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #EAF1E4;
+  color: #3E603B;
+}
+#profile-modal-overlay .profile-account__id-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #826E58;
+}
+#profile-modal-overlay .profile-account__phone-inline {
+  margin-left: auto;
+}
+#profile-modal-overlay .profile-copy-pill,
+#profile-modal-overlay .profile-phone-pill {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #EFE7D8;
+  color: #564331;
+  border: none;
+}
+#profile-modal-overlay .profile-bio-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #F6F0E4;
+  border: none;
+}
+#profile-modal-overlay .profile-bio-box__text {
+  font-size: 12px;
+  color: #77634E;
+}
+
 
