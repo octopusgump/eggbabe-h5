@@ -710,6 +710,78 @@ button:active {
   object-fit: contain;
   display: block;
 }
+.pet-sleep-sprite.is-waking-pat {
+  transform-origin: 50% 62%;
+  animation: sleepPatSquish 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.pet-sleep-sprite.is-waking-fade {
+  opacity: 0 !important;
+  transform: translate3d(0, -10px, 0) scale(0.96);
+  transition: opacity 0.28s ease-out, transform 0.28s ease-out;
+}
+.gl-pet.is-waking-arrive {
+  animation: petWakeArrive 0.38s cubic-bezier(0.22, 1.38, 0.45, 1) both;
+}
+@keyframes sleepPatSquish {
+  0% { transform: scale3d(1, 1, 1); }
+  38% { transform: scale3d(1.045, 0.945, 1) translate3d(0, 5px, 0); }
+  75% { transform: scale3d(0.985, 1.025, 1) translate3d(0, -3px, 0); }
+  100% { transform: scale3d(1, 1, 1); }
+}
+@keyframes petWakeArrive {
+  0% { opacity: 0; transform: translate3d(0, 22px, 0) scale(0.88); }
+  62% { opacity: 1; transform: translate3d(0, -6px, 0) scale(1.03); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+.module-hotspot--sleep-pet {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+}
+.sleep-pat-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translate3d(0, 6px, 0) scale(0.92);
+  pointer-events: none;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.module-hotspot--sleep-pet.is-guided .sleep-pat-hint {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+.sleep-pat-hint__ring {
+  position: absolute;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 244, 214, 0.85);
+  box-shadow: 0 0 18px rgba(255, 224, 152, 0.45);
+  animation: sleepPatPulse 1.35s ease-out infinite;
+}
+.sleep-pat-hint__pill {
+  position: relative;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: rgba(252, 248, 239, 0.94);
+  border: 1.5px solid rgba(164, 134, 98, 0.34);
+  color: #4a3726;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(34, 24, 14, 0.26);
+}
+@keyframes sleepPatPulse {
+  0% { transform: scale(0.76); opacity: 0.9; }
+  100% { transform: scale(1.48); opacity: 0; }
+}
 
 .fitting-vignette {
   position: absolute;
@@ -953,8 +1025,8 @@ button:active {
 }
 .companion-toolbox__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 12px;
 }
 .companion-toolbox__item {
   display: flex;
@@ -5558,3 +5630,63 @@ button:active {
 }
 .mg-result-box__big { font-size: 22px; font-weight: 800; color: #4A6630; margin: 4px 0 8px; }
 .mg-result-box__sub { font-size: 12.5px; color: #6E5943; margin: 0 0 12px; line-height: 1.5; }
+
+/* 统一收纳在百宝箱「房间与场景背景」中的 12 套场景背景网格 */
+.house-bgs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.house-bg-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 8px;
+  border-radius: 14px;
+  background: #FFFDF8;
+  border: 1.5px solid rgba(164, 134, 98, 0.24);
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.house-bg-card:active {
+  transform: scale(0.97);
+}
+.house-bg-card.is-selected {
+  border-color: #2E4B39;
+  background: #F3F8F2;
+  box-shadow: 0 4px 12px rgba(46, 75, 57, 0.14);
+}
+.house-bg-card__thumb {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+  background: #EFE7D8;
+}
+.house-bg-card__name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4A3726;
+  line-height: 1.25;
+  text-align: center;
+}
+.house-bg-card__check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #1B3A26;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+

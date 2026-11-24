@@ -230,6 +230,12 @@
                   <span class="mirror-glint" aria-hidden="true"></span>
                 </button>
                 <button id="hit-cat-clock" class="module-hotspot module-hotspot--clock" type="button" aria-label="打开奶肚黑猫警长发条钟"></button>
+                <button id="hit-sleep-pet" class="module-hotspot module-hotspot--sleep-pet" type="button" hidden aria-label="拍一拍叫醒睡觉的蛋宝宝">
+                  <span class="sleep-pat-hint" aria-hidden="true">
+                    <span class="sleep-pat-hint__ring"></span>
+                    <span class="sleep-pat-hint__pill">拍一拍起床 💤</span>
+                  </span>
+                </button>
                 <button id="character-hotspot" class="scene-character-hotspot" type="button" hidden aria-label="轻触蛋宝宝"></button>
                 <button id="action-glow" class="action-glow" type="button" hidden aria-label="回应此刻的动作"></button>
               </div>
@@ -294,9 +300,9 @@
         <span id="edge-sign-yard-text">🌿 去小院子</span>
       </button>
 
-      <!-- 顶部居中三屏圆点 + 房间快捷切换胶囊 -->
+      <!-- 顶部居中三屏圆点（房间与场景背景入口已统一收纳至右下角百宝箱） -->
       <div class="top-room-nav">
-        <button id="room-switcher-pill" class="room-switcher-pill" type="button" aria-label="切换房间与家园导览">
+        <button id="room-switcher-pill" class="room-switcher-pill" type="button" hidden aria-hidden="true" aria-label="切换房间与家园导览">
           <span id="room-switcher-label">🏠 起居室</span>
           <span class="room-switcher-pill__caret" aria-hidden="true">▾</span>
         </button>
@@ -401,6 +407,10 @@
           <div id="companion-toolbox" class="companion-toolbox companion-toolbox--closed" aria-hidden="true">
             <div id="companion-toolbox-motion" class="companion-toolbox__motion">
               <div class="companion-toolbox__grid">
+                <button id="tb-btn-spaces" class="companion-toolbox__item" type="button">
+                  <img src="./living-room-dress/ui/wardrobe_3d.png" alt="" />
+                  <span>房间背景</span>
+                </button>
                 <button id="tb-btn-album" class="companion-toolbox__item" type="button">
                   <span class="companion-toolbox__icon-wrap">
                     <img src="./living-room-dress/ui/tb_postcards.png" alt="" />
@@ -453,14 +463,13 @@
       </div>
     </div>
 
-    <!-- 底部装扮抽屉：对齐 eggbabe-h5 全量开放套装 (锦鲤 12 / 玉兔 24) + 背景 (起居室 + 11 套插画小屋) -->
+    <!-- 底部装扮抽屉：专注全量开放套装换装（锦鲤 12 / 玉兔 24），场景背景已收纳至右下角百宝箱 -->
     <section id="wardrobe-sheet" class="wardrobe-sheet" aria-label="装扮衣橱" aria-hidden="true">
       <div id="sheet-grabber" class="wardrobe-sheet__grabber" title="收起衣橱"><span></span></div>
 
       <div class="wardrobe-sheet__header">
         <div class="wardrobe-main-tabs" role="tablist">
           <button id="tab-wardrobe-items" class="wardrobe-main-tab is-active" type="button" data-wtab="items">套装 (12)</button>
-          <button id="tab-wardrobe-bgs" class="wardrobe-main-tab" type="button" data-wtab="bgs">背景 (12)</button>
         </div>
         <button id="btn-confirm-outfit" class="wardrobe-done-pill" type="button">穿好啦</button>
       </div>
@@ -1064,23 +1073,25 @@
       <p id="diary-cover-hint" class="diary-cover-hint">轻触布搭扣，翻开今日手帐</p>
     </div>
 
-    <!-- P5 家园软装改造与多房间导览弹窗 -->
-    <div id="house-guide-overlay" class="house-guide-overlay" role="dialog" aria-modal="true" aria-label="家园改造与房间导览" hidden>
+    <!-- P5 房间与场景背景中枢弹窗（房间导览 + 12套场景背景 + 起居室软装） -->
+    <div id="house-guide-overlay" class="house-guide-overlay" role="dialog" aria-modal="true" aria-label="房间与场景背景" hidden>
       <div class="house-guide-card">
         <header class="house-guide-head">
           <div>
-            <h2 class="house-guide-head__title">🏡 家园改造与房间导览</h2>
+            <h2 class="house-guide-head__title">🏡 房间与场景背景</h2>
             <p id="house-guide-balance" class="house-guide-head__sub">当前星星：128 ✦ · 累计陪伴 1 天</p>
           </div>
-          <button id="btn-close-house-guide" class="profile-journal-close" type="button" aria-label="关闭家园导览">×</button>
+          <button id="btn-close-house-guide" class="profile-journal-close" type="button" aria-label="关闭房间与场景背景">×</button>
         </header>
 
         <div class="house-guide-tabs" role="tablist">
           <button class="house-guide-tab is-active" type="button" data-house-tab="rooms" role="tab">🗺️ 房间导览</button>
+          <button class="house-guide-tab" type="button" data-house-tab="bgs" role="tab">🖼️ 场景背景</button>
           <button class="house-guide-tab" type="button" data-house-tab="decor" role="tab">🪑 起居室软装</button>
         </div>
 
         <div id="house-rooms-pane" class="house-guide-pane"></div>
+        <div id="house-bgs-pane" class="house-guide-pane" hidden></div>
         <div id="house-decor-pane" class="house-guide-pane" hidden></div>
       </div>
     </div>
