@@ -1383,8 +1383,17 @@
       if (!Array.isArray(existing.curioCabinet.deferredUnlockedIds)) {
         existing.curioCabinet.deferredUnlockedIds = [];
       }
+      const needsSettingsBackfill = !existing.settings
+        || typeof existing.settings.ageRange !== "string"
+        || existing.settings.ageRangeUpdatedAt === undefined
+        || !Array.isArray(existing.settings.feedbackReceipts)
+        || !existing.settings.feedbackCounter
+        || !Array.isArray(existing.settings.inviteCodes);
       ensureModularAndClockDefaults(existing, options);
       pruneDailyEventLog(existing.dailyEventLog, MAX_DAILY_LOG_DAYS);
+      if (needsSettingsBackfill) {
+        storeAdapter.setJSON(STORAGE_KEY, existing);
+      }
       return { store: existing, migrated: false };
     }
 

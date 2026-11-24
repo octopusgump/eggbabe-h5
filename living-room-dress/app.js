@@ -1311,6 +1311,7 @@
   });
   window.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
+      if (settingsOverlayEl && !settingsOverlayEl.hidden) return;
       if (!clockModalEl.hidden) closeClockModal();
       else if (!profileModalEl.hidden) closeProfileModal();
     }
@@ -3200,15 +3201,23 @@
         setSfxOn: (next) => {
           state.sfxOn = !!next;
         },
-        getTickNoiseOn: () => !!(crossStore && crossStore.clockWidget && crossStore.clockWidget.tickWhiteNoiseOn),
+        getTickNoiseOn: () => !!getClockWidget().tickWhiteNoiseOn,
         setTickNoiseOn: (next) => {
-          if (crossStore && crossStore.clockWidget) {
-            crossStore.clockWidget.tickWhiteNoiseOn = !!next;
+          const cw = getClockWidget();
+          cw.tickWhiteNoiseOn = !!next;
+          renderBlackCatClockUI();
+          if (cw.tickWhiteNoiseOn && state.sfxOn) {
+            sfx.clockTick(true);
           }
         },
         getOutfitName: (petId, setId) => getSetName(petId, setId),
         onOpenProfile: () => openProfileModal(),
-        onOpenAlbum: () => openKeepsakeAlbum("postcards"),
+        onOpenAlbum: (petId) => {
+          if (petId === "koi" || petId === "yutu") {
+            activeDetailStoryPet = petId;
+          }
+          openKeepsakeAlbum("keepsakes");
+        },
         onPlayTap: () => sfx.tap(),
         onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type)
       })

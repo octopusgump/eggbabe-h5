@@ -5597,7 +5597,7 @@ button:active {
   z-index: 1;
   width: 100%;
   max-width: 440px;
-  height: 92vh;
+  height: min(92dvh, calc(100dvh - var(--wx-capsule-bottom, env(safe-area-inset-top, 0px)) - 8px));
   max-height: 820px;
   background: #FAFAF8;
   border-radius: 24px 24px 0 0;
@@ -5611,7 +5611,7 @@ button:active {
 
 @media (min-width: 560px) {
   .settings-sheet {
-    height: min(86vh, 780px);
+    height: min(86dvh, 780px);
     border-radius: 24px;
   }
 }

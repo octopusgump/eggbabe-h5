@@ -396,9 +396,12 @@
     let isOpen = false;
     let stack = ["home"];
     let noticeTimer = null;
-    let toastTimer = null;
     let feedbackDelayTimer = null;
     let ageReturnTimer = null;
+    let chatExportTimer = null;
+    let submitRequestToken = 0;
+    let chatExportToken = 0;
+    let ageReturnToken = 0;
 
     // 视图内部瞬态状态
     let ageSelected = "";
@@ -420,11 +423,30 @@
     let chatConfirmDelete = false;
 
     let helpQuery = "";
+    let helpComposing = false;
     let helpOpenCats = { device: true, account: true, chat: true, other: true };
     let helpOpenFaqs = { "account:0": true };
 
     function currentView() {
       return stack[stack.length - 1] || "home";
+    }
+
+    function clearPendingAsync() {
+      clearTimeout(ageReturnTimer);
+      ageReturnTimer = null;
+      ageReturnToken += 1;
+      ageSaving = false;
+      ageToastVisible = false;
+
+      clearTimeout(feedbackDelayTimer);
+      feedbackDelayTimer = null;
+      submitRequestToken += 1;
+      fbSubmitting = false;
+
+      clearTimeout(chatExportTimer);
+      chatExportTimer = null;
+      chatExportToken += 1;
+      chatExporting = false;
     }
 
     function showNotice(text, tone) {
@@ -442,11 +464,10 @@
 
     function pushView(viewName) {
       onPlayTap();
+      clearPendingAsync();
       if (viewName === "age-range") {
         const store = getStore();
         ageSelected = (store && store.settings && store.settings.ageRange) || "";
-        ageSaving = false;
-        ageToastVisible = false;
       } else if (viewName === "feedback") {
         fbTypeOpen = false;
         fbError = "";
@@ -456,6 +477,7 @@
         chatConfirmDelete = false;
       } else if (viewName === "help") {
         helpQuery = "";
+        helpComposing = false;
       }
       stack.push(viewName);
       render();
@@ -463,8 +485,7 @@
 
     function popView() {
       onPlayTap();
-      clearTimeout(ageReturnTimer);
-      clearTimeout(feedbackDelayTimer);
+      clearPendingAsync();
       if (stack.length > 1) {
         stack.pop();
         render();
@@ -475,11 +496,22 @@
 
     function open(initialView) {
       if (!overlayEl) return;
+      clearPendingAsync();
       isOpen = true;
       stack = [initialView && VIEW_TITLES[initialView] ? initialView : "home"];
       if (stack[0] === "age-range") {
         const store = getStore();
         ageSelected = (store && store.settings && store.settings.ageRange) || "";
+      } else if (stack[0] === "feedback") {
+        fbTypeOpen = false;
+        fbError = "";
+        fbConsentModal = false;
+      } else if (stack[0] === "chat-records") {
+        chatEmailErr = "";
+        chatConfirmDelete = false;
+      } else if (stack[0] === "help") {
+        helpQuery = "";
+        helpComposing = false;
       }
       overlayEl.hidden = false;
       overlayEl.setAttribute("aria-hidden", "false");
@@ -490,9 +522,8 @@
       if (!overlayEl || !isOpen) return;
       isOpen = false;
       clearTimeout(noticeTimer);
-      clearTimeout(toastTimer);
-      clearTimeout(ageReturnTimer);
-      clearTimeout(feedbackDelayTimer);
+      noticeTimer = null;
+      clearPendingAsync();
       fbConsentModal = false;
       chatConfirmDelete = false;
       overlayEl.hidden = true;
@@ -634,7 +665,7 @@
           </div>
           <div class="settings-album-list">
             ${cards.map((card) => `
-              <button class="settings-album-card" type="button" data-action="open-album-keepsakes">
+              <button class="settings-album-card" type="button" data-action="open-album-keepsakes" data-pet="${escapeHtml(card.id)}">
                 <span class="settings-album-mark">${escapeHtml(card.mark)}</span>
                 <span class="settings-album-copy">
                   <span class="settings-album-name">${escapeHtml(card.name)}</span>
@@ -904,12 +935,94 @@
       `;
     }
 
-    function renderHelpBody() {
+    function renderHelpScrollHtml() {
       const q = helpQuery.trim();
-      const searchHits = q
-        ? FAQ_GROUPS.flatMap((g) => g.items).filter((item) => (item.q + " " + item.a).indexOf(q) >= 0)
+      const qLower = q.toLowerCase();
+      const searchHits = qLower
+        ? FAQ_GROUPS.flatMap((g) => g.items).filter((item) => (item.q + " " + item.a).toLowerCase().indexOf(qLower) >= 0)
         : [];
 
+      if (!q) {
+        return `
+          <div class="settings-help-first">
+            <div class="settings-group-label settings-group-label--compact">遇到问题</div>
+            <div class="settings-panel">
+              <button class="settings-row" type="button" data-nav="feedback">
+                <span class="settings-row__title">用户反馈</span>
+                <span class="settings-chevron" aria-hidden="true">›</span>
+              </button>
+              <div class="settings-row settings-row--support">
+                <div class="settings-row__copy">
+                  <span class="settings-row__desc">客服邮箱</span>
+                  <span class="settings-row__title settings-row__title--bold">${SUPPORT_EMAIL}</span>
+                </div>
+                <button class="settings-pill-btn" type="button" data-action="copy-email">复制</button>
+              </div>
+            </div>
+
+            <div class="settings-group-label">需要现实帮助</div>
+            <div class="settings-reality-card">
+              <div>心理援助热线：<strong>${REALITY_HELP.psychologicalHotline}</strong></div>
+              <div>紧急危险：<strong>${REALITY_HELP.police} / ${REALITY_HELP.medicalEmergency}</strong></div>
+            </div>
+          </div>
+
+          <div class="settings-faq-list">
+            ${FAQ_GROUPS.map((group) => {
+              const catOpen = !!helpOpenCats[group.key];
+              return `
+                <div class="settings-faq-cat">
+                  <button class="settings-faq-cat__head" type="button" aria-expanded="${catOpen}" data-action="toggle-faq-cat" data-cat="${group.key}">
+                    <span>${escapeHtml(group.title)}</span>
+                    <span class="settings-faq-arrow ${catOpen ? "is-open" : ""}">⌄</span>
+                  </button>
+                  ${catOpen ? `
+                    <div class="settings-faq-cat__body">
+                      ${group.items.map((item, idx) => {
+                        const fKey = group.key + ":" + idx;
+                        const open = !!helpOpenFaqs[fKey];
+                        return `
+                          <div class="settings-faq-item">
+                            <button class="settings-faq-q" type="button" aria-expanded="${open}" data-action="toggle-faq-item" data-fkey="${fKey}">
+                              <span>${escapeHtml(item.q)}</span>
+                              <span class="settings-faq-arrow ${open ? "is-open" : ""}">⌄</span>
+                            </button>
+                            ${open ? `<div class="settings-faq-a">${escapeHtml(item.a)}</div>` : ""}
+                          </div>
+                        `;
+                      }).join("")}
+                    </div>
+                  ` : ""}
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      return `
+        <div class="settings-help-results">
+          ${searchHits.length
+            ? searchHits.map((item) => `
+                <div class="settings-help-result">
+                  <div class="settings-help-result__q">${escapeHtml(item.q)}</div>
+                  <div class="settings-help-result__a">${escapeHtml(item.a)}</div>
+                </div>
+              `).join("")
+            : `<div class="settings-help-empty">没有找到相关问题，试试其他关键词。</div>`}
+        </div>
+      `;
+    }
+
+    function updateHelpSearchView() {
+      if (!overlayEl || currentView() !== "help") return;
+      const scrollEl = overlayEl.querySelector(".settings-help-scroll");
+      if (scrollEl) scrollEl.innerHTML = renderHelpScrollHtml();
+      const clearBtn = overlayEl.querySelector("#settings-help-clear");
+      if (clearBtn) clearBtn.hidden = !helpQuery;
+    }
+
+    function renderHelpBody() {
       return `
         <div class="settings-help-wrap">
           <div class="settings-help-search">
@@ -923,77 +1036,12 @@
                 placeholder="搜索问题关键词"
                 aria-label="搜索问题关键词"
               />
-              ${helpQuery ? `<button class="settings-help-search__clear" type="button" aria-label="清空搜索" data-action="clear-help-search">✕</button>` : ""}
+              <button id="settings-help-clear" class="settings-help-search__clear" type="button" aria-label="清空搜索" data-action="clear-help-search" ${helpQuery ? "" : "hidden"}>✕</button>
             </div>
           </div>
 
           <div class="settings-help-scroll">
-            ${!q ? `
-              <div class="settings-help-first">
-                <div class="settings-group-label settings-group-label--compact">遇到问题</div>
-                <div class="settings-panel">
-                  <button class="settings-row" type="button" data-nav="feedback">
-                    <span class="settings-row__title">用户反馈</span>
-                    <span class="settings-chevron" aria-hidden="true">›</span>
-                  </button>
-                  <div class="settings-row settings-row--support">
-                    <div class="settings-row__copy">
-                      <span class="settings-row__desc">客服邮箱</span>
-                      <span class="settings-row__title settings-row__title--bold">${SUPPORT_EMAIL}</span>
-                    </div>
-                    <button class="settings-pill-btn" type="button" data-action="copy-email">复制</button>
-                  </div>
-                </div>
-
-                <div class="settings-group-label">需要现实帮助</div>
-                <div class="settings-reality-card">
-                  <div>心理援助热线：<strong>${REALITY_HELP.psychologicalHotline}</strong></div>
-                  <div>紧急危险：<strong>${REALITY_HELP.police} / ${REALITY_HELP.medicalEmergency}</strong></div>
-                </div>
-              </div>
-
-              <div class="settings-faq-list">
-                ${FAQ_GROUPS.map((group) => {
-                  const catOpen = !!helpOpenCats[group.key];
-                  return `
-                    <div class="settings-faq-cat">
-                      <button class="settings-faq-cat__head" type="button" aria-expanded="${catOpen}" data-action="toggle-faq-cat" data-cat="${group.key}">
-                        <span>${escapeHtml(group.title)}</span>
-                        <span class="settings-faq-arrow ${catOpen ? "is-open" : ""}">⌄</span>
-                      </button>
-                      ${catOpen ? `
-                        <div class="settings-faq-cat__body">
-                          ${group.items.map((item, idx) => {
-                            const fKey = group.key + ":" + idx;
-                            const open = !!helpOpenFaqs[fKey];
-                            return `
-                              <div class="settings-faq-item">
-                                <button class="settings-faq-q" type="button" aria-expanded="${open}" data-action="toggle-faq-item" data-fkey="${fKey}">
-                                  <span>${escapeHtml(item.q)}</span>
-                                  <span class="settings-faq-arrow ${open ? "is-open" : ""}">⌄</span>
-                                </button>
-                                ${open ? `<div class="settings-faq-a">${escapeHtml(item.a)}</div>` : ""}
-                              </div>
-                            `;
-                          }).join("")}
-                        </div>
-                      ` : ""}
-                    </div>
-                  `;
-                }).join("")}
-              </div>
-            ` : `
-              <div class="settings-help-results">
-                ${searchHits.length
-                  ? searchHits.map((item) => `
-                      <div class="settings-help-result">
-                        <div class="settings-help-result__q">${escapeHtml(item.q)}</div>
-                        <div class="settings-help-result__a">${escapeHtml(item.a)}</div>
-                      </div>
-                    `).join("")
-                  : `<div class="settings-help-empty">没有找到相关问题，试试其他关键词。</div>`}
-              </div>
-            `}
+            ${renderHelpScrollHtml()}
           </div>
 
           <div class="settings-help-footer">
@@ -1119,14 +1167,18 @@
       } else if (view === "help") {
         const input = overlayEl.querySelector("#settings-help-input");
         if (input) {
-          input.addEventListener("input", () => {
-            const caret = input.selectionStart;
+          input.addEventListener("compositionstart", () => {
+            helpComposing = true;
+          });
+          input.addEventListener("compositionend", () => {
+            helpComposing = false;
             helpQuery = input.value;
-            render();
-            const nextInput = overlayEl.querySelector("#settings-help-input");
-            if (nextInput) {
-              nextInput.focus();
-              try { nextInput.setSelectionRange(caret, caret); } catch (e) {}
+            updateHelpSearchView();
+          });
+          input.addEventListener("input", () => {
+            helpQuery = input.value;
+            if (!helpComposing) {
+              updateHelpSearchView();
             }
           });
         }
@@ -1162,9 +1214,10 @@
         return;
       }
       if (action === "open-album-keepsakes") {
+        const petId = target.getAttribute("data-pet") || "";
         onPlayTap();
         close();
-        onOpenAlbum();
+        onOpenAlbum(petId);
         return;
       }
       if (action === "toggle-sfx") {
@@ -1182,7 +1235,11 @@
         onPlayTap();
         persist();
         render();
-        showNotice(next ? "发条钟呼噜滴答已开启" : "发条钟呼噜滴答已关闭", "info");
+        if (next && !getSfxOn()) {
+          showNotice("呼噜滴答已开启（需同时开启互动音效才会发声）", "info");
+        } else {
+          showNotice(next ? "发条钟呼噜滴答已开启" : "发条钟呼噜滴答已关闭", "info");
+        }
         return;
       }
       if (action === "copy-code") {
@@ -1195,13 +1252,14 @@
         return;
       }
       if (action === "select-age") {
+        if (ageSaving || ageToastVisible) return;
         ageSelected = target.getAttribute("data-value") || "";
         onPlayTap();
         render();
         return;
       }
       if (action === "save-age") {
-        if (!ageSelected || ageSaving) return;
+        if (!ageSelected || ageSaving || ageToastVisible) return;
         const store = getStore();
         const res = Store && Store.setAgeRange
           ? Store.setAgeRange(store, ageSelected)
@@ -1214,17 +1272,23 @@
         onPlayTap();
         ageToastVisible = true;
         render();
+        const token = ++ageReturnToken;
         ageReturnTimer = setTimeout(() => {
+          ageReturnTimer = null;
+          if (token !== ageReturnToken || !isOpen) return;
           ageToastVisible = false;
           if (stack.length > 1) {
             stack.pop();
             render();
-            onShowSceneFeedback("年龄区间已保存", "system");
+          } else {
+            close();
           }
+          onShowSceneFeedback("年龄区间已保存", "system");
         }, 900);
         return;
       }
       if (action === "toggle-fb-type") {
+        if (fbSubmitting) return;
         fbTypeOpen = !fbTypeOpen;
         fbError = "";
         onPlayTap();
@@ -1232,6 +1296,7 @@
         return;
       }
       if (action === "pick-fb-type") {
+        if (fbSubmitting) return;
         fbType = target.getAttribute("data-value") || "";
         fbTypeOpen = false;
         fbError = "";
@@ -1240,6 +1305,7 @@
         return;
       }
       if (action === "toggle-fb-consent") {
+        if (fbSubmitting) return;
         fbConsent = !fbConsent;
         fbError = "";
         onPlayTap();
@@ -1287,7 +1353,13 @@
         fbError = "";
         render();
         const payload = { type: fbType, description: fbDesc.trim(), consent: true };
+        const token = ++submitRequestToken;
         feedbackDelayTimer = setTimeout(() => {
+          feedbackDelayTimer = null;
+          if (token !== submitRequestToken || !isOpen || currentView() !== "feedback") {
+            fbSubmitting = false;
+            return;
+          }
           const store = getStore();
           const res = Store && Store.submitUserFeedback
             ? Store.submitUserFeedback(store, payload)
@@ -1311,6 +1383,7 @@
         return;
       }
       if (action === "export-chat-email") {
+        if (chatExporting) return;
         const norm = Store && Store.normalizeEmail ? Store.normalizeEmail(chatEmail) : chatEmail.trim().toLowerCase();
         const valid = Store && Store.validateEmail ? Store.validateEmail(norm) : /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm);
         if (!valid) {
@@ -1322,7 +1395,13 @@
         chatEmailErr = "";
         chatExporting = true;
         render();
-        setTimeout(() => {
+        const token = ++chatExportToken;
+        chatExportTimer = setTimeout(() => {
+          chatExportTimer = null;
+          if (token !== chatExportToken || !isOpen || currentView() !== "chat-records") {
+            chatExporting = false;
+            return;
+          }
           chatExporting = false;
           render();
           showNotice("导出申请已提交，请留意邮箱", "info");
@@ -1332,12 +1411,15 @@
       if (action === "export-chat-json") {
         try {
           const store = getStore() || {};
+          const diaries = Array.isArray(store.diaries)
+            ? store.diaries
+            : (Array.isArray(store.diaryEntries) ? store.diaryEntries : []);
           const payload = {
             exportedAt: new Date().toISOString(),
             user: { nickname: store.user && store.user.nickname, publicId: store.user && store.user.publicId },
-            diaryEntries: store.diaryEntries || [],
-            listenHistory: store.listenHistory || [],
-            chatMessages: store.chatMessages || []
+            diaries: diaries,
+            listenHistory: Array.isArray(store.listenHistory) ? store.listenHistory : [],
+            chatMessages: Array.isArray(store.chatMessages) ? store.chatMessages : []
           };
           const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
           const url = URL.createObjectURL(blob);
@@ -1377,14 +1459,20 @@
       }
       if (action === "clear-help-search") {
         helpQuery = "";
-        render();
+        helpComposing = false;
+        const input = overlayEl.querySelector("#settings-help-input");
+        if (input) {
+          input.value = "";
+          if (input.focus) input.focus();
+        }
+        updateHelpSearchView();
         return;
       }
       if (action === "toggle-faq-cat") {
         const cat = target.getAttribute("data-cat");
         if (cat) {
           helpOpenCats[cat] = !helpOpenCats[cat];
-          render();
+          updateHelpSearchView();
         }
         return;
       }
@@ -1392,7 +1480,7 @@
         const fKey = target.getAttribute("data-fkey");
         if (fKey) {
           helpOpenFaqs[fKey] = !helpOpenFaqs[fKey];
-          render();
+          updateHelpSearchView();
         }
         return;
       }
@@ -1405,28 +1493,41 @@
       }
     }
 
+    function handleKeydown(event) {
+      if (event.key === "Escape" && isOpen) {
+        if (fbConsentModal) {
+          fbConsentModal = false;
+          render();
+        } else if (chatConfirmDelete) {
+          chatConfirmDelete = false;
+          render();
+        } else {
+          popView();
+        }
+      }
+    }
+
+    function destroy() {
+      close();
+      if (overlayEl) {
+        overlayEl.removeEventListener("click", handleClick);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("keydown", handleKeydown);
+      }
+    }
+
     if (overlayEl) {
       overlayEl.addEventListener("click", handleClick);
     }
     if (typeof window !== "undefined") {
-      window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && isOpen) {
-          if (fbConsentModal) {
-            fbConsentModal = false;
-            render();
-          } else if (chatConfirmDelete) {
-            chatConfirmDelete = false;
-            render();
-          } else {
-            popView();
-          }
-        }
-      });
+      window.addEventListener("keydown", handleKeydown);
     }
 
     return {
       open,
       close,
+      destroy,
       pushView,
       popView,
       isOpen: () => isOpen,
