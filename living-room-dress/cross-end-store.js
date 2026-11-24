@@ -25,6 +25,8 @@
   const MAX_DAILY_LOG_DAYS = 14;
   const MAX_POSTCARDS = 60;
   const TOTAL_KEEPSAKES_COUNT = 41;
+  const DAILY_MINIGAME_STAR_CAP = 45;
+  const DAILY_CARE_STAR_CAP = 15;
 
   const PROFILE_MODES = Object.freeze([
     "h5",
@@ -636,6 +638,9 @@
         lastEffectiveDate: todayKey,
         starBalance: 128,
         dailyLetterClaimedDate: null,
+        dailyListenClaimedDate: null,
+        dailyMiniGameStars: {},
+        dailyCareStars: {},
         actedSlotKeys: []
       },
       clockWidget: {
@@ -682,6 +687,8 @@
         ],
         craftedSnacks: {},
         mailboxUnreadIds: [],
+        mailboxItems: [],
+        lastMailboxDeliveryDate: null,
         roomModules: {
           living_room: {
             mod_bed: { styleId: "bed_star_blue", state: "tidy" },
@@ -895,7 +902,10 @@
     if (Array.isArray(data.visitedStates)) data.visitedStates.forEach((x) => pushUnique(entry.visitedStates, x));
 
     if (data.miniGame) pushUnique(entry.miniGamesPlayed, data.miniGame);
+    if (data.miniGameId) pushUnique(entry.miniGamesPlayed, data.miniGameId);
     if (Array.isArray(data.miniGamesPlayed)) data.miniGamesPlayed.forEach((x) => pushUnique(entry.miniGamesPlayed, x));
+
+    if (data.roomId) pushUnique(entry.visitedStates, "room:" + data.roomId);
 
     if (data.keepsakeId) {
       const norm = keepsakeAliasNormalizer([data.keepsakeId]);
@@ -916,6 +926,17 @@
 
   function ensureModularAndClockDefaults(store, opts) {
     const def = createDefaultState(opts);
+    if (store.companion && typeof store.companion === "object") {
+      if (!store.companion.dailyMiniGameStars || typeof store.companion.dailyMiniGameStars !== "object") {
+        store.companion.dailyMiniGameStars = {};
+      }
+      if (!store.companion.dailyCareStars || typeof store.companion.dailyCareStars !== "object") {
+        store.companion.dailyCareStars = {};
+      }
+      if (store.companion.dailyListenClaimedDate === undefined) {
+        store.companion.dailyListenClaimedDate = null;
+      }
+    }
     if (!store.clockWidget || typeof store.clockWidget !== "object") {
       store.clockWidget = def.clockWidget;
     } else {
@@ -943,6 +964,25 @@
     if (!store.house || typeof store.house !== "object") {
       store.house = def.house;
     }
+    if (!store.house.activeRoomId) store.house.activeRoomId = "living_room";
+    if (!Array.isArray(store.house.unlockedRoomIds) || store.house.unlockedRoomIds.length === 0) {
+      store.house.unlockedRoomIds = ["living_room"];
+    }
+    if (!Array.isArray(store.house.unlockedDecorIds)) {
+      store.house.unlockedDecorIds = def.house.unlockedDecorIds.slice();
+    }
+    if (!store.house.craftedSnacks || typeof store.house.craftedSnacks !== "object") {
+      store.house.craftedSnacks = {};
+    }
+    if (!Array.isArray(store.house.mailboxUnreadIds)) {
+      store.house.mailboxUnreadIds = [];
+    }
+    if (!Array.isArray(store.house.mailboxItems)) {
+      store.house.mailboxItems = [];
+    }
+    if (store.house.lastMailboxDeliveryDate === undefined) {
+      store.house.lastMailboxDeliveryDate = null;
+    }
     if (!store.house.roomModules || typeof store.house.roomModules !== "object") {
       store.house.roomModules = def.house.roomModules;
     }
@@ -956,6 +996,241 @@
       });
     }
     return store;
+  }
+
+  /* ---------- 7b. P5 星星软上限经济、软装解锁、多房间与信箱闭环 ---------- */
+  function pruneDateBucketMap(mapObj, maxDays) {
+    if (!mapObj || typeof mapObj !== "object") return;
+    const keys = Object.keys(mapObj).sort();
+    while (keys.length > (maxDays || MAX_DAILY_LOG_DAYS)) {
+      delete mapObj[keys.shift()];
+    }
+  }
+
+  function addPetExp(store, petId, expDelta) {
+    if (!store || !store.pets || !expDelta) return { leveledUp: false, level: 1 };
+    const pid = petId === "yutu" ? "yutu" : "koi";
+    const care = store.pets[pid] && store.pets[pid].care;
+    if (!care) return { leveledUp: false, level: 1 };
+    care.exp = Math.max(0, Number(care.exp || 0) + Math.max(0, Math.floor(expDelta)));
+    let leveledUp = false;
+    while (care.exp >= expForNextLevel(care.level || 1)) {
+      care.exp -= expForNextLevel(care.level || 1);
+      care.level = Math.max(1, Number(care.level || 1)) + 1;
+      leveledUp = true;
+    }
+    return { leveledUp, level: care.level };
+  }
+
+  /**
+   * 主动游艺/轻小游戏获星（含每日 ≤45✦ 软上限保护，超限后仍发放 +5 EXP）
+   */
+  function awardActivityStars(store, amount, opts) {
+    if (!store || !store.companion) {
+      return { starsAwarded: 0, expAwarded: 0, capped: true, earnedToday: 0, cap: DAILY_MINIGAME_STAR_CAP };
+    }
+    const options = opts || {};
+    const dk = options.dateKey || getUtc8DateKey();
+    const pid = options.petId || store.activePetId || "koi";
+    if (!store.companion.dailyMiniGameStars || typeof store.companion.dailyMiniGameStars !== "object") {
+      store.companion.dailyMiniGameStars = {};
+    }
+    const earnedToday = Math.max(0, Number(store.companion.dailyMiniGameStars[dk] || 0));
+    const remain = Math.max(0, DAILY_MINIGAME_STAR_CAP - earnedToday);
+    const req = Math.max(0, Math.floor(Number(amount) || 0));
+    const starsAwarded = Math.min(req, remain);
+    const capped = remain <= 0 || starsAwarded < req;
+
+    if (starsAwarded > 0) {
+      store.companion.starBalance = Math.max(0, Math.floor(Number(store.companion.starBalance || 0)) + starsAwarded);
+      store.companion.dailyMiniGameStars[dk] = earnedToday + starsAwarded;
+      pruneDateBucketMap(store.companion.dailyMiniGameStars, MAX_DAILY_LOG_DAYS);
+    }
+
+    const expAwarded = starsAwarded === 0 ? 5 : (Number(options.baseExp) || 0);
+    if (expAwarded > 0) {
+      addPetExp(store, pid, expAwarded);
+    }
+
+    if (options.miniGameId) {
+      recordDailyEvent(store, dk, pid, { miniGame: options.miniGameId, countsAsEffective: true });
+    }
+
+    return {
+      starsAwarded,
+      expAwarded,
+      capped,
+      earnedToday: Math.max(0, Number(store.companion.dailyMiniGameStars[dk] || 0)),
+      cap: DAILY_MINIGAME_STAR_CAP
+    };
+  }
+
+  /**
+   * 日常微照料获星（含每日 ≤15✦ 软上限保护，超限后照常加饱食/清洁与 EXP）
+   */
+  function awardCareStars(store, amount, opts) {
+    if (!store || !store.companion) {
+      return { starsAwarded: 0, capped: true, earnedToday: 0, cap: DAILY_CARE_STAR_CAP };
+    }
+    const options = opts || {};
+    const dk = options.dateKey || getUtc8DateKey();
+    if (!store.companion.dailyCareStars || typeof store.companion.dailyCareStars !== "object") {
+      store.companion.dailyCareStars = {};
+    }
+    const earnedToday = Math.max(0, Number(store.companion.dailyCareStars[dk] || 0));
+    const remain = Math.max(0, DAILY_CARE_STAR_CAP - earnedToday);
+    const req = Math.max(0, Math.floor(Number(amount) || 0));
+    const starsAwarded = Math.min(req, remain);
+    const capped = remain <= 0 || starsAwarded < req;
+
+    if (starsAwarded > 0) {
+      store.companion.starBalance = Math.max(0, Math.floor(Number(store.companion.starBalance || 0)) + starsAwarded);
+      store.companion.dailyCareStars[dk] = earnedToday + starsAwarded;
+      pruneDateBucketMap(store.companion.dailyCareStars, MAX_DAILY_LOG_DAYS);
+    }
+    return {
+      starsAwarded,
+      capped,
+      earnedToday: Math.max(0, Number(store.companion.dailyCareStars[dk] || 0)),
+      cap: DAILY_CARE_STAR_CAP
+    };
+  }
+
+  function spendStars(store, amount) {
+    const cost = Math.max(0, Math.floor(Number(amount) || 0));
+    const bal = Math.max(0, Math.floor(Number(store && store.companion && store.companion.starBalance || 0)));
+    if (bal < cost) {
+      return { ok: false, balance: bal, missing: cost - bal };
+    }
+    store.companion.starBalance = bal - cost;
+    return { ok: true, balance: store.companion.starBalance, missing: 0 };
+  }
+
+  function unlockDecorItem(store, decorDef) {
+    if (!store || !store.house || !decorDef || !decorDef.id || !decorDef.slot) {
+      return { ok: false, reason: "invalid" };
+    }
+    ensureModularAndClockDefaults(store);
+    const unlocked = store.house.unlockedDecorIds;
+    if (unlocked.indexOf(decorDef.id) >= 0) {
+      equipDecorItem(store, decorDef.slot, decorDef.id);
+      return { ok: true, alreadyOwned: true, balance: store.companion.starBalance };
+    }
+    const cost = Math.max(0, Math.floor(Number(decorDef.price) || 0));
+    const spent = spendStars(store, cost);
+    if (!spent.ok) {
+      return { ok: false, reason: "insufficient_stars", missing: spent.missing, balance: spent.balance };
+    }
+    unlocked.push(decorDef.id);
+    equipDecorItem(store, decorDef.slot, decorDef.id);
+    return { ok: true, alreadyOwned: false, balance: spent.balance };
+  }
+
+  function equipDecorItem(store, slotId, styleId) {
+    if (!store || !store.house || !slotId || !styleId) return false;
+    ensureModularAndClockDefaults(store);
+    if (store.house.unlockedDecorIds.indexOf(styleId) < 0) return false;
+    const mods = store.house.roomModules.living_room;
+    if (!mods[slotId]) mods[slotId] = { styleId: styleId, state: "normal" };
+    else mods[slotId].styleId = styleId;
+    return true;
+  }
+
+  function canUnlockRoom(store, roomDef) {
+    if (!store || !store.house || !store.companion || !roomDef || !roomDef.id) {
+      return { unlocked: false, eligible: false, missingDays: 0, missingStars: 0 };
+    }
+    ensureModularAndClockDefaults(store);
+    const unlocked = store.house.unlockedRoomIds.indexOf(roomDef.id) >= 0;
+    if (unlocked) {
+      return { unlocked: true, eligible: true, missingDays: 0, missingStars: 0 };
+    }
+    if (roomDef.comingSoon) {
+      return { unlocked: false, eligible: false, comingSoon: true, missingDays: 0, missingStars: 0 };
+    }
+    const days = Math.max(1, Number(store.companion.totalCompanionDays || 1));
+    const stars = Math.max(0, Math.floor(Number(store.companion.starBalance || 0)));
+    const minDays = Math.max(1, Number(roomDef.minDays || 1));
+    const starCost = Math.max(0, Number(roomDef.starCost || 0));
+    const missingDays = Math.max(0, minDays - days);
+    const missingStars = Math.max(0, starCost - stars);
+    return {
+      unlocked: false,
+      eligible: missingDays === 0 && missingStars === 0,
+      missingDays,
+      missingStars
+    };
+  }
+
+  function unlockRoom(store, roomDef) {
+    const check = canUnlockRoom(store, roomDef);
+    if (check.unlocked) {
+      store.house.activeRoomId = roomDef.id;
+      return { ok: true, alreadyUnlocked: true, balance: store.companion.starBalance };
+    }
+    if (check.comingSoon) {
+      return { ok: false, reason: "coming_soon" };
+    }
+    if (check.missingDays > 0) {
+      return { ok: false, reason: "insufficient_days", missingDays: check.missingDays };
+    }
+    if (check.missingStars > 0) {
+      return { ok: false, reason: "insufficient_stars", missingStars: check.missingStars };
+    }
+    const spent = spendStars(store, roomDef.starCost || 0);
+    if (!spent.ok) {
+      return { ok: false, reason: "insufficient_stars", missingStars: spent.missing };
+    }
+    store.house.unlockedRoomIds.push(roomDef.id);
+    store.house.activeRoomId = roomDef.id;
+    recordDailyEvent(store, getUtc8DateKey(), store.activePetId || "koi", {
+      roomId: roomDef.id,
+      countsAsEffective: true
+    });
+    return { ok: true, alreadyUnlocked: false, balance: spent.balance };
+  }
+
+  function addCraftedSnack(store, snackId, qty) {
+    if (!store || !store.house || !snackId) return 0;
+    ensureModularAndClockDefaults(store);
+    const n = Math.max(1, Math.floor(Number(qty) || 1));
+    const cur = Math.max(0, Math.floor(Number(store.house.craftedSnacks[snackId] || 0)));
+    store.house.craftedSnacks[snackId] = Math.min(99, cur + n);
+    return store.house.craftedSnacks[snackId];
+  }
+
+  function consumeCraftedSnack(store, snackId) {
+    if (!store || !store.house || !snackId) return false;
+    ensureModularAndClockDefaults(store);
+    const cur = Math.max(0, Math.floor(Number(store.house.craftedSnacks[snackId] || 0)));
+    if (cur <= 0) return false;
+    store.house.craftedSnacks[snackId] = cur - 1;
+    return true;
+  }
+
+  function deliverYardMailboxItem(store, mailItem) {
+    if (!store || !store.house || !mailItem || !mailItem.id) return false;
+    ensureModularAndClockDefaults(store);
+    if (store.house.mailboxItems.some((m) => m && m.id === mailItem.id)) return false;
+    store.house.mailboxItems.unshift(Object.assign({ claimed: false }, mailItem));
+    if (store.house.mailboxItems.length > 20) store.house.mailboxItems.length = 20;
+    if (store.house.mailboxUnreadIds.indexOf(mailItem.id) < 0) {
+      store.house.mailboxUnreadIds.unshift(mailItem.id);
+    }
+    return true;
+  }
+
+  function claimYardMailboxItem(store, mailId) {
+    if (!store || !store.house || !mailId) return null;
+    ensureModularAndClockDefaults(store);
+    const item = store.house.mailboxItems.find((m) => m && m.id === mailId);
+    if (!item || item.claimed) return null;
+    item.claimed = true;
+    store.house.mailboxUnreadIds = store.house.mailboxUnreadIds.filter((id) => id !== mailId);
+    if (item.starBonus > 0 && store.companion) {
+      store.companion.starBalance = Math.max(0, Math.floor(Number(store.companion.starBalance || 0)) + item.starBonus);
+    }
+    return item;
   }
 
   /**
@@ -1076,18 +1351,22 @@
     LEGACY_CARE_KEY,
     MAX_DAILY_LOG_DAYS,
     TOTAL_KEEPSAKES_COUNT,
+    DAILY_MINIGAME_STAR_CAP,
+    DAILY_CARE_STAR_CAP,
     PROFILE_MODES,
     DEFAULT_PET_NAMES,
     DEFAULT_SET_BY_PET,
     MOOD_TYPES,
     MOOD_DISPLAY_LABEL_OVERRIDES,
     KEEPSAKE_ALIAS_MAP,
+    buildShelfSlots,
     getMoodDisplay,
     computeDailyMood,
     keepsakeAliasNormalizer,
     toLegacyKeepsakeId,
     getUtc8DateKey,
     getUtc8IsoString,
+    diffDateKeys,
     expForNextLevel,
     isSafeDisplayText,
     validateNickname,
@@ -1103,6 +1382,17 @@
     recordEffectiveCompanionDay,
     recordDailyEvent,
     ensureModularAndClockDefaults,
+    awardActivityStars,
+    awardCareStars,
+    spendStars,
+    unlockDecorItem,
+    equipDecorItem,
+    canUnlockRoom,
+    unlockRoom,
+    addCraftedSnack,
+    consumeCraftedSnack,
+    deliverYardMailboxItem,
+    claimYardMailboxItem,
     settleFocusSession,
     loadOrMigrateStore
   };

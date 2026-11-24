@@ -157,6 +157,9 @@
                 <span class="mod-contact-shadow mod-contact-shadow--books" aria-hidden="true"></span>
                 <img src="./living-room-dress/modules/mod_bookshelf.png" alt="三层原木书架" />
                 <span id="mod-books-plane" class="mod-books__plane" aria-hidden="true" hidden>✉</span>
+                <span id="mod-books-diary-mark" class="mod-books__diary-mark" aria-hidden="true" hidden>🔖</span>
+                <!-- 书架中层实时微缩映射多宝格前 3 件藏品（PRD-0003 P3） -->
+                <div id="mod-books-curio-minis" class="mod-books__curio-minis" aria-hidden="true"></div>
               </div>
 
               <div id="mod-jewelry-box" class="room-module room-module--mid room-module--jewelry" data-module="mod_jewelry_box" data-jewelry-state="closed" aria-hidden="true">
@@ -254,11 +257,73 @@
         </div>
       </div>
 
-      <!-- 顶部居中三屏圆点 -->
-      <div id="screen-dots" class="screen-dots" aria-hidden="true">
-        <span class="screen-dot"></span>
-        <span class="screen-dot screen-dot--active"></span>
-        <span class="screen-dot"></span>
+      <!-- 480ms 暖光推门切房过渡遮罩（PRD-0003 P5） -->
+      <div id="room-transition-veil" class="room-transition-veil" aria-hidden="true" hidden></div>
+
+      <!-- P5 拓展房间专属交互层：暖光小厨房 & 晴日小院子（含户外原木信箱） -->
+      <div id="alt-room-stage" class="alt-room-stage" hidden>
+        <!-- 暖光小厨房交互道具 -->
+        <div id="kitchen-room-props" class="alt-room-props alt-room-props--kitchen" hidden>
+          <button id="kitchen-oven-btn" class="alt-room-prop alt-room-prop--oven" type="button">
+            <span class="alt-room-prop__icon">🔥</span>
+            <span class="alt-room-prop__title">复古奶油小烤箱</span>
+            <span class="alt-room-prop__sub">玩「暖炉烘焙拍」烤点心 +10✦</span>
+          </button>
+          <button id="kitchen-fridge-btn" class="alt-room-prop alt-room-prop--fridge" type="button">
+            <span class="alt-room-prop__icon">🧲</span>
+            <span class="alt-room-prop__title">旅途冰箱贴板</span>
+            <span id="kitchen-fridge-sub" class="alt-room-prop__sub">已贴 1 枚回忆磁贴</span>
+          </button>
+          <button id="kitchen-jar-btn" class="alt-room-prop alt-room-prop--jar" type="button">
+            <span class="alt-room-prop__icon">🍪</span>
+            <span class="alt-room-prop__title">自制零食罐</span>
+            <span id="kitchen-jar-sub" class="alt-room-prop__sub">松饼 0 · 鲷鱼烧 0</span>
+          </button>
+        </div>
+
+        <!-- 晴日小院子交互道具（含实体红旗原木信箱 + 微风桂花粒子） -->
+        <div id="yard-room-props" class="alt-room-props alt-room-props--yard" hidden>
+          <div class="yard-breeze-particles" aria-hidden="true">
+            <i class="yard-petal yard-petal--1"></i>
+            <i class="yard-petal yard-petal--2"></i>
+            <i class="yard-petal yard-petal--3"></i>
+            <i class="yard-petal yard-petal--4"></i>
+          </div>
+          <button id="yard-mailbox-btn" class="alt-room-prop alt-room-prop--mailbox" type="button" aria-label="打开小院户外原木信箱">
+            <span class="yard-mailbox-visual" aria-hidden="true">
+              <span class="yard-mailbox-box">📮</span>
+              <span id="yard-mailbox-flag" class="yard-mailbox-flag" hidden>🚩</span>
+            </span>
+            <span class="alt-room-prop__title">户外原木信箱</span>
+            <span id="yard-mailbox-sub" class="alt-room-prop__sub">小红旗安静垂着</span>
+          </button>
+          <button id="yard-chair-btn" class="alt-room-prop alt-room-prop--chair" type="button">
+            <span class="alt-room-prop__icon">🌿</span>
+            <span class="alt-room-prop__title">竹编躺椅 · 小院牧歌</span>
+            <span class="alt-room-prop__sub">接桂花瓣晒太阳 +8✦</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 边缘拟物木门牌轻浮签（左尽头去小厨房，右尽头去小院子，严格避让微信胶囊） -->
+      <button id="edge-sign-kitchen" class="edge-room-sign edge-room-sign--left is-hidden-edge" type="button" aria-label="前往暖光小厨房">
+        <span id="edge-sign-kitchen-text">🍳 去小厨房</span>
+      </button>
+      <button id="edge-sign-yard" class="edge-room-sign edge-room-sign--right is-hidden-edge" type="button" aria-label="前往晴日小院子">
+        <span id="edge-sign-yard-text">🌿 去小院子</span>
+      </button>
+
+      <!-- 顶部居中三屏圆点 + 房间快捷切换胶囊 -->
+      <div class="top-room-nav">
+        <button id="room-switcher-pill" class="room-switcher-pill" type="button" aria-label="切换房间与家园导览">
+          <span id="room-switcher-label">🏠 起居室</span>
+          <span class="room-switcher-pill__caret" aria-hidden="true">▾</span>
+        </button>
+        <div id="screen-dots" class="screen-dots" aria-hidden="true">
+          <span class="screen-dot"></span>
+          <span class="screen-dot screen-dot--active"></span>
+          <span class="screen-dot"></span>
+        </div>
       </div>
 
       <!-- 右侧竖向 3D 陪伴与装扮胶囊栏（严格对齐截图右侧蓝框位置，100% 采用 3D 百宝箱材质风格） -->
@@ -471,24 +536,99 @@
       </div>
     </div>
 
-    <!-- 全屏 #FAFAF8 纪念册与木质博古收藏格画布页（PRD-0003 P2） -->
-    <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="纪念册与多宝收藏格" hidden>
-      <header class="eb-nav-bar eb-nav-bar--capsule-safe">
+    <!-- 全屏 #FAFAF8 统一四页签书架收获画布页（PRD-0003 P2 + P3：相册 | 明信片 | 日记本 | 收藏柜） -->
+    <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="陪伴手帐与多宝收藏格" hidden>
+      <header class="eb-nav-bar eb-nav-bar--capsule-safe eb-nav-bar--four-tabs">
         <button id="btn-close-album" class="eb-nav-bar__back" type="button" aria-label="返回">
           <span class="eb-nav-bar__chevron"></span>
         </button>
-        <h2 class="eb-nav-bar__title">纪念册 · 收藏格</h2>
-        <span class="eb-nav-bar__spacer"></span>
+        <div class="keepsake-tabs keepsake-tabs--inline" role="tablist" aria-label="书架内容页签">
+          <button class="keepsake-tab" type="button" data-album-tab="album" role="tab">相册</button>
+          <button class="keepsake-tab keepsake-tab--active" type="button" data-album-tab="postcards" role="tab">明信片</button>
+          <button class="keepsake-tab" type="button" data-album-tab="diary" role="tab">日记本</button>
+          <button class="keepsake-tab" type="button" data-album-tab="keepsakes" role="tab">收藏柜</button>
+        </div>
       </header>
 
-      <div class="keepsake-tabs">
-        <div class="keepsake-tabs__track" role="tablist">
-          <button class="keepsake-tab" type="button" data-album-tab="keepsakes" role="tab">收藏柜</button>
-          <button class="keepsake-tab keepsake-tab--active" type="button" data-album-tab="postcards" role="tab">明信片</button>
-        </div>
-      </div>
-
       <div class="keepsake-body">
+        <!-- P3 穿搭定妆相册（在 album 页签显示） -->
+        <div id="lookbook-album-view" class="lookbook-album-view" hidden>
+          <div class="lookbook-album-head">
+            <div>
+              <h3 class="lookbook-album-head__title">📸 穿搭定妆相册</h3>
+              <p class="lookbook-album-head__sub">零 Token 实时合成 · 仅存轻配方不占存储</p>
+            </div>
+            <button id="btn-album-snap-now" class="curio-arrange-btn" type="button">📷 拍今日定妆</button>
+          </div>
+          <div id="lookbook-album-empty" class="keepsake-empty" hidden>
+            <div class="keepsake-empty__ring" aria-hidden="true"></div>
+            <p class="keepsake-empty__text">还没有定妆照，点右上角拍下今天这身吧</p>
+          </div>
+          <div id="lookbook-album-grid" class="keepsake-grid"></div>
+        </div>
+
+        <!-- P3 缝线手帐日记本内页（在 diary 页签显示，800×920 零 Token 拍立得 + 32 组四类冷幽默手记） -->
+        <div id="diary-book-view" class="diary-book-view" hidden>
+          <div id="diary-welcome-note" class="diary-welcome-note" hidden></div>
+
+          <div id="diary-empty-state" class="diary-empty-state" hidden>
+            <div class="diary-empty-state__book" aria-hidden="true">📕</div>
+            <p id="diary-empty-text" class="diary-empty-state__text">还没有写下第一页手帐，先喂块小点心或陪它待一会儿吧</p>
+            <button id="btn-diary-write-empty" class="btn btn--primary btn--small" type="button">
+              <span class="btn-text">✍️ 写下今日手帐</span>
+            </button>
+          </div>
+
+          <article id="diary-spread" class="diary-spread" hidden>
+            <!-- 上页：今日定格（薄荷和纸胶带 + 800×920 零 Token 当日穿搭拍立得） -->
+            <section class="diary-page diary-page--top">
+              <div class="diary-page__meta-bar">
+                <span id="diary-date-label" class="diary-page__date">📅 2026.11.24 · ☀️ 晴</span>
+                <span id="diary-day-pill" class="diary-page__day-pill">陪伴第 1 天</span>
+              </div>
+              <div class="diary-polaroid-row">
+                <div class="diary-polaroid-frame">
+                  <span class="diary-washi-tape" aria-hidden="true"></span>
+                  <img id="diary-polaroid-img" class="diary-polaroid-frame__img" alt="当日穿搭拍立得" />
+                </div>
+                <div class="diary-fact-tags">
+                  <span class="diary-fact-tags__head">今日真实锚点</span>
+                  <div id="diary-tags-list" class="diary-tags-list"></div>
+                  <span id="diary-archetype-chip" class="diary-archetype-chip">冷幽默 · 位置的反讽</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- 仿真棉线装订中缝 -->
+            <div class="diary-spine-divider" aria-hidden="true">
+              <span class="diary-spine-stitch"></span>
+              <span class="diary-spine-stitch"></span>
+              <span class="diary-spine-stitch"></span>
+              <span class="diary-spine-stitch"></span>
+            </div>
+
+            <!-- 下页：伙伴冷幽默手记 -->
+            <section class="diary-page diary-page--bottom">
+              <h3 id="diary-entry-title" class="diary-entry__title">《不下雨的蛙帽声音》</h3>
+              <p id="diary-entry-salutation" class="diary-entry__salutation">蛋宝好友，</p>
+              <p id="diary-entry-body" class="diary-entry__body"></p>
+              <p id="diary-entry-ps" class="diary-entry__ps"></p>
+              <div class="diary-entry__footer">
+                <span id="diary-entry-signoff" class="diary-entry__signoff">耳朵贴贴，糯米团子 🐾</span>
+              </div>
+            </section>
+          </article>
+
+          <div class="diary-toolbar">
+            <button id="btn-diary-prev" class="diary-nav-btn" type="button">‹ 前一篇</button>
+            <button id="btn-diary-index" class="diary-nav-btn diary-nav-btn--mid" type="button">🗓️ 目录 (<span id="diary-count-num">0</span>篇)</button>
+            <button id="btn-diary-write-today" class="diary-nav-btn diary-nav-btn--accent" type="button">✍️ 记今日</button>
+            <button id="btn-diary-share" class="diary-nav-btn" type="button">晒手帐 ›</button>
+          </div>
+
+          <div id="diary-index-drawer" class="diary-index-drawer" hidden></div>
+        </div>
+
         <!-- P2 木质博古收藏格 + 41 件分页图鉴（在 keepsakes 页签显示） -->
         <div id="curio-cabinet-view" class="curio-cabinet-view" hidden>
           <!-- 上半区：真·可交互 3×4 (12 格) 暖橡木多宝柜 -->
@@ -737,7 +877,7 @@
                 <button id="fp-btn-outfits" class="profile-fp-pill" type="button">
                   <span id="fp-outfits-text">穿搭 36套</span>
                 </button>
-                <button id="fp-btn-diaries" class="profile-fp-pill profile-fp-pill--upcoming" type="button">
+                <button id="fp-btn-diaries" class="profile-fp-pill" type="button">
                   <span id="fp-diaries-text">日记 0篇</span>
                 </button>
                 <button id="fp-btn-postcards" class="profile-fp-pill" type="button">
@@ -856,14 +996,150 @@
       </div>
     </div>
 
-    <!-- 活动列表弹窗（小游戏合集入口） -->
+    <!-- P3 三层暖橡木书架中枢弹窗（点击房间书架展开，陈列全部 6 大内容模块） -->
+    <div id="bookshelf-hub-overlay" class="bookshelf-hub-overlay" role="dialog" aria-modal="true" aria-label="三层原木书架中枢" hidden>
+      <div class="bookshelf-hub-card">
+        <header class="bookshelf-hub-head">
+          <div>
+            <h2 class="bookshelf-hub-head__title">🪵 暖橡木三层书架</h2>
+            <p class="bookshelf-hub-head__sub">手帐、来信、多宝格与家园导览都在这里</p>
+          </div>
+          <button id="btn-close-bookshelf-hub" class="profile-journal-close" type="button" aria-label="关闭书架">×</button>
+        </header>
+
+        <div class="bookshelf-tiers">
+          <!-- 上层：记忆书信 -->
+          <div class="bookshelf-tier">
+            <span class="bookshelf-tier__label">上层 · 记忆书信</span>
+            <div class="bookshelf-tier__grid">
+              <button id="shelf-slot-diary" class="bookshelf-slot bookshelf-slot--diary" type="button">
+                <span class="bookshelf-slot__icon">📕</span>
+                <span class="bookshelf-slot__name">缝线陪伴日记本</span>
+                <span id="shelf-diary-sub" class="bookshelf-slot__sub">0 篇冷幽默手帐</span>
+              </button>
+              <button id="shelf-slot-mail" class="bookshelf-slot bookshelf-slot--mail" type="button">
+                <span class="bookshelf-slot__icon">✉️</span>
+                <span class="bookshelf-slot__name">来信与明信片木匣</span>
+                <span id="shelf-mail-sub" class="bookshelf-slot__sub">查看历史明信片</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 中层：收藏影像（实时微缩展示多宝格前 3 件） -->
+          <div class="bookshelf-tier">
+            <span class="bookshelf-tier__label">中层 · 收藏影像</span>
+            <div class="bookshelf-tier__grid">
+              <button id="shelf-slot-curio" class="bookshelf-slot bookshelf-slot--curio" type="button">
+                <div id="shelf-hub-curio-preview" class="bookshelf-slot__curio-minis"></div>
+                <span class="bookshelf-slot__name">木质收藏格微缩展位</span>
+                <span id="shelf-curio-sub" class="bookshelf-slot__sub">已收集 1 / 41</span>
+              </button>
+              <button id="shelf-slot-album" class="bookshelf-slot bookshelf-slot--album" type="button">
+                <span class="bookshelf-slot__icon">📸</span>
+                <span class="bookshelf-slot__name">穿搭定妆相册</span>
+                <span id="shelf-album-sub" class="bookshelf-slot__sub">36 套穿搭随时拍</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 下层：游艺家园 -->
+          <div class="bookshelf-tier">
+            <span class="bookshelf-tier__label">下层 · 游艺家园</span>
+            <div class="bookshelf-tier__grid">
+              <button id="shelf-slot-games" class="bookshelf-slot bookshelf-slot--games" type="button">
+                <span class="bookshelf-slot__icon">🎨</span>
+                <span id="shelf-games-title" class="bookshelf-slot__name">小游戏玩具木盒</span>
+                <span id="shelf-games-sub" class="bookshelf-slot__sub">一起画 · 听你说 · 翻翻乐</span>
+              </button>
+              <button id="shelf-slot-house" class="bookshelf-slot bookshelf-slot--house" type="button">
+                <span class="bookshelf-slot__icon">🏡</span>
+                <span class="bookshelf-slot__name">家园改造与房间导览</span>
+                <span id="shelf-house-sub" class="bookshelf-slot__sub">软装升级 · 小厨房 · 小院子</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P3 缝线布面手帐闭合封面飞出动效层（致敬手作棉麻布艺感） -->
+    <div id="diary-cover-overlay" class="diary-cover-overlay" role="dialog" aria-modal="true" aria-label="陪伴手帐封面" hidden>
+      <button id="btn-close-diary-cover" class="clock-paper-close" type="button" aria-label="关闭手帐封面"><span>×</span></button>
+      <div id="diary-cover-book" class="diary-cover-book" data-pet-theme="koi" role="button" tabindex="0" aria-label="轻触翻开陪伴手帐">
+        <div class="diary-cover-book__spine" aria-hidden="true"></div>
+        <div class="diary-cover-book__top-cloth">
+          <div class="diary-cover-book__badge">
+            <span id="diary-cover-crest" class="diary-cover-book__crest">🐟</span>
+            <span class="diary-cover-book__title">陪伴手帐</span>
+          </div>
+        </div>
+        <div class="diary-cover-book__bottom-cloth">
+          <span id="diary-cover-pet-tag" class="diary-cover-book__pet-tag">锦小鲤的桌角记录</span>
+        </div>
+        <div id="diary-cover-clasp" class="diary-cover-book__clasp" aria-hidden="true">
+          <span class="diary-cover-book__snap"></span>
+        </div>
+      </div>
+      <p id="diary-cover-hint" class="diary-cover-hint">轻触布搭扣，翻开今日手帐</p>
+    </div>
+
+    <!-- P5 家园软装改造与多房间导览弹窗 -->
+    <div id="house-guide-overlay" class="house-guide-overlay" role="dialog" aria-modal="true" aria-label="家园改造与房间导览" hidden>
+      <div class="house-guide-card">
+        <header class="house-guide-head">
+          <div>
+            <h2 class="house-guide-head__title">🏡 家园改造与房间导览</h2>
+            <p id="house-guide-balance" class="house-guide-head__sub">当前星星：128 ✦ · 累计陪伴 1 天</p>
+          </div>
+          <button id="btn-close-house-guide" class="profile-journal-close" type="button" aria-label="关闭家园导览">×</button>
+        </header>
+
+        <div class="house-guide-tabs" role="tablist">
+          <button class="house-guide-tab is-active" type="button" data-house-tab="rooms" role="tab">🗺️ 房间导览</button>
+          <button class="house-guide-tab" type="button" data-house-tab="decor" role="tab">🪑 起居室软装</button>
+        </div>
+
+        <div id="house-rooms-pane" class="house-guide-pane"></div>
+        <div id="house-decor-pane" class="house-guide-pane" hidden></div>
+      </div>
+    </div>
+
+    <!-- P5 晴日小院子 · 户外原木信箱弹窗 -->
+    <div id="yard-mailbox-overlay" class="house-guide-overlay" role="dialog" aria-modal="true" aria-label="小院户外原木信箱" hidden>
+      <div class="house-guide-card house-guide-card--mailbox">
+        <header class="house-guide-head">
+          <div>
+            <h2 class="house-guide-head__title">📮 小院户外原木信箱</h2>
+            <p class="house-guide-head__sub">旅途明信片与地方伴手礼都会投递在这里</p>
+          </div>
+          <button id="btn-close-yard-mailbox" class="profile-journal-close" type="button" aria-label="关闭信箱">×</button>
+        </header>
+        <div id="yard-mailbox-list" class="house-guide-pane"></div>
+      </div>
+    </div>
+
+    <!-- P5 内置轻小游戏统一容器（《听你说》《寻宝翻翻乐》《暖炉烘焙拍》《小院牧歌》） -->
+    <div id="native-minigame-overlay" class="native-minigame-overlay" role="dialog" aria-modal="true" aria-label="陪伴小游戏" hidden>
+      <div class="native-minigame-card">
+        <header class="native-minigame-head">
+          <div>
+            <h2 id="native-mg-title" class="native-minigame-head__title">听你说</h2>
+            <p id="native-mg-sub" class="native-minigame-head__sub">今日游艺获星 0 / 45 ✦</p>
+          </div>
+          <button id="btn-close-native-mg" class="profile-journal-close" type="button" aria-label="关闭小游戏">×</button>
+        </header>
+        <div id="native-mg-body" class="native-minigame-body"></div>
+      </div>
+    </div>
+
+    <!-- 活动列表弹窗（小游戏合集入口 + 每日游艺星星软上限进度条） -->
     <div id="activity-modal" class="activity-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="活动列表">
       <div id="activity-modal-backdrop" class="activity-modal__backdrop"></div>
       <div class="activity-modal__card">
         <div class="activity-modal__head">
           <div class="activity-modal__titles">
-            <h2 class="activity-modal__title">活动列表</h2>
-            <p class="activity-modal__sub">选一个小游戏和蛋宝宝一起玩吧</p>
+            <h2 id="activity-modal-title" class="activity-modal__title">活动列表</h2>
+            <p id="activity-star-cap-bar" class="activity-modal__sub">今日游艺获星：0 / 45 ✦（满额后仍得 +5 EXP）</p>
           </div>
           <button id="btn-close-activities" class="activity-modal__close" type="button" aria-label="关闭活动列表">✕</button>
         </div>
@@ -884,6 +1160,8 @@
 
   <script src="./living-room-dress/catalog-snapshot.js"></script>
   <script src="./living-room-dress/cross-end-store.js"></script>
+  <script src="./living-room-dress/diary-engine.js"></script>
+  <script src="./living-room-dress/p5-rooms-and-games.js"></script>
   <script src="./living-room-dress/app.js"></script>
 </body>
 </html>
