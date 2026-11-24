@@ -2757,20 +2757,20 @@
     const inLivingRoom = !isCustomBgActive();
     const isModularVisible = inLivingRoom && (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away");
 
-    // 5 组独立无白边透明 PNG 家具模组（top-left / center 精确像素锁死）
-    panoToBoxStyle(modWallArtEl, 40, 12, 1220, 405, "top-left");
-    panoToBoxStyle(modBedBaseEl, -24, 415, 1080, 1010, "top-left");
-    panoToBoxStyle(modLampEl, 663, 378, 195, 225, "center");
-    panoToBoxStyle(modBooksEl, 882, 412, 236, 540, "top-left");
-    panoToBoxStyle(modJewelryBoxEl, 1102, 548, 295, 450, "top-left");
+    // 5 组独立无白边透明 PNG 家具模组（wall art 1:1 对齐 empty_day 原画透视）
+    panoToBoxStyle(modWallArtEl, 0, 0, 1303, 443, "top-left");
+    panoToBoxStyle(modBedBaseEl, -14, 408, 1068, 1005, "top-left");
+    panoToBoxStyle(modLampEl, 663, 376, 192, 222, "center");
+    panoToBoxStyle(modBooksEl, 886, 418, 230, 530, "top-left");
+    panoToBoxStyle(modJewelryBoxEl, 1110, 536, 282, 434, "top-left");
     panoToBoxStyle(modDeskSetEl, 975, 965, 960, 540, "top-left");
-    panoToBoxStyle(modBedBlanketEl, 152, 795, 700, 520, "top-left");
-    panoToBoxStyle(roomLampGlowEl, 620, 440, 740, 680, "center");
+    panoToBoxStyle(modBedBlanketEl, 152, 796, 672, 496, "top-left");
+    panoToBoxStyle(roomLampGlowEl, 663, 388, 620, 520, "center");
 
-    // 床头顶板《奶肚黑猫警长发条钟》精确落位：(cx=430, cy=448, w=148, h=154)
+    // 床头顶板《奶肚黑猫警长发条钟》精确落位：(cx=430, cy=448, w=146, h=152)
     bedsideCatClockEl.hidden = !inLivingRoom;
     if (inLivingRoom) {
-      panoToBoxStyle(bedsideCatClockEl, 430, 448, 148, 154, "center");
+      panoToBoxStyle(bedsideCatClockEl, 430, 448, 146, 152, "center");
       hitCatClockEl.hidden = isFittingOpen;
       panoToBoxStyle(hitCatClockEl, 430, 448, 174, 182, "center");
     } else {
@@ -2786,11 +2786,11 @@
     hitJewelryBoxEl.hidden = !showModHits;
     hitDeskMugEl.hidden = !showModHits;
     if (showModHits) {
-      panoToBoxStyle(hitWallArtEl, 290, 35, 955, 345, "top-left");
+      panoToBoxStyle(hitWallArtEl, 290, 24, 980, 360, "top-left");
       panoToBoxStyle(hitBedLampEl, 575, 260, 178, 220, "top-left");
-      panoToBoxStyle(hitBedBlanketEl, 290, 810, 545, 445, "top-left");
-      panoToBoxStyle(hitBookshelfEl, 882, 412, 232, 535, "top-left");
-      panoToBoxStyle(hitJewelryBoxEl, 1102, 548, 290, 435, "top-left");
+      panoToBoxStyle(hitBedBlanketEl, 290, 810, 530, 435, "top-left");
+      panoToBoxStyle(hitBookshelfEl, 886, 418, 228, 525, "top-left");
+      panoToBoxStyle(hitJewelryBoxEl, 1110, 536, 280, 428, "top-left");
       panoToBoxStyle(hitDeskMugEl, 1590, 995, 240, 220, "top-left");
     }
 
@@ -2800,7 +2800,7 @@
 
     const showMirror = !isFittingOpen && inLivingRoom && state.roomState === "free_stand";
     deskMirrorPropEl.hidden = !showMirror;
-    if (showMirror) panoToBoxStyle(deskMirrorPropEl, 1192, 884, 182, 182, "center");
+    if (showMirror) panoToBoxStyle(deskMirrorPropEl, 1830, 960, 154, 154, "center");
 
     // 居家态折叠毛衣右移至安全区 (2430, 1110)，与床头黑猫警长钟零重叠
     const def = ROOM_STATES[state.roomState];

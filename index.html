@@ -137,31 +137,36 @@
               <img id="pano-curr" class="world-panorama-bg" src="./living-room-dress/panoramas/room_shell_day.png" alt="蛋宝宝起居室" />
               <img id="pano-preload" class="world-panorama-preload" alt="" hidden />
 
-              <!-- z: 2 背景墙饰模组：⑤ 墙面植物相框壁画 & 窗边手绘植物签 -->
+              <!-- z: 2 背景墙饰模组：⑤ 墙面植物相框壁画 & 窗边手绘植物签（原画透视 1:1 对齐） -->
               <div id="mod-wall-art" class="room-module room-module--wall" data-module="mod_wall_art" aria-hidden="true">
                 <img src="./living-room-dress/modules/mod_wall_art.png" alt="墙面植物壁画" />
               </div>
 
-              <!-- z: 3 中景家具模组：①a U型木床后箱+枕垫 / ①c 床头暖光灯 / ② 三层原木书架 / ③ 窗角首饰盒 / ④ 桌面软木垫与杯具 -->
+              <!-- z: 3 中景家具模组（独立贴地接触阴影 Contact AO，零悬浮 drop-shadow 贴纸感） -->
               <div id="mod-bed-base" class="room-module room-module--mid room-module--bed-base" data-module="mod_bed_base" aria-hidden="true">
+                <span class="mod-contact-shadow mod-contact-shadow--bed" aria-hidden="true"></span>
                 <img src="./living-room-dress/modules/mod_bed_base.png" alt="U型原木床" />
               </div>
 
               <div id="mod-lamp" class="room-module room-module--mid room-module--lamp" data-module="mod_lamp" data-lamp-on="false" aria-hidden="true">
+                <span class="mod-contact-shadow mod-contact-shadow--lamp" aria-hidden="true"></span>
                 <img id="mod-lamp-img" src="./living-room-dress/modules/mod_lamp_off.png" alt="床头暖光灯" />
               </div>
 
               <div id="mod-books" class="room-module room-module--mid room-module--books" data-module="mod_books" aria-hidden="true">
+                <span class="mod-contact-shadow mod-contact-shadow--books" aria-hidden="true"></span>
                 <img src="./living-room-dress/modules/mod_bookshelf.png" alt="三层原木书架" />
                 <span id="mod-books-plane" class="mod-books__plane" aria-hidden="true" hidden>✉</span>
               </div>
 
               <div id="mod-jewelry-box" class="room-module room-module--mid room-module--jewelry" data-module="mod_jewelry_box" data-jewelry-state="closed" aria-hidden="true">
+                <span class="mod-contact-shadow mod-contact-shadow--jewelry" aria-hidden="true"></span>
                 <img id="mod-jewelry-img" src="./living-room-dress/modules/mod_jewelry_closed.png" alt="窗角木质首饰盒" />
                 <span class="mod-jewelry__gleam" aria-hidden="true"></span>
               </div>
 
               <div id="mod-desk-set" class="room-module room-module--mid room-module--desk" data-module="mod_desk_set" data-steam="on" aria-hidden="true">
+                <span class="mod-contact-shadow mod-contact-shadow--mug" aria-hidden="true"></span>
                 <img src="./living-room-dress/modules/mod_desk_set.png" alt="桌面软木垫与杯具" />
                 <span class="mod-desk__steam" aria-hidden="true">
                   <i class="mod-desk__steam-wisp mod-desk__steam-wisp--1"></i>
@@ -175,8 +180,9 @@
                 <img id="wall-polaroid-img" alt="纪念拍立得" />
               </button>
 
-              <!-- z: 4 .macro-prop：床头顶板《奶肚黑猫警长发条钟》(430, 448) + 叠放衣包 + 桌面小立镜 + 接地阴影 -->
+              <!-- z: 4 .macro-prop：床头顶板《奶肚黑猫警长发条钟》(430, 448) + 接地阴影 -->
               <button id="bedside-cat-clock" class="macro-prop macro-prop--cat-clock" type="button" aria-label="奶肚黑猫警长发条钟，轻触放大并翻转">
+                <span class="scene-cat-clock__shadow" aria-hidden="true"></span>
                 <img class="scene-cat-clock__img" src="./living-room-dress/props/clock_black_cat_scene.png" alt="奶肚黑猫警长发条钟" />
                 <!-- 每 12 秒巡视眨眼遮罩（对齐实测琥珀猫眼坐标） -->
                 <span class="scene-cat-clock__eye scene-cat-clock__eye--left" aria-hidden="true"></span>
@@ -205,13 +211,16 @@
               <div id="pet-shadow-contact" class="pet-shadow pet-shadow--contact"></div>
               <canvas id="gl-pet" class="gl-pet"></canvas>
 
-              <!-- z: 6 [前景被子层] ①b 云朵绒毯（高于宠物层 z:5，支持整洁/微乱切换） -->
+              <!-- z: 6 [前景被子层] ①b 云朵绒毯（高于宠物层 z:5，服帖床垫零悬浮投影） -->
               <div id="mod-bed-blanket" class="room-module mod-bed-front-blanket" data-module="mod_bed_blanket" data-blanket-state="tidy" aria-hidden="true">
                 <img id="mod-bed-blanket-img" src="./living-room-dress/modules/mod_blanket_tidy.png" alt="云朵绒毯被子" />
               </div>
 
-              <!-- z: 7 情绪漫画节拍飘字 + 打盹 Zzz + 脏污提醒 + 搓澡泡泡 + 冲水闪光 + 台灯暖光光晕层 -->
-              <div id="room-lamp-glow" class="room-lamp-glow" aria-hidden="true" hidden></div>
+              <!-- z: 7 情绪漫画节拍飘字 + 打盹 Zzz + 脏污提醒 + 搓澡泡泡 + 冲水闪光 + 双层台灯暖光光锥 -->
+              <div id="room-lamp-glow" class="room-lamp-glow" aria-hidden="true" hidden>
+                <span class="room-lamp-glow__shade"></span>
+                <span class="room-lamp-glow__cone"></span>
+              </div>
               <div id="pet-fx-host" class="pet-fx-host" aria-hidden="true"></div>
               <div id="sleep-zz" class="sleep-zz" hidden>Zzz</div>
 

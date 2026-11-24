@@ -2586,6 +2586,8 @@ button:active {
   transition: opacity 0.3s ease, filter 0.42s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .room-module img {
+  position: relative;
+  z-index: 2;
   display: block;
   width: 100%;
   height: 100%;
@@ -2593,23 +2595,89 @@ button:active {
 }
 .room-module--wall {
   z-index: 2;
-  filter: drop-shadow(0 4px 7px rgba(48, 32, 16, 0.16));
+  /* 紧贴墙面的微弱纸边/木框接触影，避免画框悬浮 */
+  filter: drop-shadow(1px 2px 1.5px rgba(42, 28, 16, 0.14));
 }
 .room-module--mid {
   z-index: 3;
-  filter: drop-shadow(0 7px 10px rgba(42, 26, 12, 0.22));
 }
 .room-module--lamp {
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 5px 8px rgba(42, 26, 12, 0.22));
 }
 .room-module--desk {
-  filter: drop-shadow(0 5px 8px rgba(42, 26, 12, 0.20));
+  z-index: 3;
 }
-/* ①b 前景云朵绒毯被子层（严格置于宠物 z:5 之上） */
+/* ①b 前景云朵绒毯被子层（严格置于宠物 z:5 之上，服帖床垫零悬浮投影） */
 .mod-bed-front-blanket {
   z-index: 6;
-  filter: drop-shadow(0 6px 9px rgba(40, 26, 14, 0.22));
+}
+
+/* 独立贴地接触阴影（Contact AO）：仅落于底座/脚掌接触面，彻底消除贴纸悬浮感 */
+.mod-contact-shadow {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(36, 22, 10, 0.42) 0%,
+    rgba(36, 22, 10, 0.18) 54%,
+    rgba(36, 22, 10, 0) 78%
+  );
+  filter: blur(3px);
+}
+.mod-contact-shadow--bed {
+  left: 4%;
+  right: 6%;
+  bottom: 2%;
+  height: 11%;
+  filter: blur(6px);
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(36, 22, 10, 0.40) 0%,
+    rgba(36, 22, 10, 0.16) 58%,
+    rgba(36, 22, 10, 0) 82%
+  );
+}
+.mod-contact-shadow--lamp {
+  left: 18%;
+  right: 18%;
+  bottom: 3%;
+  height: 10%;
+  filter: blur(2.5px);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(34, 20, 8, 0.48) 0%,
+    rgba(34, 20, 8, 0.18) 58%,
+    rgba(34, 20, 8, 0) 82%
+  );
+}
+.mod-contact-shadow--books {
+  left: 8%;
+  right: 8%;
+  bottom: 2%;
+  height: 8%;
+  filter: blur(4px);
+}
+.mod-contact-shadow--jewelry {
+  left: 12%;
+  right: 12%;
+  bottom: 2%;
+  height: 10%;
+  filter: blur(4px);
+}
+.mod-contact-shadow--mug {
+  left: 8%;
+  right: 10%;
+  bottom: 3%;
+  height: 12%;
+  filter: blur(4px);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(36, 22, 10, 0.32) 0%,
+    rgba(36, 22, 10, 0.12) 56%,
+    rgba(36, 22, 10, 0) 80%
+  );
 }
 
 /* 烘焙动作态或 11 套自定义插画背景态下自动平滑隐藏 5 组模组 */
@@ -2624,64 +2692,104 @@ button:active {
   pointer-events: none !important;
 }
 
-/* 昼 / 落日 / 黑夜三时段自适应环境光滤镜 */
-.page[data-period="sunset"] .room-module,
-.page[data-period="sunset"] .macro-prop--cat-clock {
-  filter: drop-shadow(0 6px 10px rgba(68, 32, 10, 0.28)) brightness(0.95) sepia(0.24) saturate(1.18) hue-rotate(-7deg);
+/* 昼 / 落日 / 黑夜三时段自适应环境光滤镜（仅调色温与明度，零悬浮 drop-shadow） */
+.page[data-period="sunset"] .room-module {
+  filter: brightness(0.92) sepia(0.20) saturate(1.14) hue-rotate(-6deg);
 }
-.page[data-period="night"] .room-module,
+.page[data-period="sunset"] .room-module--wall {
+  filter: drop-shadow(1px 2px 1.5px rgba(58, 28, 12, 0.20)) brightness(0.92) sepia(0.20) saturate(1.14) hue-rotate(-6deg);
+}
+.page[data-period="sunset"] .macro-prop--cat-clock {
+  filter: brightness(0.94) saturate(1.06);
+}
+.page[data-period="night"] .room-module {
+  filter: brightness(0.50) contrast(1.06) saturate(0.68) hue-rotate(12deg);
+}
+.page[data-period="night"] .room-module--wall {
+  filter: drop-shadow(1px 2px 1.5px rgba(6, 10, 24, 0.38)) brightness(0.46) contrast(1.05) saturate(0.64) hue-rotate(14deg);
+}
+/* 夜间黑猫警长钟严禁加 sepia 防止发棕，保持哑光纯黑质感 */
 .page[data-period="night"] .macro-prop--cat-clock {
-  filter: drop-shadow(0 7px 12px rgba(8, 12, 28, 0.45)) brightness(0.62) saturate(0.76) hue-rotate(8deg) contrast(1.06);
+  filter: brightness(0.68) contrast(1.08) saturate(0.82);
+}
+.page[data-period="night"][data-lamp-lit="true"] .macro-prop--cat-clock {
+  filter: brightness(0.88) contrast(1.06) saturate(0.96);
 }
 /* 开灯时的台灯灯罩与微开首饰盒保持自身温暖自发光 */
 .page[data-period="night"] .room-module--lamp[data-lamp-on="true"] {
-  filter: drop-shadow(0 0 18px rgba(255, 206, 118, 0.65)) brightness(1.04) saturate(1.12);
+  filter: brightness(1.02) saturate(1.08);
 }
 .page[data-period="sunset"] .room-module--lamp[data-lamp-on="true"] {
-  filter: drop-shadow(0 0 14px rgba(255, 200, 110, 0.52)) brightness(1.06) saturate(1.14);
+  filter: brightness(1.04) saturate(1.10);
 }
 .page[data-period="night"] .room-module--jewelry[data-jewelry-state="peek_gleam"] {
-  filter: drop-shadow(0 0 12px rgba(255, 214, 122, 0.42)) brightness(0.76) saturate(0.94);
+  filter: brightness(0.66) contrast(1.06) saturate(0.88);
 }
-/* 夜间台灯亮起时微微照亮紧邻的黑猫警长钟 */
-.page[data-period="night"][data-lamp-lit="true"] .macro-prop--cat-clock {
-  filter: drop-shadow(0 5px 10px rgba(18, 14, 24, 0.42)) brightness(0.84) sepia(0.14) saturate(1.02);
+.page[data-period="night"] .mod-contact-shadow,
+.page[data-period="night"] .scene-cat-clock__shadow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(6, 10, 24, 0.62) 0%,
+    rgba(6, 10, 24, 0.26) 56%,
+    rgba(6, 10, 24, 0) 80%
+  );
 }
 
-/* 床头台灯开启时的 z:7 暖黄环境光晕层 */
+/* 床头台灯开启时的 z:7 双层暖黄定向光锥（灯罩内暖光 + 向下照亮顶板与黑猫钟，零泛白雾团） */
 .room-lamp-glow {
   position: absolute;
   z-index: 7;
   pointer-events: none;
-  border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(
-    circle at 50% 44%,
-    rgba(255, 224, 148, 0.50) 0%,
-    rgba(255, 198, 108, 0.24) 28%,
-    rgba(255, 180, 92, 0.08) 50%,
-    rgba(255, 174, 84, 0) 70%
-  );
-  mix-blend-mode: screen;
+  overflow: visible;
   animation: lamp-glow-breathe 4.4s ease-in-out infinite;
 }
+.room-lamp-glow__shade {
+  position: absolute;
+  left: 34%;
+  top: 18%;
+  width: 32%;
+  height: 28%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 224, 146, 0.44) 0%,
+    rgba(255, 192, 92, 0.16) 52%,
+    rgba(255, 174, 84, 0) 78%
+  );
+  mix-blend-mode: soft-light;
+}
+.room-lamp-glow__cone {
+  position: absolute;
+  left: -12%;
+  top: 10%;
+  width: 124%;
+  height: 98%;
+  background: radial-gradient(
+    ellipse 48% 46% at 50% 34%,
+    rgba(255, 208, 118, 0.28) 0%,
+    rgba(255, 184, 86, 0.12) 38%,
+    rgba(255, 170, 72, 0) 68%
+  );
+}
 .page[data-period="day"] .room-lamp-glow {
-  opacity: 0.42;
+  opacity: 0.36;
 }
 .page[data-period="sunset"] .room-lamp-glow {
-  opacity: 0.68;
+  opacity: 0.62;
 }
 .page[data-period="night"] .room-lamp-glow {
-  opacity: 0.96;
+  opacity: 0.88;
 }
 @keyframes lamp-glow-breathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(0.98); }
-  50% { transform: translate(-50%, -50%) scale(1.03); }
+  0%, 100% { transform: translate(-50%, -50%) scale(0.985); }
+  50% { transform: translate(-50%, -50%) scale(1.025); }
 }
 
 /* 首饰盒微开时的柔和金色星芒呼吸微光 */
 .mod-jewelry__gleam {
   position: absolute;
+  z-index: 3;
   left: 34%;
   top: 63%;
   width: 44%;
@@ -2704,6 +2812,7 @@ button:active {
 /* 书架上层未读来信微晃提示 */
 .mod-books__plane {
   position: absolute;
+  z-index: 3;
   right: 14%;
   top: 10%;
   width: 22px;
@@ -2727,6 +2836,7 @@ button:active {
 /* 桌面咖啡杯袅袅热气 */
 .mod-desk__steam {
   position: absolute;
+  z-index: 3;
   left: 59%;
   top: 10%;
   width: 14%;
@@ -2825,12 +2935,31 @@ button:active {
   animation: care-warn-pulse 1.6s ease-in-out infinite;
 }
 
-/* 场景床头黑猫警长表（z:4, center (430, 448)，脚掌稳踩床头顶板木纹面） */
+/* 场景床头黑猫警长表（z:4, center (430, 448)，脚掌稳踩床头顶板木纹面 + 贴地脚底接触影） */
 .macro-prop--cat-clock {
   pointer-events: none; /* 点击由 z:8 #hit-cat-clock 统一接管，防止被层叠遮挡 */
   transform: translate(-50%, -62%);
 }
+.scene-cat-clock__shadow {
+  position: absolute;
+  z-index: 1;
+  left: 20%;
+  right: 20%;
+  bottom: 1%;
+  height: 11%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(28, 18, 10, 0.56) 0%,
+    rgba(28, 18, 10, 0.22) 55%,
+    rgba(28, 18, 10, 0) 80%
+  );
+  filter: blur(2px);
+}
 .scene-cat-clock__img {
+  position: relative;
+  z-index: 2;
   display: block;
   width: 100%;
   height: 100%;
@@ -2839,6 +2968,7 @@ button:active {
 .scene-cat-clock__eye,
 .ip-clock__eye {
   position: absolute;
+  z-index: 3;
   width: 7.4%;
   height: 4.4%;
   border-radius: 50%;
@@ -2866,6 +2996,7 @@ button:active {
 
 .scene-cat-clock__dial {
   position: absolute;
+  z-index: 3;
   left: 48.67%;
   top: 61.87%;
   width: 38%;
