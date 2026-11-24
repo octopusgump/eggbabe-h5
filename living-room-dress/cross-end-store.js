@@ -45,6 +45,39 @@
     yutu: "set_cozy_knit"
   });
 
+  const AGE_RANGES = Object.freeze([
+    Object.freeze({ label: "14 周岁及以下", value: "AGE_0_14" }),
+    Object.freeze({ label: "15-35 周岁", value: "AGE_15_35" }),
+    Object.freeze({ label: "36-60 周岁", value: "AGE_36_60" }),
+    Object.freeze({ label: "60 周岁以上", value: "AGE_61_PLUS" })
+  ]);
+
+  const VALID_AGE_RANGE_SET = new Set(AGE_RANGES.map((item) => item.value));
+
+  const FEEDBACK_TYPES = Object.freeze([
+    Object.freeze({ value: "AI_CONTENT_VIOLATION", label: "AI 虚拟宠物对话违规（涉政、色情、暴力、轻生、暧昧诱导）" }),
+    Object.freeze({ value: "AI_MISLEADING_ADVICE", label: "AI 误导或给出不实医疗、理财建议" }),
+    Object.freeze({ value: "MINOR_USE", label: "未成年人使用相关问题（时长、模式、内容限制）" }),
+    Object.freeze({ value: "SENIOR_SUPPORT", label: "老年人操作、防诈骗或使用指引咨询" }),
+    Object.freeze({ value: "PRIVACY", label: "账号或聊天记录隐私保护问题" }),
+    Object.freeze({ value: "CRISIS_INTERVENTION", label: "极端情绪干预失效（自杀、抑郁、家暴未安抚）" }),
+    Object.freeze({ value: "FUNCTION_FAILURE", label: "功能故障或无法打开宠物对话" }),
+    Object.freeze({ value: "REMINDER_OR_AI_LABEL", label: "时长提醒或 AI 标识缺失" }),
+    Object.freeze({ value: "OTHER", label: "其他申诉、意见建议" })
+  ]);
+
+  const VALID_FEEDBACK_TYPE_SET = new Set(FEEDBACK_TYPES.map((item) => item.value));
+
+  const SUPPORT_CONTACT = Object.freeze({
+    email: "hello@eggbabe.com",
+    hotline: "18201931204",
+    psychologicalHotline: "12356",
+    police: "110",
+    medicalEmergency: "120"
+  });
+
+  const MAX_FEEDBACK_RECEIPTS = 20;
+
   /* ---------- 1. 8 态每日心情 + 治愈系柔和展示名映射 ---------- */
   const MOOD_DISPLAY_LABEL_OVERRIDES = Object.freeze({
     ANXIETY: "微虑",
@@ -594,7 +627,12 @@
       settings: {
         sfxOn: true,
         stageBgId: "living_room",
-        clockMode: "analog"
+        clockMode: "analog",
+        ageRange: "",
+        ageRangeUpdatedAt: null,
+        feedbackReceipts: [],
+        feedbackCounter: { dateKey: "", sequence: 0 },
+        inviteCodes: []
       },
       user: {
         id: "usr_eb_01",
@@ -926,6 +964,20 @@
 
   function ensureModularAndClockDefaults(store, opts) {
     const def = createDefaultState(opts);
+    if (!store.settings || typeof store.settings !== "object") {
+      store.settings = Object.assign({}, def.settings);
+    } else {
+      if (typeof store.settings.sfxOn !== "boolean") store.settings.sfxOn = true;
+      if (!store.settings.stageBgId) store.settings.stageBgId = "living_room";
+      if (!store.settings.clockMode) store.settings.clockMode = "analog";
+      store.settings.ageRange = normalizeAgeRange(store.settings.ageRange);
+      if (store.settings.ageRangeUpdatedAt === undefined) store.settings.ageRangeUpdatedAt = null;
+      if (!Array.isArray(store.settings.feedbackReceipts)) store.settings.feedbackReceipts = [];
+      if (!store.settings.feedbackCounter || typeof store.settings.feedbackCounter !== "object") {
+        store.settings.feedbackCounter = { dateKey: "", sequence: 0 };
+      }
+      if (!Array.isArray(store.settings.inviteCodes)) store.settings.inviteCodes = [];
+    }
     if (store.companion && typeof store.companion === "object") {
       if (!store.companion.dailyMiniGameStars || typeof store.companion.dailyMiniGameStars !== "object") {
         store.companion.dailyMiniGameStars = {};
@@ -1331,8 +1383,17 @@
       if (!Array.isArray(existing.curioCabinet.deferredUnlockedIds)) {
         existing.curioCabinet.deferredUnlockedIds = [];
       }
+      const needsSettingsBackfill = !existing.settings
+        || typeof existing.settings.ageRange !== "string"
+        || existing.settings.ageRangeUpdatedAt === undefined
+        || !Array.isArray(existing.settings.feedbackReceipts)
+        || !existing.settings.feedbackCounter
+        || !Array.isArray(existing.settings.inviteCodes);
       ensureModularAndClockDefaults(existing, options);
       pruneDailyEventLog(existing.dailyEventLog, MAX_DAILY_LOG_DAYS);
+      if (needsSettingsBackfill) {
+        storeAdapter.setJSON(STORAGE_KEY, existing);
+      }
       return { store: existing, migrated: false };
     }
 
@@ -1342,6 +1403,114 @@
     ensureModularAndClockDefaults(store, options);
     storeAdapter.setJSON(STORAGE_KEY, store);
     return { store, migrated: !!(legacyV4 || legacyCare) };
+  }
+
+  /* ---------- 10. 系统设置与合规能力（1:1 对齐 eggbabe-miniprogram） ---------- */
+  function normalizeAgeRange(value) {
+    const normalized = String(value || "").trim().toUpperCase();
+    return VALID_AGE_RANGE_SET.has(normalized) ? normalized : "";
+  }
+
+  function getAgeRangeLabel(value) {
+    const normalized = normalizeAgeRange(value);
+    const hit = AGE_RANGES.find((item) => item.value === normalized);
+    return hit ? hit.label : "未设置";
+  }
+
+  function setAgeRange(store, value, now) {
+    const normalized = normalizeAgeRange(value);
+    if (!normalized) {
+      return { ok: false, code: "AGE_RANGE_INVALID", message: "请选择年龄区间" };
+    }
+    if (!store || typeof store !== "object") {
+      return { ok: false, code: "STORE_INVALID", message: "保存失败，请重试" };
+    }
+    if (!store.settings || typeof store.settings !== "object") {
+      store.settings = createDefaultState({ now }).settings;
+    }
+    const ts = typeof now === "number" ? now : Date.now();
+    store.settings.ageRange = normalized;
+    store.settings.ageRangeUpdatedAt = getUtc8IsoString(ts);
+    return {
+      ok: true,
+      ageRange: normalized,
+      label: getAgeRangeLabel(normalized),
+      selectedAt: store.settings.ageRangeUpdatedAt
+    };
+  }
+
+  function formatFeedbackReceipt(dateKey, sequence) {
+    const compactDate = String(dateKey || "").replace(/-/g, "");
+    const normalizedSeq = Math.max(1, Math.floor(Number(sequence) || 1));
+    return "H5-FB-" + compactDate + "-" + String(normalizedSeq).padStart(3, "0");
+  }
+
+  function submitUserFeedback(store, payload, now) {
+    const data = payload && typeof payload === "object" ? payload : {};
+    const type = String(data.type || "").trim();
+    const description = String(data.description || "").trim();
+    const consent = !!data.consent;
+    if (!type || !VALID_FEEDBACK_TYPE_SET.has(type)) {
+      return { ok: false, code: "FEEDBACK_TYPE_REQUIRED", message: "请选择诉求类型" };
+    }
+    if (!description) {
+      return { ok: false, code: "FEEDBACK_DESC_REQUIRED", message: "请填写问题详细描述" };
+    }
+    if (!consent) {
+      return { ok: false, code: "FEEDBACK_CONSENT_REQUIRED", message: "请勾选同意知情同意书" };
+    }
+    const ts = typeof now === "number" ? now : Date.now();
+    const dateKey = getUtc8DateKey(ts);
+    const trimmedDesc = Array.from(description).slice(0, 500).join("");
+    let sequence = 1;
+    if (store && typeof store === "object") {
+      if (!store.settings || typeof store.settings !== "object") {
+        store.settings = createDefaultState({ now: ts }).settings;
+      }
+      const prev = store.settings.feedbackCounter;
+      sequence = prev && prev.dateKey === dateKey ? Math.max(0, Number(prev.sequence) || 0) + 1 : 1;
+      store.settings.feedbackCounter = { dateKey: dateKey, sequence: sequence };
+    }
+    const receiptNumber = formatFeedbackReceipt(dateKey, sequence);
+    const record = {
+      receiptNumber: receiptNumber,
+      type: type,
+      description: trimmedDesc,
+      submittedAt: getUtc8IsoString(ts)
+    };
+    if (store && store.settings) {
+      if (!Array.isArray(store.settings.feedbackReceipts)) store.settings.feedbackReceipts = [];
+      store.settings.feedbackReceipts.unshift(record);
+      if (store.settings.feedbackReceipts.length > MAX_FEEDBACK_RECEIPTS) {
+        store.settings.feedbackReceipts.length = MAX_FEEDBACK_RECEIPTS;
+      }
+    }
+    return { ok: true, receiptNumber: receiptNumber, record: record };
+  }
+
+  function normalizeEmail(value) {
+    return String(value || "").trim().toLowerCase();
+  }
+
+  function validateEmail(value) {
+    const email = normalizeEmail(value);
+    if (!email || email.length > 254) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
+  function clearLocalChatRecords(store) {
+    let removedCount = 0;
+    if (store && typeof store === "object") {
+      if (Array.isArray(store.listenHistory)) {
+        removedCount += store.listenHistory.length;
+        store.listenHistory = [];
+      }
+      if (Array.isArray(store.chatMessages)) {
+        removedCount += store.chatMessages.length;
+        store.chatMessages = [];
+      }
+    }
+    return { ok: true, removedCount: removedCount };
   }
 
   return {
@@ -1356,6 +1525,9 @@
     PROFILE_MODES,
     DEFAULT_PET_NAMES,
     DEFAULT_SET_BY_PET,
+    AGE_RANGES,
+    FEEDBACK_TYPES,
+    SUPPORT_CONTACT,
     MOOD_TYPES,
     MOOD_DISPLAY_LABEL_OVERRIDES,
     KEEPSAKE_ALIAS_MAP,
@@ -1394,6 +1566,14 @@
     deliverYardMailboxItem,
     claimYardMailboxItem,
     settleFocusSession,
-    loadOrMigrateStore
+    loadOrMigrateStore,
+    normalizeAgeRange,
+    getAgeRangeLabel,
+    setAgeRange,
+    formatFeedbackReceipt,
+    submitUserFeedback,
+    normalizeEmail,
+    validateEmail,
+    clearLocalChatRecords
   };
 });
