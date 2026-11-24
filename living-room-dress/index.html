@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>蛋宝宝 · 破壳起居室与专属试衣间</title>
+  <title>蛋宝宝 · 破壳起居室与装扮屋</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div id="app" class="page" data-period="day" data-state="free_stand">
 
-    <!-- DEV-ONLY：默认隐藏，仅 ?demo=1 或 2.4s 内连点左上状态牌 5 次时显示（1:1 复刻小程序验收工具栈） -->
+    <!-- DEV-ONLY：默认隐藏，仅 ?demo=1 或 2.4s 内连点左上状态牌 5 次时显示 -->
     <div id="dev-testers" class="dev-testers" hidden>
       <div class="stage-tester" style="top: calc(12px + env(safe-area-inset-top, 0px));">
         <button id="btn-acceptance-toggle" class="stage-tester-button" type="button" aria-label="展开验收工具">
@@ -34,21 +34,21 @@
 
         <div class="tester-block">
           <button class="prototype-tester-button" type="button" data-tester="pet">
-            <span class="prototype-tester-tag">角色</span><span id="tester-pet-label">玉兔</span><span class="prototype-tester-chevron">⌄</span>
+            <span class="prototype-tester-tag">角色</span><span id="tester-pet-label">锦鲤</span><span class="prototype-tester-chevron">⌄</span>
           </button>
           <div id="menu-pet" class="prototype-tester-menu" hidden></div>
         </div>
 
         <div class="tester-block">
-          <button class="mood-tester-button" type="button" data-tester="mood">
-            <span class="mood-tester-tag">心情</span><span id="tester-mood-label">🤔 好奇</span><span class="mood-tester-chevron">⌄</span>
+          <button class="mood-tester-button" type="button" data-tester="care">
+            <span class="mood-tester-tag">养成</span><span>模拟饿/脏</span><span class="mood-tester-chevron">⌄</span>
           </button>
-          <div id="menu-mood" class="mood-tester-menu" hidden></div>
+          <div id="menu-care" class="mood-tester-menu" hidden></div>
         </div>
       </div>
     </div>
 
-    <!-- 中场 34vh 场景反馈栈（1:1 复刻 scene-feedback-stack：dialogue 右下尖角话框 + system 深色半透明胶囊） -->
+    <!-- 中场 34vh 双层场景反馈栈（1:1 复刻 scene-feedback-stack） -->
     <div id="scene-feedback-stack" class="scene-feedback-stack" aria-live="polite">
       <div id="feedback-back" class="scene-feedback-stack__back" hidden>
         <span id="feedback-back-text" class="scene-feedback-stack__text"></span>
@@ -58,10 +58,10 @@
       </div>
     </div>
 
-    <!-- 左上状态栈：三阶可展开陪伴星星心情牌 + 可切换指针/数字小挂钟 -->
+    <!-- 左上状态栈：三阶陪伴星星牌（含锦鲤/玉兔快捷切换 + 养成等级条） + 双模小挂钟 -->
     <div id="life-status-stack" class="life-status-stack">
       <div class="pet-mood-anchor">
-        <div id="pet-mood-tab" class="pet-mood-tab pet-mood-tab--post-hatch" role="button" tabindex="0" aria-label="查看蛋宝宝心情与陪伴天数">
+        <div id="pet-mood-tab" class="pet-mood-tab pet-mood-tab--post-hatch" role="button" tabindex="0" aria-label="查看蛋宝宝心情与陪伴状态">
           <div class="pet-mood-tab__room-header">
             <div class="pet-mood-tab__star-row">
               <span id="room-star-widget" class="companion-star companion-star--room">
@@ -75,21 +75,27 @@
               </span>
               <span id="hud-star-count" class="pet-mood-tab__star-value">120</span>
               <span id="hud-star-gain" class="pet-mood-tab__star-gain" hidden>+8</span>
+              <span id="hud-lv-pill" class="pet-mood-tab__lv-pill">Lv.1</span>
             </div>
             <span id="hud-companion-days" class="pet-mood-tab__days">连续一起 12 天</span>
           </div>
 
           <div id="mood-room-detail" class="pet-mood-tab__room-detail pet-mood-tab__room-detail--open">
-            <span id="hud-pet-name" class="pet-mood-tab__pet-name">糯米团子</span>
+            <div class="pet-mood-tab__name-row">
+              <span id="hud-pet-name" class="pet-mood-tab__pet-name">锦小鲤</span>
+              <button id="btn-hud-switch-pet" class="pet-mood-tab__switch-btn" type="button" title="切换锦鲤与玉兔">
+                <span id="hud-switch-pet-text">换玉兔</span>
+              </button>
+            </div>
             <div class="pet-mood-tab__mood-inline">
               <span class="pet-mood-tab__mood-prefix">今日心情：</span>
-              <span id="hud-mood-icon" class="pet-mood-tab__mood-emoji">🤔</span>
-              <span id="hud-mood-label" class="pet-mood-tab__mood-name">好奇</span>
+              <span id="hud-mood-icon" class="pet-mood-tab__mood-emoji">😊</span>
+              <span id="hud-mood-label" class="pet-mood-tab__mood-name">愉快</span>
             </div>
 
             <div id="mood-room-sentence" class="pet-mood-tab__room-sentence">
-              <p id="hud-mood-text" class="pet-mood-tab__sentence-text">我今天一直在想一件事，还没想明白。</p>
-              <span class="pet-mood-tab__ai-note">内容由 AI 生成</span>
+              <p id="hud-mood-text" class="pet-mood-tab__sentence-text">我想了想，觉得自己运气挺不错的。</p>
+              <span id="hud-care-mini" class="pet-mood-tab__ai-note">饱食 60% · 清洁 60%</span>
             </div>
           </div>
         </div>
@@ -113,41 +119,58 @@
       </button>
     </div>
 
-    <!-- 主舞台：三屏连续全景画卷 + WebGL 实时毛绒宠物层 + 微距实拍道具层 -->
+    <!-- 主舞台：三屏连续全景画卷 / 11 套插画背景舞台 + 原版 PetStage WebGL 层 + 喂食洗澡特效层 -->
     <div id="scene-stage" class="scene-stage scene-stage--entered">
+      <!-- 11 套插画背景独立全屏舞台层（从衣橱「背景」页签选择非起居室背景时激活，保持 9:16 原生构图） -->
+      <img id="custom-stage-bg" class="custom-stage-bg" alt="" hidden />
+
       <div id="world-scroll" class="world-scroll">
         <div id="world-track" class="world-track">
           <div id="camera-rig" class="camera-rig">
             <div id="pano-box" class="pano-box">
               <img id="pano-prev" class="world-panorama-bg world-panorama-bg--previous" alt="" hidden />
-              <img id="pano-curr" class="world-panorama-bg" src="./panoramas/empty_day.png" alt="蛋宝宝的房间" />
+              <img id="pano-curr" class="world-panorama-bg" src="./panoramas/empty_day.png" alt="蛋宝宝起居室" />
               <img id="pano-preload" class="world-panorama-preload" alt="" hidden />
 
-              <!-- 墙面微缩拍立得纪念框（收到明信片后钉在左中墙面植物画旁） -->
+              <!-- 墙面微缩拍立得纪念框 -->
               <button id="wall-polaroid" class="wall-polaroid" type="button" hidden title="查看墙上的明信片">
                 <span class="wall-polaroid__pin"></span>
                 <img id="wall-polaroid-img" alt="纪念拍立得" />
               </button>
 
-              <!-- 居家动作态下脱下的叠放毛衣包裹贴片（微距实拍透明 PNG，绝不使用带身体模特图） -->
+              <!-- 居家动作态脱下的叠放针织毛衣包裹贴片 -->
               <button id="folded-outfit-prop" class="macro-prop macro-prop--folded" type="button" hidden aria-label="叠好的衣服">
                 <img src="./props/prop_folded_knit.png" alt="" />
               </button>
 
-              <!-- 桌面微距原木小立镜（点击推镜进入专属试衣间） -->
+              <!-- 桌面微距原木小立镜 -->
               <button id="desk-mirror-prop" class="macro-prop macro-prop--mirror" type="button" aria-label="照镜子试新衣">
                 <img src="./props/prop_wood_mirror.png" alt="" />
               </button>
 
-              <!-- WebGL 脚底接触双层软阴影 + 高清网格换装画布 -->
+              <!-- 脚底双层软阴影 + 原版完整 PetStage WebGL 画布 -->
               <div id="pet-shadow-soft" class="pet-shadow pet-shadow--soft"></div>
               <div id="pet-shadow-contact" class="pet-shadow pet-shadow--contact"></div>
               <canvas id="gl-pet" class="gl-pet"></canvas>
 
+              <!-- 情绪漫画节拍飘字/泪珠/爱心宿主层 + 打盹 Zzz + 脏污提醒 + 搓澡泡泡 + 冲水闪光 -->
+              <div id="pet-fx-host" class="pet-fx-host" aria-hidden="true"></div>
+              <div id="sleep-zz" class="sleep-zz" hidden>Zzz</div>
+
+              <div id="dirty-layer" class="dirty-layer" hidden aria-hidden="true">
+                <span class="stink-wisp stink-1"></span>
+                <span class="stink-wisp stink-2"></span>
+                <span class="tiny-fly fly-a"></span>
+                <span class="tiny-fly fly-b"></span>
+              </div>
+
+              <div id="soap-bubble-layer" class="soap-bubble-layer" aria-hidden="true"></div>
+              <div id="rinse-flash" class="rinse-flash" hidden aria-hidden="true"><span class="rinse-sheen"></span></div>
+
               <!-- 试衣间聚光柔暗角 -->
               <div class="fitting-vignette" aria-hidden="true"></div>
 
-              <!-- 角色热区、动作微光点与桌面跳跃交互层 -->
+              <!-- 角色与桌面交互层 -->
               <div id="scene-hit-layer" class="scene-hit-layer">
                 <button id="character-hotspot" class="scene-character-hotspot" type="button" hidden aria-label="轻触蛋宝宝"></button>
                 <button id="action-glow" class="action-glow" type="button" hidden aria-label="回应此刻的动作"></button>
@@ -157,14 +180,81 @@
         </div>
       </div>
 
-      <!-- 顶部居中三屏圆点（1:1 对齐小程序 screen-dots） -->
+      <!-- 顶部居中三屏圆点 -->
       <div id="screen-dots" class="screen-dots" aria-hidden="true">
         <span class="screen-dot"></span>
         <span class="screen-dot screen-dot--active"></span>
         <span class="screen-dot"></span>
       </div>
 
-      <!-- 左下情境入口：待拆信封（含纸飞机飞入 + 红点）/ 3D 伙伴对话圆标 -->
+      <!-- 右侧竖向 3D 陪伴与装扮胶囊栏（严格对齐截图右侧蓝框位置，100% 采用 3D 百宝箱材质风格） -->
+      <aside id="care-3d-dock" class="care-3d-dock" aria-label="喂食、洗澡与装扮快捷栏">
+        <button id="dock-btn-feed" class="care-3d-dock__item" type="button">
+          <span class="care-3d-dock__icon-wrap">
+            <img src="./ui/feed_3d.png" alt="" />
+            <span id="dock-dot-hungry" class="companion-unread-dot" hidden></span>
+          </span>
+          <span class="care-3d-dock__label">喂食</span>
+        </button>
+
+        <span class="care-3d-dock__divider" aria-hidden="true"></span>
+
+        <button id="dock-btn-bath" class="care-3d-dock__item" type="button">
+          <span class="care-3d-dock__icon-wrap">
+            <img src="./ui/bath_3d.png" alt="" />
+            <span id="dock-dot-dirty" class="companion-unread-dot" hidden></span>
+          </span>
+          <span class="care-3d-dock__label">洗澡</span>
+        </button>
+
+        <span class="care-3d-dock__divider" aria-hidden="true"></span>
+
+        <button id="dock-btn-wardrobe" class="care-3d-dock__item" type="button">
+          <span class="care-3d-dock__icon-wrap">
+            <img src="./ui/wardrobe_3d.png" alt="" />
+          </span>
+          <span class="care-3d-dock__label">装扮</span>
+        </button>
+      </aside>
+
+      <!-- 3D 百宝箱风格：拖拽投喂小零食托盘（支持轻点飞入嘴边 & 按住拖拽投喂） -->
+      <section id="feed-3d-panel" class="care-3d-panel" aria-label="投喂小零食" hidden>
+        <div class="care-3d-panel__head">
+          <div class="care-3d-panel__titles">
+            <span class="care-3d-panel__title">投喂小零食</span>
+            <span class="care-3d-panel__sub">轻点或按住拖到它嘴边</span>
+          </div>
+          <button id="btn-close-feed" class="care-3d-panel__close" type="button">收起</button>
+        </div>
+        <div id="snack-3d-grid" class="snack-3d-grid"></div>
+      </section>
+
+      <!-- 飞行/拖拽中的 3D 幽灵零食 -->
+      <div id="flying-snack-3d" class="flying-snack-3d" hidden aria-hidden="true">
+        <img id="flying-snack-img" alt="" />
+      </div>
+      <div id="drag-snack-3d" class="drag-snack-3d" hidden aria-hidden="true">
+        <img id="drag-snack-img" alt="" />
+      </div>
+
+      <!-- 3D 百宝箱风格：搓澡泡泡进度卡 -->
+      <section id="bath-3d-panel" class="care-3d-panel care-3d-panel--bath" aria-label="搓澡泡泡" hidden>
+        <div class="bath-3d-row">
+          <img class="bath-3d-row__icon" src="./ui/bath_3d.png" alt="" />
+          <div class="bath-3d-row__main">
+            <div class="bath-3d-row__top">
+              <span class="care-3d-panel__title">在身上来回揉搓洗香香</span>
+              <span id="bath-pct-text" class="bath-3d-row__pct">0%</span>
+            </div>
+            <div class="bath-3d-track">
+              <div id="bath-fill-bar" class="bath-3d-fill"></div>
+            </div>
+          </div>
+          <button id="btn-close-bath" class="care-3d-panel__close" type="button">收起</button>
+        </div>
+      </section>
+
+      <!-- 左下情境入口：待拆信封 / 3D 伙伴圆标 -->
       <div id="scene-context-entry" class="scene-context-entry">
         <button id="btn-context-entry" class="scene-action-button scene-action-button--flat-envelope" type="button" aria-label="查看来信">
           <span id="letter-plane-fx" class="companion-letter-plane" aria-hidden="true"></span>
@@ -176,12 +266,8 @@
       <!-- 百宝箱外部点击遮罩 -->
       <div id="toolbox-dismiss" class="toolbox-dismiss" hidden></div>
 
-      <!-- 右下功能 Dock：左「专属试衣间 3D 圆钮」 + 右「开盖 3D 百宝箱」 -->
+      <!-- 右下纯粹单枚 3D 开关盖百宝箱（与小程序 1:1 一致） -->
       <div id="scene-action-dock" class="scene-action-dock">
-        <button id="btn-open-fitting" class="scene-action-button" type="button" aria-label="进入专属试衣间">
-          <img class="scene-action-icon-image scene-action-icon-image--wardrobe" src="./ui/wardrobe_3d.png" alt="" />
-        </button>
-
         <div class="companion-toolbox-stack">
           <div id="companion-toolbox" class="companion-toolbox companion-toolbox--closed" aria-hidden="true">
             <div id="companion-toolbox-motion" class="companion-toolbox__motion">
@@ -197,9 +283,9 @@
                   <img class="companion-toolbox__activity-icon" src="./ui/tb_activity.png" alt="" />
                   <span id="tb-desk-toggle-label">日常动作</span>
                 </button>
-                <button id="tb-btn-switch-pet" class="companion-toolbox__item" type="button">
+                <button id="tb-btn-wallpaper" class="companion-toolbox__item" type="button">
                   <img src="./ui/tb_card.png" alt="" />
-                  <span id="tb-switch-pet-label">换锦鲤</span>
+                  <span>存壁纸</span>
                 </button>
                 <button id="tb-btn-sfx" class="companion-toolbox__item" type="button">
                   <img src="./ui/tb_settings.png" alt="" />
@@ -221,48 +307,39 @@
       </div>
     </div>
 
-    <!-- 专属试衣间覆盖层（同场景推镜 1.24x + 零遮挡顶部导航与底部 #FAFAF8 衣橱抽屉） -->
+    <!-- 专属试衣与装扮间顶栏（同场景推镜 + 锦鲤/玉兔秒切 + 存壁纸/定妆照） -->
     <div id="fitting-topbar" class="fitting-topbar" aria-hidden="true">
       <button id="btn-exit-fitting" class="nav-circle-back" type="button" aria-label="返回房间">
         <span class="nav-circle-back__chevron"></span>
       </button>
 
-      <div class="fitting-pet-seg" role="tablist" aria-label="切换试衣角色">
-        <button class="fitting-pet-seg__btn is-active" type="button" data-fit-pet="yutu">玉兔</button>
-        <button class="fitting-pet-seg__btn" type="button" data-fit-pet="koi">锦鲤</button>
+      <div class="fitting-pet-seg" role="tablist" aria-label="切换角色">
+        <button class="fitting-pet-seg__btn is-active" type="button" data-fit-pet="koi">锦鲤</button>
+        <button class="fitting-pet-seg__btn" type="button" data-fit-pet="yutu">玉兔</button>
       </div>
 
-      <button id="btn-snap-lookbook" class="fitting-snap-pill" type="button">定妆照</button>
+      <div class="fitting-top-actions">
+        <button id="btn-export-wallpaper" class="fitting-snap-pill" type="button">存壁纸</button>
+        <button id="btn-snap-lookbook" class="fitting-snap-pill fitting-snap-pill--ink" type="button">定妆照</button>
+      </div>
     </div>
 
-    <section id="wardrobe-sheet" class="wardrobe-sheet" aria-label="专属试衣间衣橱" aria-hidden="true">
-      <div id="sheet-grabber" class="wardrobe-sheet__grabber" title="收起试衣间"><span></span></div>
+    <!-- 底部装扮抽屉：对齐 eggbabe-h5 全量开放套装 (锦鲤 12 / 玉兔 24) + 背景 (起居室 + 11 套插画小屋) -->
+    <section id="wardrobe-sheet" class="wardrobe-sheet" aria-label="装扮衣橱" aria-hidden="true">
+      <div id="sheet-grabber" class="wardrobe-sheet__grabber" title="收起衣橱"><span></span></div>
 
       <div class="wardrobe-sheet__header">
-        <div id="wardrobe-filters" class="wardrobe-filters">
-          <button class="wardrobe-filter is-active" type="button" data-filter="all">全部</button>
-          <button class="wardrobe-filter" type="button" data-filter="owned">已拥有</button>
-          <button class="wardrobe-filter" type="button" data-filter="locked">限定待解锁</button>
+        <div class="wardrobe-main-tabs" role="tablist">
+          <button id="tab-wardrobe-items" class="wardrobe-main-tab is-active" type="button" data-wtab="items">套装 (12)</button>
+          <button id="tab-wardrobe-bgs" class="wardrobe-main-tab" type="button" data-wtab="bgs">背景 (12)</button>
         </div>
-        <div class="wardrobe-stars" aria-label="陪伴星星余额">
-          <img src="./ui/star_neutral.png" alt="" />
-          <span id="sheet-star-count">120</span>
-        </div>
+        <button id="btn-confirm-outfit" class="wardrobe-done-pill" type="button">穿好啦</button>
       </div>
 
       <div id="wardrobe-grid" class="wardrobe-grid"></div>
-
-      <div class="wardrobe-sheet__footer">
-        <button id="btn-revert-outfit" class="btn btn--secondary-soft wardrobe-footer-revert" type="button" hidden>
-          <span class="btn-text">还原</span>
-        </button>
-        <button id="btn-confirm-outfit" class="btn btn--primary" type="button">
-          <span id="confirm-outfit-text" class="btn-text">穿好啦</span>
-        </button>
-      </div>
     </section>
 
-    <!-- 1:1 复刻小程序：今日陪伴红线折角信笺 + 哑光星星挤捏收星 + 带妆拍立得弹窗 -->
+    <!-- 今日陪伴红线折角信笺 + 带妆拍立得弹窗 -->
     <div id="today-companion-overlay" class="today-companion-overlay" role="dialog" aria-modal="true" aria-label="今日来信与带妆明信片" hidden>
       <div class="today-companion-stage">
         <div id="letter-award-box" class="today-companion-award">
@@ -286,9 +363,8 @@
         <div class="today-companion-letter">
           <button id="btn-close-letter" class="companion-close" type="button" aria-label="关闭信件">×</button>
           <span id="letter-title" class="today-companion-letter__title">寄自 · 晚霞云朵坡</span>
-          <span id="letter-line" class="today-companion-letter__line">“傍晚路过云朵坡，风把长耳朵吹得软软的。”</span>
+          <span id="letter-line" class="today-companion-letter__line">“顺着晚霞游到了云朵坡，拍张照寄回书桌给你看。”</span>
 
-          <!-- 零 Token 带妆明信片场景切换栏（体验不同偶遇地点） -->
           <div id="postcard-scene-pills" class="postcard-scene-pills"></div>
 
           <div class="companion-memory-result">
@@ -296,7 +372,7 @@
               <img id="letter-polaroid-img" alt="带妆纪念明信片" />
               <div class="companion-polaroid__caption">
                 <span id="polaroid-place" class="companion-polaroid__place">晚霞云朵坡</span>
-                <span id="polaroid-outfit" class="companion-polaroid__outfit">身穿 · 奶油针织</span>
+                <span id="polaroid-outfit" class="companion-polaroid__outfit">身穿 · 小黄鸭雨衣</span>
               </div>
             </div>
             <div class="companion-memory-result__actions">
@@ -312,7 +388,7 @@
       </div>
     </div>
 
-    <!-- 1:1 复刻小程序：全屏 #FAFAF8 纪念册画布页（遇见 | 明信片） -->
+    <!-- 全屏 #FAFAF8 纪念册画布页 -->
     <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="纪念册" hidden>
       <header class="eb-nav-bar">
         <button id="btn-close-album" class="eb-nav-bar__back" type="button" aria-label="返回">
@@ -338,7 +414,7 @@
       </div>
     </div>
 
-    <!-- 1:1 复刻小程序：明信片 / 遇见详情全屏画布页 -->
+    <!-- 回忆详情全屏画布页 -->
     <div id="keepsake-detail-view" class="keepsake-page keepsake-detail-page" role="dialog" aria-modal="true" aria-label="回忆详情" hidden>
       <header class="eb-nav-bar">
         <button id="btn-close-detail" class="eb-nav-bar__back" type="button" aria-label="返回纪念册">
@@ -354,7 +430,7 @@
         </div>
         <div class="keepsake-detail-meta">
           <h3 id="detail-title" class="keepsake-detail-title">晚霞云朵坡</h3>
-          <span id="detail-badge" class="keepsake-detail-badge">身穿 · 奶油针织</span>
+          <span id="detail-badge" class="keepsake-detail-badge">身穿 · 小黄鸭雨衣</span>
         </div>
         <p id="detail-story" class="keepsake-detail-story"></p>
         <span id="detail-date" class="keepsake-detail-date"></span>
@@ -368,6 +444,7 @@
 
   </div>
 
+  <script src="./catalog-snapshot.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>
