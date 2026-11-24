@@ -11,7 +11,43 @@
   const PANO_H = 1672;
   const GL_LOGICAL_W = 1352;
   const GL_LOGICAL_H = 800;
-  const CORK_HOME = { x: 1392, y: 1126 };
+  const COZY_SCENE_CONFIG = {
+    id: "cozy_living_room_v1",
+    panoramas: {
+      day: "./living-room-dress/panoramas/cozy_room_day.png",
+      night: "./living-room-dress/panoramas/cozy_room_night.png"
+    },
+    sleepSprites: {
+      yutu: "./living-room-dress/modules/yutu_bed_sleep.png",
+      koi: "./living-room-dress/modules/koi_bed_sleep.png"
+    },
+    sleepBoxes: {
+      yutu: [92, 443, 1161, 1012],
+      koi: [75, 485, 1173, 1066]
+    },
+    sillProps: {
+      sunny: "./living-room-dress/props/sill_sunny_plant.png",
+      night: "./living-room-dress/props/sill_night_jar.png"
+    },
+    anchors: {
+      corkHome: { x: 1520, y: 1205 }
+    },
+    slots: {
+      lampGlow: [695, 345, 620, 520],
+      catClock: [418, 434, 174, 180],
+      catClockHit: [418, 434, 196, 200],
+      wallPolaroid: [1160, 215, 148, 175],
+      mailBubble: [1135, 385],
+      awayNote: [1520, 1090],
+      sillProp: [1730, 548, 148, 148]
+    },
+    hotspots: {
+      lamp: [595, 195, 200, 300],
+      bookshelf: [920, 415, 430, 505],
+      deskMirror: [1815, 685, 390, 440]
+    }
+  };
+  const CORK_HOME = COZY_SCENE_CONFIG.anchors.corkHome;
   const COLS = 30, ROWS = 56, NV = (COLS + 1) * (ROWS + 1);
   const ACC_COLS = 12, ACC_ROWS = 12;
   const PAGES_CDN = "https://octopusgump.github.io/eggbabe-h5";
@@ -272,10 +308,7 @@
   function detectLocalPeriod() {
     const d = new Date(Date.now() + 8 * 3600 * 1000);
     const h = d.getUTCHours();
-    const m = d.getUTCMinutes();
-    if (h >= 6 && h < 17) return "day";
-    if (h >= 17 && (h < 19 || (h === 19 && m < 30))) return "sunset";
-    return "night";
+    return (h >= 6 && h < 19) ? "day" : "night";
   }
 
   const todayDateKey = Store.getUtc8DateKey();
@@ -387,27 +420,19 @@
   const panoPreloadEl = $("pano-preload");
   const customStageBgEl = $("custom-stage-bg");
 
-  // 5 组独立无白边透明 PNG 家具模组 + 前景被子层 + 台灯暖光光晕
-  const modWallArtEl = $("mod-wall-art");
-  const modBedBaseEl = $("mod-bed-base");
-  const modLampEl = $("mod-lamp");
-  const modLampImgEl = $("mod-lamp-img");
-  const modBooksEl = $("mod-books");
-  const modBooksPlaneEl = $("mod-books-plane");
-  const modJewelryBoxEl = $("mod-jewelry-box");
-  const modJewelryImgEl = $("mod-jewelry-img");
-  const modDeskSetEl = $("mod-desk-set");
-  const modBedBlanketEl = $("mod-bed-blanket");
-  const modBedBlanketImgEl = $("mod-bed-blanket-img");
+  // 夜晚整床入睡贴片 + 窗台天气小摆件 + 台灯暖光光晕 + 书架来信/出门留条气泡
+  const petSleepSpriteEl = $("pet-sleep-sprite");
+  const petSleepSpriteImgEl = $("pet-sleep-sprite-img");
+  const sillWeatherPropEl = $("sill-weather-prop");
+  const sillWeatherPropImgEl = $("sill-weather-prop-img");
   const roomLampGlowEl = $("room-lamp-glow");
+  const booksMailBubbleEl = $("books-mail-bubble");
+  const awayNoteBubbleEl = $("away-note-bubble");
 
-  // 家具模组交互热区（严格 x ∈ [290, 2500]）
-  const hitWallArtEl = $("hit-wall-art");
+  // 核心 4 组透明交互热区（台灯、书架、桌面原木小立镜、黑猫钟）
   const hitBedLampEl = $("hit-bed-lamp");
-  const hitBedBlanketEl = $("hit-bed-blanket");
   const hitBookshelfEl = $("hit-bookshelf");
-  const hitJewelryBoxEl = $("hit-jewelry-box");
-  const hitDeskMugEl = $("hit-desk-mug");
+  const hitDeskMirrorEl = $("hit-desk-mirror");
   const hitCatClockEl = $("hit-cat-clock");
 
   const wallPolaroidEl = $("wall-polaroid");
@@ -420,7 +445,6 @@
   const clockDutyHintTextEl = $("clock-duty-hint-text");
 
   const foldedOutfitPropEl = $("folded-outfit-prop");
-  const deskMirrorPropEl = $("desk-mirror-prop");
   const shSoftEl = $("pet-shadow-soft");
   const shConEl = $("pet-shadow-contact");
   const glCanvas = $("gl-pet");
@@ -1530,12 +1554,15 @@
   });
   window.addEventListener("pointerup", () => { setTimeout(() => { mousePan = null; }, 0); });
 
-  let currentPanoUrl = "./living-room-dress/panoramas/room_shell_day.png";
+  let currentPanoUrl = COZY_SCENE_CONFIG.panoramas.day;
   let panoReqToken = 0;
   function resolveTargetPanoramaUrl() {
     const pd = state.period;
     if (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away") {
-      return `./living-room-dress/panoramas/room_shell_${pd}.png`;
+      if (pd === "night") {
+        return isBedsideLampLit() ? COZY_SCENE_CONFIG.panoramas.nightLit : COZY_SCENE_CONFIG.panoramas.night;
+      }
+      return COZY_SCENE_CONFIG.panoramas.day;
     }
     const def = ROOM_STATES[state.roomState];
     const charFolder = state.petId === "yutu" ? "jade-rabbit" : "boon-koi";
@@ -2270,7 +2297,12 @@
     }
 
     const useRoomTint = !customAnchor && !isCustomBgActive();
-    const tint = !useRoomTint || state.period === "day" ? [1, 1, 1] : state.period === "sunset" ? [1.02, 0.95, 0.88] : [0.85, 0.89, 0.97];
+    const lampLitNow = useRoomTint ? isBedsideLampLit() : false;
+    const tint = !useRoomTint || state.period === "day"
+      ? [1.0, 1.0, 1.0]
+      : lampLitNow
+        ? [0.96, 0.93, 0.89]
+        : [0.84, 0.88, 0.96];
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -2770,38 +2802,33 @@
     const st = mods.mod_lamp && mods.mod_lamp.state;
     if (st === "on") return true;
     if (st === "off") return false;
-    // auto_period：白天默认关灯，落日与夜晚自动亮起暖光
-    return state.period === "sunset" || state.period === "night";
+    // 默认：白天关灯，夜晚默认关灯好眠（点击小灯开灯则亮起暖灯、玉兔起床继续陪你）
+    return false;
+  }
+
+  function isNightSleepingNow() {
+    const sleepSrc = COZY_SCENE_CONFIG.sleepSprites && COZY_SCENE_CONFIG.sleepSprites[state.petId];
+    return Boolean(
+      sleepSrc &&
+      !isCustomBgActive() &&
+      !isFittingOpen &&
+      state.roomState === "free_stand" &&
+      state.period === "night" &&
+      !isBedsideLampLit()
+    );
   }
 
   function syncRoomModules() {
-    const mods = getLivingRoomModules();
-
-    // ①b 前景被子层：整洁 (tidy) / 微乱 (rumpled)
-    const blanketState = (mods.mod_bed && mods.mod_bed.state === "rumpled") ? "rumpled" : "tidy";
-    modBedBlanketEl.dataset.blanketState = blanketState;
-    const blanketSrc = blanketState === "rumpled"
-      ? "./living-room-dress/modules/mod_blanket_rumpled.png"
-      : "./living-room-dress/modules/mod_blanket_tidy.png";
-    if (modBedBlanketImgEl.getAttribute("src") !== blanketSrc) {
-      modBedBlanketImgEl.src = blanketSrc;
-    }
-
-    // ①c 床头暖光灯：on / off + z:7 暖黄环境光晕
+    // ① 床头暖光灯：夜晚开灯切真实暖灯底图 cozy_room_night_lit.png，白天开灯叠柔光晕
     const lampLit = isBedsideLampLit();
-    modLampEl.dataset.lampOn = String(lampLit);
     appEl.dataset.lampLit = String(lampLit);
-    const lampSrc = lampLit
-      ? "./living-room-dress/modules/mod_lamp_on.png"
-      : "./living-room-dress/modules/mod_lamp_off.png";
-    if (modLampImgEl.getAttribute("src") !== lampSrc) {
-      modLampImgEl.src = lampSrc;
-    }
     roomLampGlowEl.hidden = !lampLit;
 
-    // ② 三层原木书架：未读来信微晃提示 + 暖黄日记书签 + 中层实时微缩映射多宝格前 3 件藏品
-    if (modBooksPlaneEl) {
-      modBooksPlaneEl.hidden = !state.unreadMail;
+    // ② 书架未读来信轻气泡（类似《动物去哪儿》信箱气泡）
+    const inLivingRoom = !isCustomBgActive();
+    if (booksMailBubbleEl) {
+      const showBubble = inLivingRoom && !isFittingOpen && state.unreadMail && (state.roomState === "free_stand" || state.roomState === "away");
+      booksMailBubbleEl.hidden = !showBubble;
     }
     const modBooksDiaryMarkEl = $("mod-books-diary-mark");
     if (modBooksDiaryMarkEl) {
@@ -2817,86 +2844,94 @@
       syncBookshelfCurioMinis();
     }
 
-    // ③ 窗角木质首饰盒：闭合 (closed) / 微开露微光 (peek_gleam)
-    const jewelryState = (mods.mod_jewelry_box && mods.mod_jewelry_box.state === "peek_gleam") ? "peek_gleam" : "closed";
-    modJewelryBoxEl.dataset.jewelryState = jewelryState;
-    const jewelrySrc = jewelryState === "peek_gleam"
-      ? "./living-room-dress/modules/mod_jewelry_peek.png"
-      : "./living-room-dress/modules/mod_jewelry_closed.png";
-    if (modJewelryImgEl.getAttribute("src") !== jewelrySrc) {
-      modJewelryImgEl.src = jewelrySrc;
+    // ③ 夜晚关灯时呈现整床无缝入睡贴片（玉兔/锦鲤各自对齐）；夜晚开灯时隐藏入睡贴片，宠物站回软木垫继续陪伴
+    const sleepSrc = COZY_SCENE_CONFIG.sleepSprites && COZY_SCENE_CONFIG.sleepSprites[state.petId];
+    const showNightSleep = isNightSleepingNow();
+    appEl.classList.toggle("is-night-sleeping", showNightSleep);
+    if (petSleepSpriteEl) {
+      petSleepSpriteEl.hidden = !showNightSleep;
+      const box = (COZY_SCENE_CONFIG.sleepBoxes && COZY_SCENE_CONFIG.sleepBoxes[state.petId]) || [92, 443, 1161, 1012];
+      panoToBoxStyle(petSleepSpriteEl, box[0], box[1], box[2], box[3], "top-left");
+      if (showNightSleep && petSleepSpriteImgEl && petSleepSpriteImgEl.getAttribute("src") !== sleepSrc) {
+        petSleepSpriteImgEl.src = sleepSrc;
+      }
     }
 
-    // ④ 桌面软木垫与杯具：咖啡热气开关
-    const steamOn = !(mods.mod_desk_set && mods.mod_desk_set.state === "cooled");
-    modDeskSetEl.dataset.steam = steamOn ? "on" : "off";
+    // ④ 窗台天气/时段小摆件（白天展示晴天小多肉盆栽，夜晚展示微光星光瓶）
+    if (sillWeatherPropEl && sillWeatherPropImgEl) {
+      const showSill = inLivingRoom && (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away");
+      sillWeatherPropEl.hidden = !showSill;
+      if (showSill) {
+        const sillKey = state.period === "night" ? "night" : "sunny";
+        const sillSrc = COZY_SCENE_CONFIG.sillProps[sillKey];
+        if (sillWeatherPropImgEl.getAttribute("src") !== sillSrc) {
+          sillWeatherPropImgEl.src = sillSrc;
+        }
+        sillWeatherPropEl.dataset.sillKind = sillKey;
+      }
+    }
 
-    // ⑤ P5 家具模组软装风格同步（data-decor-style）
-    if (P5Data) {
-      const styleBindings = [
-        [modBedBlanketEl, mods.mod_bed && mods.mod_bed.styleId],
-        [modLampEl, mods.mod_lamp && mods.mod_lamp.styleId],
-        [modBooksEl, mods.mod_books && mods.mod_books.styleId],
-        [modJewelryBoxEl, mods.mod_jewelry_box && mods.mod_jewelry_box.styleId],
-        [modWallArtEl, mods.mod_wall_art && mods.mod_wall_art.styleId],
-        [modDeskSetEl, mods.mod_desk_set && mods.mod_desk_set.styleId]
-      ];
-      styleBindings.forEach(([el, styleId]) => {
-        if (!el) return;
-        const def = P5Data.getDecorById(styleId);
-        el.dataset.decorStyle = (def && def.cssStyle) || "default";
-      });
+    // ⑤ 外出旅行（away）留条气泡
+    if (awayNoteBubbleEl) {
+      const showAway = inLivingRoom && !isFittingOpen && state.roomState === "away";
+      awayNoteBubbleEl.hidden = !showAway;
+      if (showAway) {
+        const petLabel = state.petId === "yutu" ? "玉兔" : "锦鲤";
+        const txtEl = awayNoteBubbleEl.querySelector(".scene-away-note__text");
+        if (txtEl) txtEl.textContent = `${petLabel}背着小包出门采风啦 📮`;
+      }
     }
   }
 
   function layoutScenePropsAndHotspots() {
     const inLivingRoom = !isCustomBgActive();
-    const isModularVisible = inLivingRoom && (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away");
+    const isCozyInteractive = inLivingRoom && (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away");
+    const cfg = COZY_SCENE_CONFIG;
 
-    // 5 组独立无白边透明 PNG 家具模组（wall art 1:1 对齐 empty_day 原画透视）
-    panoToBoxStyle(modWallArtEl, 0, 0, 1303, 443, "top-left");
-    panoToBoxStyle(modBedBaseEl, -14, 408, 1068, 1005, "top-left");
-    panoToBoxStyle(modLampEl, 663, 376, 192, 222, "center");
-    panoToBoxStyle(modBooksEl, 886, 418, 230, 530, "top-left");
-    panoToBoxStyle(modJewelryBoxEl, 1110, 536, 282, 434, "top-left");
-    panoToBoxStyle(modDeskSetEl, 975, 965, 960, 540, "top-left");
-    panoToBoxStyle(modBedBlanketEl, 152, 796, 672, 496, "top-left");
-    panoToBoxStyle(roomLampGlowEl, 663, 388, 620, 520, "center");
+    // z:6 夜晚整床无缝入睡贴片 + 窗台小摆件 + z:7 台灯暖光光晕
+    if (petSleepSpriteEl) {
+      const box = (cfg.sleepBoxes && cfg.sleepBoxes[state.petId]) || [92, 443, 1161, 1012];
+      panoToBoxStyle(petSleepSpriteEl, box[0], box[1], box[2], box[3], "top-left");
+    }
+    if (sillWeatherPropEl) {
+      panoToBoxStyle(sillWeatherPropEl, cfg.slots.sillProp[0], cfg.slots.sillProp[1], cfg.slots.sillProp[2], cfg.slots.sillProp[3], "center");
+    }
+    if (awayNoteBubbleEl) {
+      panoToBoxStyle(awayNoteBubbleEl, cfg.slots.awayNote[0], cfg.slots.awayNote[1]);
+    }
+    panoToBoxStyle(roomLampGlowEl, cfg.slots.lampGlow[0], cfg.slots.lampGlow[1], cfg.slots.lampGlow[2], cfg.slots.lampGlow[3], "center");
 
-    // 床头顶板《奶肚黑猫警长发条钟》精确落位：(cx=430, cy=448, w=146, h=152)
+    // 书架上方未读来信轻气泡
+    if (booksMailBubbleEl) {
+      panoToBoxStyle(booksMailBubbleEl, cfg.slots.mailBubble[0], cfg.slots.mailBubble[1]);
+    }
+
+    // 床头顶板左侧留白槽《奶肚黑猫警长发条钟》
     bedsideCatClockEl.hidden = !inLivingRoom;
     if (inLivingRoom) {
-      panoToBoxStyle(bedsideCatClockEl, 430, 448, 146, 152, "center");
+      panoToBoxStyle(bedsideCatClockEl, cfg.slots.catClock[0], cfg.slots.catClock[1], cfg.slots.catClock[2], cfg.slots.catClock[3], "center");
       hitCatClockEl.hidden = isFittingOpen;
-      panoToBoxStyle(hitCatClockEl, 430, 448, 174, 182, "center");
+      panoToBoxStyle(hitCatClockEl, cfg.slots.catClockHit[0], cfg.slots.catClockHit[1], cfg.slots.catClockHit[2], cfg.slots.catClockHit[3], "center");
     } else {
       hitCatClockEl.hidden = true;
     }
 
-    // 家具模组交互热区（严格限定在 360×800 横向可达域 x ∈ [290, 2500] 内）
-    const showModHits = isModularVisible && !isFittingOpen;
-    hitWallArtEl.hidden = !showModHits;
+    // 核心 4 组透明交互热区（台灯、书架、桌面原木小立镜、黑猫钟）
+    const showModHits = isCozyInteractive && !isFittingOpen;
     hitBedLampEl.hidden = !showModHits;
-    hitBedBlanketEl.hidden = !showModHits;
     hitBookshelfEl.hidden = !showModHits;
-    hitJewelryBoxEl.hidden = !showModHits;
-    hitDeskMugEl.hidden = !showModHits;
+    hitDeskMirrorEl.hidden = !(showModHits && state.roomState === "free_stand");
     if (showModHits) {
-      panoToBoxStyle(hitWallArtEl, 290, 24, 595, 340, "top-left");
-      panoToBoxStyle(hitBedLampEl, 575, 260, 178, 220, "top-left");
-      panoToBoxStyle(hitBedBlanketEl, 290, 810, 530, 435, "top-left");
-      panoToBoxStyle(hitBookshelfEl, 886, 418, 228, 525, "top-left");
-      panoToBoxStyle(hitJewelryBoxEl, 1110, 536, 280, 428, "top-left");
-      panoToBoxStyle(hitDeskMugEl, 1580, 995, 196, 210, "top-left");
+      panoToBoxStyle(hitBedLampEl, cfg.hotspots.lamp[0], cfg.hotspots.lamp[1], cfg.hotspots.lamp[2], cfg.hotspots.lamp[3], "top-left");
+      panoToBoxStyle(hitBookshelfEl, cfg.hotspots.bookshelf[0], cfg.hotspots.bookshelf[1], cfg.hotspots.bookshelf[2], cfg.hotspots.bookshelf[3], "top-left");
+      panoToBoxStyle(hitDeskMirrorEl, cfg.hotspots.deskMirror[0], cfg.hotspots.deskMirror[1], cfg.hotspots.deskMirror[2], cfg.hotspots.deskMirror[3], "top-left");
     }
 
-    // 墙面微缩拍立得微幅上移至 (985, 235)，与三层原木书架和壁画热区彻底零重叠
+    // 墙面微缩拍立得落位书本上方干净白墙留白槽
     wallPolaroidEl.hidden = !inLivingRoom || state.postcards.length === 0;
-    if (!wallPolaroidEl.hidden) panoToBoxStyle(wallPolaroidEl, 985, 235, 148, 175, "center");
-
-    const showMirror = !isFittingOpen && inLivingRoom && state.roomState === "free_stand";
-    deskMirrorPropEl.hidden = !showMirror;
-    if (showMirror) panoToBoxStyle(deskMirrorPropEl, 1855, 955, 152, 152, "center");
+    if (!wallPolaroidEl.hidden) {
+      panoToBoxStyle(wallPolaroidEl, cfg.slots.wallPolaroid[0], cfg.slots.wallPolaroid[1], cfg.slots.wallPolaroid[2], cfg.slots.wallPolaroid[3], "center");
+    }
 
     // 居家态折叠毛衣右移至安全区 (2430, 1110)，与床头黑猫警长钟零重叠
     const def = ROOM_STATES[state.roomState];
@@ -2928,7 +2963,7 @@
     updateClockDutyHintVisibility();
   }
 
-  // 床头黑猫警长钟点击 → 600ms FLIP 飞入居中翻转弹窗
+  // 核心热点 1：床头黑猫警长钟点击 → 600ms FLIP 飞入居中翻转弹窗
   hitCatClockEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
@@ -2936,7 +2971,7 @@
     openClockModal();
   });
 
-  // 模组①c：床头暖光灯点击开关灯
+  // 核心热点 2：床头暖光灯透明热区点击（夜晚：开灯起床陪你 ↔ 关灯盖被睡觉）
   hitBedLampEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
@@ -2944,82 +2979,52 @@
     const nextLit = !isBedsideLampLit();
     mods.mod_lamp.state = nextLit ? "on" : "off";
     sfx.lampClick(nextLit);
-    triggerModuleNudge(modLampEl);
+    syncPanoramaImage(false);
     syncRoomModules();
     persistState();
-    showSceneFeedback(nextLit ? "咔哒～床头暖光灯亮起来啦" : "咔哒～已轻按关掉床头灯", "system");
+    if (state.period === "night") {
+      showSceneFeedback(
+        nextLit ? "咔哒～暖灯亮起，玉兔起床陪你聊聊天啦" : "咔哒～关掉小台灯，玉兔钻回被窝香香入睡",
+        "dialogue"
+      );
+    } else {
+      showSceneFeedback(nextLit ? "咔哒～床头暖光灯亮起来啦" : "咔哒～已轻按关掉床头灯", "system");
+    }
   });
 
-  // 模组①b：前景云朵被子点击切换「整洁 / 微乱」
-  hitBedBlanketEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    if (mousePan && mousePan.moved) return;
-    const mods = getLivingRoomModules();
-    const nextState = mods.mod_bed.state === "rumpled" ? "tidy" : "rumpled";
-    mods.mod_bed.state = nextState;
-    sfx.tap();
-    triggerModuleNudge(modBedBlanketEl);
-    syncRoomModules();
-    persistState();
-    showSceneFeedback(
-      nextState === "tidy" ? "云朵绒毯已叠得平平整整啦" : "轻轻掀开一角云朵被子，随时可以钻被窝～",
-      "dialogue"
-    );
-  });
-
-  // 模组②：三层原木书架点击 → 打开三层原木书架中枢弹窗（PRD-0003 P3）
+  // 核心热点 3：床边立书/书架热区 → 打开三层原木书架中枢弹窗（PRD-0003 P3 手帐日记 + #40 听你说互动匣）
   hitBookshelfEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
     sfx.tap();
-    triggerModuleNudge(modBooksEl);
     openBookshelfHub();
   });
 
-  // 模组③：窗角木质首饰盒点击切换「闭合 / 微开露微光」
-  hitJewelryBoxEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    if (mousePan && mousePan.moved) return;
-    const mods = getLivingRoomModules();
-    const nextState = mods.mod_jewelry_box.state === "peek_gleam" ? "closed" : "peek_gleam";
-    mods.mod_jewelry_box.state = nextState;
-    sfx.drawer();
-    triggerModuleNudge(modJewelryBoxEl);
-    syncRoomModules();
-    persistState();
-    showSceneFeedback(
-      nextState === "peek_gleam" ? "木质首饰盒微微拉开一条缝，里面透出暖暖的星光～" : "轻轻合上了窗角的木质首饰盒",
-      "dialogue"
-    );
-  });
-
-  // 模组④：墙面植物壁画点击
-  hitWallArtEl.addEventListener("click", (ev) => {
+  // 书架未读来信气泡 & 外出旅行留条气泡 → 优先查看未读来信，否则打开书架中枢
+  async function handleMailOrAwayBubbleClick(ev) {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
     sfx.tap();
-    triggerModuleNudge(modWallArtEl);
-    showSceneFeedback("墙上挂着两幅原木框植物线稿和一页手绘标本签，阳光照上去暖洋洋的", "dialogue");
-  });
+    if (state.unreadMail) {
+      await openLetterOverlay(state.stageBgId !== "living_room" ? state.stageBgId : "bg_sunset_meadow", true);
+    } else {
+      openBookshelfHub();
+    }
+  }
+  if (booksMailBubbleEl) {
+    booksMailBubbleEl.addEventListener("click", handleMailOrAwayBubbleClick);
+  }
+  if (awayNoteBubbleEl) {
+    awayNoteBubbleEl.addEventListener("click", handleMailOrAwayBubbleClick);
+  }
 
-  // 模组⑤：桌面软木垫与咖啡杯点击
-  hitDeskMugEl.addEventListener("click", (ev) => {
+  // 核心热点 5：桌面原木小立镜透明热区 → 进入试衣间（与右侧「装扮」按钮并行）
+  hitDeskMirrorEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
-    const mods = getLivingRoomModules();
-    const nextState = mods.mod_desk_set.state === "cooled" ? "steaming" : "cooled";
-    mods.mod_desk_set.state = nextState;
     sfx.tap();
-    triggerModuleNudge(modDeskSetEl);
-    syncRoomModules();
-    persistState();
-    showSceneFeedback(
-      nextState === "steaming" ? "刚冲好的热美式又冒起袅袅热气啦 ☕" : "咖啡放温了一点，正适合慢慢喝",
-      "dialogue"
-    );
+    enterFittingRoom();
   });
-
-  deskMirrorPropEl.addEventListener("click", (ev) => { ev.stopPropagation(); sfx.tap(); enterFittingRoom(); });
   foldedOutfitPropEl.addEventListener("click", (ev) => {
     ev.stopPropagation(); sfx.tap();
     const name = getSetName(state.petId, state.savedSet[state.petId]) || "外套";
@@ -4077,7 +4082,7 @@
   function buildDevTesterMenus() {
     const menuPeriod = $("menu-period");
     menuPeriod.innerHTML = "";
-    [{ key: "day", label: "白天" }, { key: "sunset", label: "落日" }, { key: "night", label: "黑夜" }].forEach((o) => {
+    [{ key: "day", label: "白天" }, { key: "night", label: "夜晚" }].forEach((o) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "tester-option" + (state.period === o.key ? " tester-option--active" : "");
@@ -4190,7 +4195,7 @@
   }
 
   function updateDevTesterLabels() {
-    const pMap = { day: "白天", sunset: "落日", night: "黑夜" };
+    const pMap = { day: "白天", night: "夜晚" };
     $("tester-period-label").textContent = pMap[state.period] || "白天";
     $("tester-state-label").textContent = (ROOM_STATES[state.roomState] || ROOM_STATES.free_stand).label;
     $("tester-pet-label").textContent = state.petId === "yutu" ? "玉兔" : "锦鲤";
@@ -5208,7 +5213,7 @@
   async function boot() {
     const qs = new URLSearchParams(window.location.search);
     const qsPeriod = qs.get("period");
-    if (qsPeriod === "day" || qsPeriod === "sunset" || qsPeriod === "night") {
+    if (qsPeriod === "day" || qsPeriod === "night") {
       state.period = qsPeriod;
     }
 

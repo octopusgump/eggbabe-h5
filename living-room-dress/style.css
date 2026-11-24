@@ -301,10 +301,10 @@ button:active {
   min-width: 176px;
   max-width: 214px;
   padding: 10px 12px;
-  border: 1px solid rgba(225, 229, 215, 0.95);
-  border-radius: 14px;
-  background: rgba(255, 253, 247, 0.94);
-  box-shadow: 0 3px 9px rgba(37, 46, 35, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+  border: 1.5px solid rgba(164, 134, 98, 0.28);
+  border-radius: 16px;
+  background: rgba(252, 248, 239, 0.93);
+  box-shadow: 0 4px 12px rgba(74, 52, 30, 0.10), inset 0 1px 0 rgba(255, 253, 248, 0.72);
   backdrop-filter: blur(8px);
   cursor: pointer;
   transform-origin: left top;
@@ -667,13 +667,14 @@ button:active {
   border-radius: 50%;
   pointer-events: none;
   transform: translate(-50%, -50%);
+  mix-blend-mode: multiply;
   transition: opacity 0.24s ease;
 }
 .pet-shadow--soft {
-  background: radial-gradient(ellipse at center, rgba(58, 36, 18, 0.32) 0%, rgba(58, 36, 18, 0) 72%);
+  background: radial-gradient(ellipse at center, rgba(72, 46, 24, 0.28) 0%, rgba(72, 46, 24, 0) 72%);
 }
 .pet-shadow--contact {
-  background: radial-gradient(ellipse at center, rgba(42, 25, 12, 0.45) 0%, rgba(42, 25, 12, 0) 70%);
+  background: radial-gradient(ellipse at center, rgba(52, 32, 16, 0.42) 0%, rgba(52, 32, 16, 0) 68%);
 }
 .gl-pet {
   position: absolute;
@@ -686,9 +687,25 @@ button:active {
 }
 .page.is-baked-action .gl-pet,
 .page.is-baked-action .pet-shadow,
+.page.is-night-sleeping .gl-pet,
+.page.is-night-sleeping .pet-shadow,
 .page[data-state="away"] .gl-pet,
 .page[data-state="away"] .pet-shadow {
   opacity: 0;
+  pointer-events: none;
+}
+
+.pet-sleep-sprite {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  transition: opacity 0.32s ease, filter 0.35s ease;
+}
+.pet-sleep-sprite img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .fitting-vignette {
@@ -905,10 +922,10 @@ button:active {
 .companion-toolbox__motion {
   transform-origin: 100% 100%;
   padding: 14px 16px;
-  border: 1px solid #E5E3DF;
-  border-radius: 14px;
-  background: #FFFDF7;
-  box-shadow: 0 6px 18px rgba(32, 28, 23, 0.20);
+  border: 1.5px solid rgba(164, 134, 98, 0.28);
+  border-radius: 16px;
+  background: rgba(252, 248, 239, 0.96);
+  box-shadow: 0 6px 18px rgba(74, 52, 30, 0.14);
   opacity: 0;
   transform: scale3d(0.88, 0.88, 1);
 }
@@ -1790,10 +1807,10 @@ button:active {
   bottom: calc(82px + var(--safe-bottom));
   width: 58px;
   padding: 8px 5px;
-  border: 1px solid #E5E3DF;
+  border: 1.5px solid rgba(164, 134, 98, 0.28);
   border-radius: 999px;
-  background: rgba(255, 253, 247, 0.95);
-  box-shadow: 0 6px 18px rgba(32, 28, 23, 0.18), inset 0 1.5px 2px rgba(255, 255, 255, 0.92);
+  background: rgba(252, 248, 239, 0.94);
+  box-shadow: 0 6px 18px rgba(74, 52, 30, 0.13), inset 0 1px 0 rgba(255, 253, 248, 0.78);
   backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
@@ -3501,46 +3518,233 @@ button:active {
   pointer-events: none !important;
 }
 
-/* 昼 / 落日 / 黑夜三时段自适应环境光滤镜（仅调色温与明度，零悬浮 drop-shadow） */
-.page[data-period="sunset"] .room-module {
-  filter: brightness(0.92) sepia(0.20) saturate(1.14) hue-rotate(-6deg);
+/* 全局轻度统一氛围层（z: 7，把底图、被子、宠物与黑猫钟一起罩在同一柔和色温下） */
+.room-atmosphere-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease, background 0.45s ease;
 }
-.page[data-period="sunset"] .room-module--wall {
-  filter: drop-shadow(1px 2px 1.5px rgba(58, 28, 12, 0.20)) brightness(0.92) sepia(0.20) saturate(1.14) hue-rotate(-6deg);
+.page[data-period="sunset"]:not(.has-custom-bg) .room-atmosphere-tint {
+  opacity: 1;
+  background: linear-gradient(125deg, rgba(255, 224, 198, 0.08) 0%, rgba(255, 206, 178, 0.05) 100%);
+  mix-blend-mode: soft-light;
+}
+.page[data-period="night"][data-lamp-lit="true"]:not(.has-custom-bg) .room-atmosphere-tint {
+  opacity: 1;
+  background: radial-gradient(ellipse 68% 72% at 28% 34%, rgba(255, 224, 168, 0.12) 0%, rgba(255, 206, 138, 0.03) 60%, transparent 100%);
+  mix-blend-mode: soft-light;
+}
+.page[data-period="night"][data-lamp-lit="false"]:not(.has-custom-bg) .room-atmosphere-tint {
+  opacity: 0;
+}
+.page.is-baked-action .room-atmosphere-tint,
+.page.has-custom-bg .room-atmosphere-tint {
+  opacity: 0;
+}
+
+/* 书架上方未读来信轻气泡（《动物去哪儿》式圆润奶油胶囊） */
+.scene-mail-bubble {
+  position: absolute;
+  z-index: 8;
+  transform: translate(-50%, -100%);
+  padding: 5px 12px;
+  border: 1.5px solid rgba(164, 134, 98, 0.34);
+  border-radius: 999px;
+  background: rgba(253, 249, 240, 0.96);
+  color: #5B432C;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(74, 52, 30, 0.14);
+  cursor: pointer;
+  animation: mail-bubble-float 2.8s ease-in-out infinite;
+}
+.scene-mail-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  background: rgba(253, 249, 240, 0.96);
+  border-right: 1.5px solid rgba(164, 134, 98, 0.34);
+  border-bottom: 1.5px solid rgba(164, 134, 98, 0.34);
+  transform: translateX(-50%) rotate(45deg);
+}
+@keyframes mail-bubble-float {
+  0%, 100% { transform: translate(-50%, -100%); }
+  50% { transform: translate(-50%, calc(-100% - 5px)); }
+}
+
+/* 窗台天气/时段小摆件（方案 B，带 multiply 贴合底影与昼夜明度自适应） */
+.sill-weather-prop {
+  position: absolute;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+.sill-weather-prop img {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.sill-weather-prop__shadow {
+  position: absolute;
+  z-index: 1;
+  left: 10%;
+  right: 10%;
+  bottom: -4%;
+  height: 18%;
+  border-radius: 50%;
+  transform: rotate(10deg);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(16, 12, 8, 0.72) 0%,
+    rgba(24, 18, 12, 0.42) 48%,
+    rgba(24, 18, 12, 0) 78%
+  );
+  mix-blend-mode: multiply;
+  filter: blur(1.4px);
+}
+.page[data-period="night"][data-lamp-lit="false"] .sill-weather-prop:not([data-sill-kind="night"]) {
+  filter: brightness(0.72) saturate(0.84);
+}
+.page.has-custom-bg .sill-weather-prop,
+.page.is-baked-action .sill-weather-prop {
+  opacity: 0;
+}
+
+/* 外出旅行（away）留条奶油折角气泡 */
+.scene-away-note {
+  position: absolute;
+  z-index: 8;
+  transform: translate(-50%, -50%);
+  padding: 7px 14px;
+  border: 1.5px solid rgba(164, 134, 98, 0.36);
+  border-radius: 14px;
+  background: rgba(253, 249, 240, 0.96);
+  color: #5B432C;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 5px 14px rgba(74, 52, 30, 0.14);
+  cursor: pointer;
+  animation: mail-bubble-float 3.2s ease-in-out infinite;
+}
+
+/* 零新图动态微氛围：白天窗边微尘 + 夜晚窗外微闪星点 */
+.room-ambient-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ambient-mote {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 248, 224, 0.78) 0%, rgba(255, 244, 206, 0) 72%);
+  opacity: 0;
+}
+.page[data-period="day"]:not(.has-custom-bg) .ambient-mote {
+  animation: mote-drift 7.5s ease-in-out infinite;
+}
+.ambient-mote--1 { left: 62%; top: 22%; animation-delay: 0s; }
+.ambient-mote--2 { left: 74%; top: 34%; animation-delay: 2.1s; width: 5px; height: 5px; }
+.ambient-mote--3 { left: 56%; top: 44%; animation-delay: 4.3s; width: 7px; height: 7px; }
+.ambient-mote--4 { left: 82%; top: 28%; animation-delay: 5.8s; width: 4px; height: 4px; }
+@keyframes mote-drift {
+  0%, 100% { transform: translate(0, 6px); opacity: 0; }
+  35%, 65% { opacity: 0.42; }
+  50% { transform: translate(-10px, -12px); }
+}
+
+.ambient-star {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 250, 226, 0.92);
+  box-shadow: 0 0 6px rgba(255, 244, 200, 0.7);
+  opacity: 0;
+}
+.page[data-period="night"]:not(.has-custom-bg) .ambient-star {
+  animation: star-twinkle 4.2s ease-in-out infinite;
+}
+.ambient-star--1 { left: 66%; top: 10%; animation-delay: 0s; }
+.ambient-star--2 { left: 76%; top: 16%; animation-delay: 1.4s; width: 3px; height: 3px; }
+.ambient-star--3 { left: 84%; top: 8%; animation-delay: 2.7s; }
+.ambient-star--4 { left: 72%; top: 24%; animation-delay: 3.3s; width: 3px; height: 3px; }
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.12; transform: scale(0.8); }
+  50% { opacity: 0.85; transform: scale(1.25); }
+}
+
+/* 桌面原木小立镜细腻玻璃高光扫过（每 9 秒暗示可点击进试衣间） */
+.module-hotspot--mirror {
+  overflow: hidden;
+  border-radius: 42% 42% 24% 24%;
+}
+.mirror-glint {
+  position: absolute;
+  inset: 14% 20% 24% 20%;
+  border-radius: 50%;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mirror-glint::after {
+  content: "";
+  position: absolute;
+  top: -30%;
+  left: -90%;
+  width: 46%;
+  height: 160%;
+  background: linear-gradient(110deg, transparent 0%, rgba(255, 253, 245, 0.42) 50%, transparent 100%);
+  transform: rotate(18deg);
+  animation: mirror-sweep 9s ease-in-out infinite;
+}
+@keyframes mirror-sweep {
+  0%, 82%, 100% { left: -90%; opacity: 0; }
+  86% { opacity: 0.9; }
+  94% { left: 130%; opacity: 0; }
+}
+
+/* 昼 / 柔粉黄昏 / 暖灯夜晚 三时段轻度自适应（与新一体化底图亮度和色温对齐） */
+.page[data-period="sunset"] .room-module {
+  filter: brightness(0.98) sepia(0.08) saturate(1.04);
 }
 .page[data-period="sunset"] .macro-prop--cat-clock {
-  filter: brightness(0.94) saturate(1.06);
+  filter: brightness(0.97) saturate(1.03);
 }
-.page[data-period="night"] .room-module {
-  filter: brightness(0.50) contrast(1.06) saturate(0.68) hue-rotate(12deg);
+.page[data-period="night"][data-lamp-lit="true"] .room-module {
+  filter: brightness(0.88) sepia(0.14) saturate(0.96);
 }
-.page[data-period="night"] .room-module--wall {
-  filter: drop-shadow(1px 2px 1.5px rgba(6, 10, 24, 0.38)) brightness(0.46) contrast(1.05) saturate(0.64) hue-rotate(14deg);
+.page[data-period="night"][data-lamp-lit="false"] .room-module {
+  filter: brightness(0.68) saturate(0.78) hue-rotate(8deg);
 }
 /* 夜间黑猫警长钟严禁加 sepia 防止发棕，保持哑光纯黑质感 */
 .page[data-period="night"] .macro-prop--cat-clock {
-  filter: brightness(0.68) contrast(1.08) saturate(0.82);
+  filter: brightness(0.76) contrast(1.05) saturate(0.86);
 }
 .page[data-period="night"][data-lamp-lit="true"] .macro-prop--cat-clock {
-  filter: brightness(0.88) contrast(1.06) saturate(0.96);
+  filter: brightness(0.92) contrast(1.04) saturate(0.96);
 }
-/* 开灯时的台灯灯罩与微开首饰盒保持自身温暖自发光 */
-.page[data-period="night"] .room-module--lamp[data-lamp-on="true"] {
-  filter: brightness(1.02) saturate(1.08);
-}
-.page[data-period="sunset"] .room-module--lamp[data-lamp-on="true"] {
-  filter: brightness(1.04) saturate(1.10);
-}
-.page[data-period="night"] .room-module--jewelry[data-jewelry-state="peek_gleam"] {
-  filter: brightness(0.66) contrast(1.06) saturate(0.88);
-}
-.page[data-period="night"] .mod-contact-shadow,
 .page[data-period="night"] .scene-cat-clock__shadow {
   background: radial-gradient(
     ellipse at center,
-    rgba(6, 10, 24, 0.62) 0%,
-    rgba(6, 10, 24, 0.26) 56%,
-    rgba(6, 10, 24, 0) 80%
+    rgba(24, 18, 14, 0.50) 0%,
+    rgba(24, 18, 14, 0.20) 56%,
+    rgba(24, 18, 14, 0) 80%
   );
 }
 
@@ -3747,7 +3951,8 @@ button:active {
 /* 场景床头黑猫警长表（z:4, center (430, 448)，脚掌稳踩床头顶板木纹面 + 贴地脚底接触影） */
 .macro-prop--cat-clock {
   pointer-events: none; /* 点击由 z:8 #hit-cat-clock 统一接管，防止被层叠遮挡 */
-  transform: translate(-50%, -62%);
+  z-index: 7;
+  transform: translate(-50%, -56%);
 }
 /* 烘焙动作态原画床顶板略低，微调脚掌贴合顶板木面零悬空 */
 .page.is-baked-action .macro-prop--cat-clock {
@@ -3756,19 +3961,20 @@ button:active {
 .scene-cat-clock__shadow {
   position: absolute;
   z-index: 1;
-  left: 20%;
-  right: 20%;
-  bottom: 1%;
-  height: 11%;
+  left: 24%;
+  right: 16%;
+  bottom: -1%;
+  height: 13%;
   border-radius: 50%;
   pointer-events: none;
+  mix-blend-mode: multiply;
   background: radial-gradient(
     ellipse at center,
-    rgba(28, 18, 10, 0.56) 0%,
-    rgba(28, 18, 10, 0.22) 55%,
+    rgba(28, 18, 10, 0.62) 0%,
+    rgba(28, 18, 10, 0.24) 55%,
     rgba(28, 18, 10, 0) 80%
   );
-  filter: blur(2px);
+  filter: blur(1.5px);
 }
 .scene-cat-clock__img {
   position: relative;
@@ -3791,15 +3997,21 @@ button:active {
   pointer-events: none;
   animation: cat-patrol-blink 12s ease-in-out infinite;
 }
-.scene-cat-clock__eye--left,
 .ip-clock__eye--left {
   left: 44.25%;
   top: 30.89%;
 }
-.scene-cat-clock__eye--right,
 .ip-clock__eye--right {
   left: 54.61%;
   top: 32.33%;
+}
+.scene-cat-clock__eye--left {
+  left: 55.0%;
+  top: 26.8%;
+}
+.scene-cat-clock__eye--right {
+  left: 69.8%;
+  top: 26.8%;
 }
 @keyframes cat-patrol-blink {
   0%, 93%, 100% { transform: translate(-50%, -50%) scaleY(0); }
@@ -3810,11 +4022,11 @@ button:active {
 .scene-cat-clock__dial {
   position: absolute;
   z-index: 3;
-  left: 48.67%;
-  top: 61.87%;
-  width: 38%;
-  height: 35%;
-  transform: translate(-50%, -50%);
+  left: 62.1%;
+  top: 62.1%;
+  width: 34%;
+  height: 32%;
+  transform: translate(-50%, -50%) skewY(4deg);
   pointer-events: none;
 }
 .scene-cat-clock__focus-ring {
