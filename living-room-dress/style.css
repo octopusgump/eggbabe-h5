@@ -542,89 +542,6 @@ button:active {
   100% { opacity: 0; transform: scale(1.08); }
 }
 
-/* 桌面双模小挂钟（复刻 room-clock） */
-.room-clock {
-  position: relative;
-  width: 88px;
-  height: 58px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  pointer-events: auto;
-  transform-origin: 28px 28px;
-}
-.clock-face {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  border: 2.5px solid rgba(107, 86, 59, 0.72);
-  border-radius: 50%;
-  background: rgba(250, 246, 231, 0.93);
-  box-shadow: 0 4.5px 11px rgba(43, 32, 21, 0.18), inset 0 0 0 1.5px rgba(255, 255, 255, 0.66);
-  color: #5A513F;
-  display: block;
-}
-.clock-number {
-  position: absolute;
-  color: rgba(82, 73, 56, 0.75);
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-}
-.clock-number--twelve { top: 4px; left: 50%; transform: translateX(-50%); }
-.clock-number--three { top: 50%; right: 4px; transform: translateY(-50%); }
-.clock-number--six { bottom: 3.5px; left: 50%; transform: translateX(-50%); }
-.clock-number--nine { top: 50%; left: 4px; transform: translateY(-50%); }
-.clock-hand {
-  position: absolute;
-  z-index: 2;
-  left: 50%;
-  bottom: 50%;
-  border-radius: 999px;
-  transform-origin: 50% 100%;
-}
-.clock-hand--hour { width: 2.5px; height: 13.5px; margin-left: -1.25px; background: #4D493D; }
-.clock-hand--minute { width: 2px; height: 18px; margin-left: -1px; background: #4D493D; }
-.clock-hand--second { width: 1px; height: 19.5px; margin-left: -0.5px; background: #819A54; }
-.clock-pin {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  top: 50%;
-  width: 4.5px;
-  height: 4.5px;
-  margin: -2.25px 0 0 -2.25px;
-  border-radius: 50%;
-  background: #819A54;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
-}
-.clock-digital {
-  width: 88px;
-  height: 46px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(107, 86, 59, 0.42);
-  border-radius: 11px;
-  background: rgba(250, 246, 231, 0.93);
-  box-shadow: 0 4.5px 11px rgba(43, 32, 21, 0.16), inset 0 0 0 1px rgba(255, 255, 255, 0.55);
-  color: #4D493D;
-}
-.clock-time {
-  font-size: 17px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-  letter-spacing: 0.5px;
-}
-.clock-date {
-  margin-top: 3px;
-  color: rgba(82, 73, 56, 0.72);
-  font-size: 10px;
-  line-height: 1;
-}
-
 @keyframes scene-fab-bounce {
   0% { transform: scale3d(1, 1, 1); }
   22% { transform: scale3d(0.92, 0.92, 1); }
@@ -635,7 +552,7 @@ button:active {
   animation: scene-fab-bounce 0.36s ease-out both;
 }
 
-/* ---------- 4. 三屏连续全景画卷与 WebGL/微距道具层 ---------- */
+/* ---------- 4. 三屏连续全景画卷、全模组化拆层（Modular Scene Rig）与 WebGL/微距道具层 ---------- */
 .scene-stage {
   position: absolute;
   inset: 0;
@@ -670,6 +587,7 @@ button:active {
 }
 .world-panorama-bg {
   position: absolute;
+  z-index: 0;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -695,7 +613,7 @@ button:active {
   to { opacity: 0; }
 }
 
-/* 墙面微缩拍立得 */
+/* 墙面微缩拍立得（z: 4） */
 .wall-polaroid {
   position: absolute;
   z-index: 4;
@@ -724,13 +642,13 @@ button:active {
   border-radius: 1.5px;
 }
 
-/* 微距实拍道具贴片（原木小立镜 + 叠放针织衣包） */
+/* 微距实拍道具贴片（z: 4：黑猫警长发条钟 + 原木小立镜 + 叠放针织衣包） */
 .macro-prop {
   position: absolute;
-  z-index: 5;
+  z-index: 4;
   transform: translate(-50%, -50%);
   filter: drop-shadow(0 5px 7px rgba(42, 28, 16, 0.24));
-  transition: opacity 0.24s ease, transform 0.24s ease;
+  transition: opacity 0.24s ease, transform 0.24s ease, filter 0.35s ease;
 }
 .macro-prop img {
   display: block;
@@ -742,10 +660,10 @@ button:active {
   transform: translate(-50%, -52%) scale(1.03);
 }
 
-/* WebGL 宠物层与脚底软阴影 */
+/* 脚底软阴影（z: 4）与 WebGL 宠物层（z: 5，位于前景被子层 z: 6 之下） */
 .pet-shadow {
   position: absolute;
-  z-index: 5;
+  z-index: 4;
   border-radius: 50%;
   pointer-events: none;
   transform: translate(-50%, -50%);
@@ -759,7 +677,7 @@ button:active {
 }
 .gl-pet {
   position: absolute;
-  z-index: 6;
+  z-index: 5;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -775,7 +693,7 @@ button:active {
 
 .fitting-vignette {
   position: absolute;
-  z-index: 5;
+  z-index: 7;
   inset: 0;
   pointer-events: none;
   opacity: 0;
@@ -2657,4 +2575,781 @@ button:active {
     grid-template-columns: 62px 1fr 48px;
   }
 }
+
+/* ==========================================================================
+   12. 起居室全模组化拆层（Modular Scene Rig — PRD-0003 §5.1(2)）
+   ========================================================================== */
+.room-module {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: center center;
+  transition: opacity 0.3s ease, filter 0.42s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.room-module img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.room-module--wall {
+  z-index: 2;
+  filter: drop-shadow(0 4px 7px rgba(48, 32, 16, 0.16));
+}
+.room-module--mid {
+  z-index: 3;
+  filter: drop-shadow(0 7px 10px rgba(42, 26, 12, 0.22));
+}
+.room-module--lamp {
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 5px 8px rgba(42, 26, 12, 0.22));
+}
+.room-module--desk {
+  filter: drop-shadow(0 5px 8px rgba(42, 26, 12, 0.20));
+}
+/* ①b 前景云朵绒毯被子层（严格置于宠物 z:5 之上） */
+.mod-bed-front-blanket {
+  z-index: 6;
+  filter: drop-shadow(0 6px 9px rgba(40, 26, 14, 0.22));
+}
+
+/* 烘焙动作态或 11 套自定义插画背景态下自动平滑隐藏 5 组模组 */
+.page.is-baked-action .room-module,
+.page.is-baked-action .room-lamp-glow,
+.page.is-baked-action .module-hotspot:not(.module-hotspot--clock),
+.page.has-custom-bg .room-module,
+.page.has-custom-bg .room-lamp-glow,
+.page.has-custom-bg .macro-prop--cat-clock,
+.page.has-custom-bg .module-hotspot {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* 昼 / 落日 / 黑夜三时段自适应环境光滤镜 */
+.page[data-period="sunset"] .room-module,
+.page[data-period="sunset"] .macro-prop--cat-clock {
+  filter: drop-shadow(0 6px 10px rgba(68, 32, 10, 0.28)) brightness(0.95) sepia(0.24) saturate(1.18) hue-rotate(-7deg);
+}
+.page[data-period="night"] .room-module,
+.page[data-period="night"] .macro-prop--cat-clock {
+  filter: drop-shadow(0 7px 12px rgba(8, 12, 28, 0.45)) brightness(0.62) saturate(0.76) hue-rotate(8deg) contrast(1.06);
+}
+/* 开灯时的台灯灯罩与微开首饰盒保持自身温暖自发光 */
+.page[data-period="night"] .room-module--lamp[data-lamp-on="true"] {
+  filter: drop-shadow(0 0 18px rgba(255, 206, 118, 0.65)) brightness(1.04) saturate(1.12);
+}
+.page[data-period="sunset"] .room-module--lamp[data-lamp-on="true"] {
+  filter: drop-shadow(0 0 14px rgba(255, 200, 110, 0.52)) brightness(1.06) saturate(1.14);
+}
+.page[data-period="night"] .room-module--jewelry[data-jewelry-state="peek_gleam"] {
+  filter: drop-shadow(0 0 12px rgba(255, 214, 122, 0.42)) brightness(0.76) saturate(0.94);
+}
+/* 夜间台灯亮起时微微照亮紧邻的黑猫警长钟 */
+.page[data-period="night"][data-lamp-lit="true"] .macro-prop--cat-clock {
+  filter: drop-shadow(0 5px 10px rgba(18, 14, 24, 0.42)) brightness(0.84) sepia(0.14) saturate(1.02);
+}
+
+/* 床头台灯开启时的 z:7 暖黄环境光晕层 */
+.room-lamp-glow {
+  position: absolute;
+  z-index: 7;
+  pointer-events: none;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(
+    circle at 50% 44%,
+    rgba(255, 224, 148, 0.50) 0%,
+    rgba(255, 198, 108, 0.24) 28%,
+    rgba(255, 180, 92, 0.08) 50%,
+    rgba(255, 174, 84, 0) 70%
+  );
+  mix-blend-mode: screen;
+  animation: lamp-glow-breathe 4.4s ease-in-out infinite;
+}
+.page[data-period="day"] .room-lamp-glow {
+  opacity: 0.42;
+}
+.page[data-period="sunset"] .room-lamp-glow {
+  opacity: 0.68;
+}
+.page[data-period="night"] .room-lamp-glow {
+  opacity: 0.96;
+}
+@keyframes lamp-glow-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.98); }
+  50% { transform: translate(-50%, -50%) scale(1.03); }
+}
+
+/* 首饰盒微开时的柔和金色星芒呼吸微光 */
+.mod-jewelry__gleam {
+  position: absolute;
+  left: 34%;
+  top: 63%;
+  width: 44%;
+  height: 20%;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle, rgba(255, 232, 152, 0.78) 0%, rgba(255, 206, 102, 0.28) 54%, transparent 78%);
+  transition: opacity 0.3s ease;
+}
+.room-module--jewelry[data-jewelry-state="peek_gleam"] .mod-jewelry__gleam {
+  opacity: 1;
+  animation: jewelry-gleam-pulse 2.2s ease-in-out infinite;
+}
+@keyframes jewelry-gleam-pulse {
+  0%, 100% { opacity: 0.58; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* 书架上层未读来信微晃提示 */
+.mod-books__plane {
+  position: absolute;
+  right: 14%;
+  top: 10%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 249, 230, 0.94);
+  border: 1px solid rgba(196, 154, 78, 0.62);
+  box-shadow: 0 2px 6px rgba(58, 38, 16, 0.22);
+  color: #B47824;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: shelf-plane-bob 2.4s ease-in-out infinite;
+}
+@keyframes shelf-plane-bob {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-4px) rotate(6deg); }
+}
+
+/* 桌面咖啡杯袅袅热气 */
+.mod-desk__steam {
+  position: absolute;
+  left: 59%;
+  top: 10%;
+  width: 14%;
+  height: 22%;
+  pointer-events: none;
+  opacity: 0.75;
+  transition: opacity 0.3s ease;
+}
+.room-module--desk[data-steam="off"] .mod-desk__steam {
+  opacity: 0;
+}
+.mod-desk__steam-wisp {
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 22px;
+  border-left: 2px solid rgba(255, 252, 245, 0.62);
+  border-radius: 50%;
+  animation: coffee-steam-rise 2.8s ease-in-out infinite;
+}
+.mod-desk__steam-wisp--1 { left: 26%; }
+.mod-desk__steam-wisp--2 { left: 56%; animation-delay: 1.2s; }
+@keyframes coffee-steam-rise {
+  0% { opacity: 0; transform: translateY(6px) scaleX(0.9); }
+  45% { opacity: 0.72; }
+  100% { opacity: 0; transform: translateY(-18px) scaleX(1.15); }
+}
+
+/* 家具模组交互热区（z: 8，严格 x ∈ [290, 2500]） */
+.module-hotspot {
+  position: absolute;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.module-hotspot--clock {
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+.room-module.is-nudge {
+  animation: module-soft-nudge 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes module-soft-nudge {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+.room-module--lamp.is-nudge {
+  animation: lamp-soft-nudge 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes lamp-soft-nudge {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  35% { transform: translate(-50%, -50%) scale(1.07); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ==========================================================================
+   13. 床头《奶肚黑猫警长发条钟》场景微动态 & 居中 3D Flip 翻转弹窗（PRD-0003 P4）
+   ========================================================================== */
+.clock-duty-hint {
+  position: fixed;
+  z-index: 24;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px 6px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 214, 190, 0.92);
+  background: rgba(255, 252, 244, 0.90);
+  box-shadow: 0 4px 12px rgba(34, 28, 20, 0.16);
+  color: #3A3228;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+.clock-duty-hint.is-hidden-edge,
+.page.is-fitting .clock-duty-hint,
+.page.has-custom-bg .clock-duty-hint {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-10px, -50%);
+}
+.clock-duty-hint__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D9A034;
+  box-shadow: 0 0 0 2px rgba(217, 160, 52, 0.24);
+}
+.clock-duty-hint.is-focusing .clock-duty-hint__dot {
+  background: #6E8B57;
+  animation: care-warn-pulse 1.6s ease-in-out infinite;
+}
+
+/* 场景床头黑猫警长表（z:4, center (430, 448)，脚掌稳踩床头顶板木纹面） */
+.macro-prop--cat-clock {
+  pointer-events: none; /* 点击由 z:8 #hit-cat-clock 统一接管，防止被层叠遮挡 */
+  transform: translate(-50%, -62%);
+}
+.scene-cat-clock__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.scene-cat-clock__eye,
+.ip-clock__eye {
+  position: absolute;
+  width: 7.4%;
+  height: 4.4%;
+  border-radius: 50%;
+  background: #232428;
+  transform: translate(-50%, -50%) scaleY(0);
+  transform-origin: 50% 42%;
+  pointer-events: none;
+  animation: cat-patrol-blink 12s ease-in-out infinite;
+}
+.scene-cat-clock__eye--left,
+.ip-clock__eye--left {
+  left: 44.25%;
+  top: 30.89%;
+}
+.scene-cat-clock__eye--right,
+.ip-clock__eye--right {
+  left: 54.61%;
+  top: 32.33%;
+}
+@keyframes cat-patrol-blink {
+  0%, 93%, 100% { transform: translate(-50%, -50%) scaleY(0); }
+  95.5% { transform: translate(-50%, -50%) scaleY(1.05); }
+  97.5% { transform: translate(-50%, -50%) scaleY(0); }
+}
+
+.scene-cat-clock__dial {
+  position: absolute;
+  left: 48.67%;
+  top: 61.87%;
+  width: 38%;
+  height: 35%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.scene-cat-clock__focus-ring {
+  position: absolute;
+  inset: -4%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(217, 162, 52, 0.88);
+  box-shadow: 0 0 7px rgba(242, 198, 92, 0.65);
+  animation: care-warn-pulse 2.2s ease-in-out infinite;
+}
+.scene-cat-clock__hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  border-radius: 999px;
+  transform-origin: 50% 100%;
+}
+.scene-cat-clock__hand--hour {
+  width: 2px;
+  height: 27%;
+  margin-left: -1px;
+  background: #242529;
+}
+.scene-cat-clock__hand--minute {
+  width: 1.5px;
+  height: 39%;
+  margin-left: -0.75px;
+  background: #2C2E33;
+}
+.scene-cat-clock__pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3.5px;
+  height: 3.5px;
+  margin: -1.75px 0 0 -1.75px;
+  border-radius: 50%;
+  background: #CFA246;
+}
+
+/* 居中 3D Flip 翻转弹窗 */
+.clock-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, calc(var(--wx-capsule-bottom, env(safe-area-inset-top, 0px)) + 10px)) 18px max(22px, calc(16px + var(--safe-bottom)));
+  background: rgba(24, 22, 20, 0.56);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: profile-fade-in 0.24s ease-out;
+}
+.clock-modal-stage {
+  position: relative;
+  width: min(88vw, 356px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 右上斜贴虚线纸签 × 关闭钮（避让微信右上角胶囊） */
+.clock-paper-close {
+  position: absolute;
+  right: max(4px, calc(var(--wx-capsule-right-pad, 12px) - 86px));
+  top: -8px;
+  z-index: 12;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1.5px dashed rgba(132, 110, 78, 0.65);
+  background: #FFFBF0;
+  box-shadow: 0 5px 14px rgba(18, 14, 10, 0.28);
+  color: #4E4030;
+  font-size: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(7deg);
+}
+.clock-paper-close:hover {
+  background: #FBF1DC;
+  transform: rotate(4deg) scale(1.04);
+}
+.clock-paper-close:active {
+  transform: rotate(7deg) scale(0.94);
+}
+
+/* 3D 透视舞台与对称 Z 轴三明治卡片（严禁在 .ip-clock-card 加 overflow:hidden 或 filter！） */
+.ip-clock-scene {
+  position: relative;
+  width: min(76vw, 310px);
+  aspect-ratio: 1 / 1;
+  perspective: 1100px;
+  -webkit-perspective: 1100px;
+  will-change: transform;
+}
+.ip-clock-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transition: transform 0.64s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+.ip-clock-card[data-flipped="true"] {
+  transform: rotateY(180deg);
+}
+
+/* 微信小程序 Skyline 渲染引擎自动降级为 scaleX(1 -> 0 -> 1) 翻转 */
+.ip-clock-card.is-skyline-fallback {
+  transform-style: flat;
+  -webkit-transform-style: flat;
+  transition: transform 0.28s ease-in-out;
+}
+.ip-clock-card.is-skyline-fallback[data-flipped="true"] {
+  transform: none;
+}
+.ip-clock-card.is-skyline-fallback.is-skyline-mid {
+  transform: scaleX(0.02);
+}
+.ip-clock-card.is-skyline-fallback .ip-clock__mid {
+  display: none;
+}
+.ip-clock-card.is-skyline-fallback .ip-clock__front {
+  transform: none;
+}
+.ip-clock-card.is-skyline-fallback .ip-clock__back {
+  transform: none;
+  display: none;
+}
+.ip-clock-card.is-skyline-fallback[data-flipped="true"] .ip-clock__front {
+  display: none;
+}
+.ip-clock-card.is-skyline-fallback[data-flipped="true"] .ip-clock__back {
+  display: block;
+}
+
+.ip-clock__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  cursor: pointer;
+}
+/* 对称 Z 轴三明治矩阵：正面 +4px，炭黑中框 +2/0/-2px，背面 rotateY(180deg) translateZ(+4px) */
+.ip-clock__front {
+  transform: translateZ(4px);
+  pointer-events: auto;
+}
+.ip-clock__back {
+  transform: rotateY(180deg) translateZ(4px);
+  pointer-events: none;
+}
+.ip-clock-card[data-flipped="true"] .ip-clock__front {
+  pointer-events: none;
+}
+.ip-clock-card[data-flipped="true"] .ip-clock__back {
+  pointer-events: auto;
+}
+
+.ip-clock__mid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.ip-clock__mid--1 { transform: translateZ(2px); }
+.ip-clock__mid--2 { transform: translateZ(0px); }
+.ip-clock__mid--3 { transform: translateZ(-2px); }
+
+.ip-clock__art {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 22px rgba(10, 8, 6, 0.36));
+}
+
+/* 正面圆滚大白肚皮实时表盘（对齐实测 dial: cx=48.67%, cy=61.87%, rx=20.1%, ry=17.81%） */
+.ip-clock__dial {
+  position: absolute;
+  z-index: 4;
+  left: 48.67%;
+  top: 61.87%;
+  width: 40.2%;
+  height: 35.62%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.ip-clock__focus-svg {
+  position: absolute;
+  inset: -4%;
+  width: 108%;
+  height: 108%;
+  transform: rotate(-90deg);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.ip-clock__dial.is-focus-active .ip-clock__focus-svg {
+  opacity: 1;
+}
+.ip-clock__focus-track {
+  fill: none;
+  stroke: rgba(208, 165, 72, 0.22);
+  stroke-width: 3.5;
+}
+.ip-clock__focus-arc {
+  fill: none;
+  stroke: #D9A438;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+/* 6点钟执勤巡逻微窗（零倒计时焦虑） */
+.ip-clock__patrol-window {
+  position: absolute;
+  left: 50%;
+  bottom: 13%;
+  transform: translateX(-50%);
+  max-width: 82%;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(54, 46, 36, 0.08);
+  border: 1px solid rgba(178, 146, 92, 0.34);
+  color: #5C4B36;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 炭黑猫胡须/指挥棒造型表针与琥珀金秒针 */
+.ip-clock__hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  border-radius: 999px;
+  transform-origin: 50% 100%;
+  box-shadow: 0 1px 2px rgba(24, 20, 16, 0.24);
+}
+.ip-clock__hand--hour {
+  width: 4px;
+  height: 29%;
+  margin-left: -2px;
+  background: linear-gradient(180deg, #1E1F24 0%, #393B42 100%);
+}
+.ip-clock__hand--minute {
+  width: 3px;
+  height: 41%;
+  margin-left: -1.5px;
+  background: linear-gradient(180deg, #25272D 0%, #44474F 100%);
+}
+.ip-clock__hand--second {
+  width: 1.6px;
+  height: 44%;
+  margin-left: -0.8px;
+  background: #D99B29;
+}
+.ip-clock__hand--second::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1.6px;
+  height: 10px;
+  margin-left: -0.8px;
+  background: #D99B29;
+  border-radius: 999px;
+}
+.ip-clock__pin {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #FCE69C, #C4912F);
+  border: 1.2px solid #5E4011;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* 背面随秒针左右轻摆的黑猫尾巴钟摆 */
+.ip-clock__tail-pivot {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 72%;
+  width: 13.5%;
+  height: 40%;
+  margin-left: -6.75%;
+  transform-origin: 50% 6%;
+  pointer-events: none;
+  transition: transform 0.78s cubic-bezier(0.37, 0, 0.63, 1);
+  will-change: transform;
+}
+.ip-clock__tail-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgba(8, 8, 10, 0.38));
+}
+
+/* 背面胡桃木黄铜背板三大真交互控件（对齐实测 backplate: cx=49.8%, cy=63.32%, r=20.21%） */
+.ip-clock__backplate {
+  position: absolute;
+  z-index: 4;
+  left: 49.8%;
+  top: 63.32%;
+  width: 38%;
+  height: 41%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2% 3%;
+  pointer-events: auto;
+}
+
+/* 背面 ① 夜巡班次小拨盘 */
+.ip-clock__shift-dial {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: rgba(34, 24, 16, 0.62);
+  border: 1px solid rgba(215, 174, 96, 0.48);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+.ip-clock__shift-btn {
+  width: 22px;
+  height: 19px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.18s ease, background-color 0.18s ease, transform 0.15s ease;
+}
+.ip-clock__shift-btn.is-active {
+  opacity: 1;
+  background: rgba(235, 198, 114, 0.32);
+  box-shadow: 0 0 0 1px rgba(247, 223, 154, 0.72);
+}
+
+/* 背面 ② 五角警星黄铜发条旋钮 */
+.ip-clock__windup-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  width: 64px;
+  height: 52px;
+  cursor: pointer;
+}
+.ip-clock__windup-key {
+  width: 44px;
+  height: 44px;
+  display: block;
+  transition: transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: drop-shadow(0 3px 5px rgba(20, 12, 4, 0.5));
+}
+.ip-clock__windup-label {
+  margin-top: -5px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(42, 28, 16, 0.84);
+  border: 1px solid rgba(226, 188, 108, 0.56);
+  color: #FCE9B0;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ip-clock__windup-btn.is-active .ip-clock__windup-label {
+  background: #C99124;
+  color: #1F1508;
+  border-color: #FFF0B8;
+}
+
+/* 背面 ③ 呼噜滴答机械拨杆 */
+.ip-clock__tick-lever {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px 2px 4px;
+  border-radius: 999px;
+  background: rgba(34, 24, 16, 0.76);
+  border: 1px solid rgba(215, 174, 96, 0.52);
+  color: #F4E4BE;
+  font-size: 9px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ip-clock__tick-knob {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8B7B66;
+  border: 1px solid #E2C686;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ip-clock__tick-lever[aria-checked="true"] {
+  background: rgba(186, 134, 38, 0.90);
+  border-color: #FFF0B8;
+  color: #1E1408;
+}
+.ip-clock__tick-lever[aria-checked="true"] .ip-clock__tick-knob {
+  background: #FFF3C4;
+  box-shadow: 0 0 6px rgba(255, 240, 176, 0.9);
+}
+
+/* 弹窗底部实时读数与操作提示 */
+.clock-modal-footer {
+  margin-top: 28px; /* 为背面下垂摆动的黑猫尾巴留出优雅呼吸区 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+  color: #FFFDF7;
+}
+.clock-modal-readout {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.42);
+}
+.clock-modal-sub {
+  font-size: 12.5px;
+  color: rgba(255, 249, 235, 0.86);
+}
+.clock-modal-focus-banner {
+  margin-top: 2px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 248, 224, 0.14);
+  border: 1px solid rgba(242, 212, 138, 0.36);
+  color: #FCE6A6;
+  font-size: 11px;
+  font-weight: 500;
+  max-width: 92vw;
+  white-space: nowrap;
+}
+.clock-flip-pill {
+  margin-top: 4px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: rgba(255, 253, 247, 0.94);
+  border: 1px solid rgba(224, 210, 184, 0.95);
+  color: #35483C;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 5px 16px rgba(14, 12, 10, 0.28);
+}
+.clock-flip-pill:hover {
+  background: #FFFFFF;
+}
+
 

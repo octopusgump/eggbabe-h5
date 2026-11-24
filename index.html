@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>蛋宝宝 · 破壳起居室与装扮屋</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23232428'/%3E%3Ccircle cx='16' cy='19' r='8' fill='%23F6F1E2'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./living-room-dress/style.css" />
 </head>
 <body>
@@ -65,7 +66,7 @@
       </div>
     </div>
 
-    <!-- 左上状态栈：精简常驻版陪伴星星牌（点击打开个人信息与伙伴档案弹窗） + 双模小挂钟 -->
+    <!-- 左上状态栈：精简常驻版陪伴星星牌（点击打开个人信息与伙伴档案弹窗；已下线悬浮 #room-clock） -->
     <div id="life-status-stack" class="life-status-stack">
       <div class="pet-mood-anchor">
         <div id="pet-mood-tab" class="pet-mood-tab pet-mood-tab--post-hatch" role="button" tabindex="0" aria-label="打开个人信息与伙伴档案">
@@ -114,37 +115,59 @@
           </div>
         </div>
       </div>
-
-      <button id="room-clock" class="room-clock room-clock--analog" type="button" aria-label="切换时钟显示方式">
-        <span id="clock-analog" class="clock-face">
-          <span class="clock-number clock-number--twelve">12</span>
-          <span class="clock-number clock-number--three">3</span>
-          <span class="clock-number clock-number--six">6</span>
-          <span class="clock-number clock-number--nine">9</span>
-          <span id="clock-hand-hour" class="clock-hand clock-hand--hour"></span>
-          <span id="clock-hand-minute" class="clock-hand clock-hand--minute"></span>
-          <span id="clock-hand-second" class="clock-hand clock-hand--second"></span>
-          <span class="clock-pin"></span>
-        </span>
-        <span id="clock-digital" class="clock-digital" hidden>
-          <span id="clock-time-text" class="clock-time">14:30</span>
-          <span id="clock-date-text" class="clock-date">11月23日 周一</span>
-        </span>
-      </button>
     </div>
 
-    <!-- 主舞台：三屏连续全景画卷 / 11 套插画背景舞台 + 原版 PetStage WebGL 层 + 喂食洗澡特效层 -->
+    <!-- 主舞台：三屏连续全景画卷（干净空房间底壳 + 5 组独立透明 PNG 模组 + 原版 PetStage WebGL 层） -->
     <div id="scene-stage" class="scene-stage scene-stage--entered">
       <!-- 11 套插画背景独立全屏舞台层（从衣橱「背景」页签选择非起居室背景时激活，保持 9:16 原生构图） -->
       <img id="custom-stage-bg" class="custom-stage-bg" alt="" hidden />
+
+      <!-- 左缘轻巧角标：位于中/右屏时引导滑向床头查看值班黑猫警长钟 -->
+      <button id="clock-duty-hint" class="clock-duty-hint" type="button" aria-label="前往床头查看黑猫警长发条钟">
+        <span class="clock-duty-hint__dot" aria-hidden="true"></span>
+        <span id="clock-duty-hint-text">🐾 警长值班中</span>
+      </button>
 
       <div id="world-scroll" class="world-scroll">
         <div id="world-track" class="world-track">
           <div id="camera-rig" class="camera-rig">
             <div id="pano-box" class="pano-box">
+              <!-- z: 0~1 干净空房间底壳（仅保留墙面、木台面地板与大窗天色） / 烘焙动作全景图 -->
               <img id="pano-prev" class="world-panorama-bg world-panorama-bg--previous" alt="" hidden />
-              <img id="pano-curr" class="world-panorama-bg" src="./living-room-dress/panoramas/empty_day.png" alt="蛋宝宝起居室" />
+              <img id="pano-curr" class="world-panorama-bg" src="./living-room-dress/panoramas/room_shell_day.png" alt="蛋宝宝起居室" />
               <img id="pano-preload" class="world-panorama-preload" alt="" hidden />
+
+              <!-- z: 2 背景墙饰模组：⑤ 墙面植物相框壁画 & 窗边手绘植物签 -->
+              <div id="mod-wall-art" class="room-module room-module--wall" data-module="mod_wall_art" aria-hidden="true">
+                <img src="./living-room-dress/modules/mod_wall_art.png" alt="墙面植物壁画" />
+              </div>
+
+              <!-- z: 3 中景家具模组：①a U型木床后箱+枕垫 / ①c 床头暖光灯 / ② 三层原木书架 / ③ 窗角首饰盒 / ④ 桌面软木垫与杯具 -->
+              <div id="mod-bed-base" class="room-module room-module--mid room-module--bed-base" data-module="mod_bed_base" aria-hidden="true">
+                <img src="./living-room-dress/modules/mod_bed_base.png" alt="U型原木床" />
+              </div>
+
+              <div id="mod-lamp" class="room-module room-module--mid room-module--lamp" data-module="mod_lamp" data-lamp-on="false" aria-hidden="true">
+                <img id="mod-lamp-img" src="./living-room-dress/modules/mod_lamp_off.png" alt="床头暖光灯" />
+              </div>
+
+              <div id="mod-books" class="room-module room-module--mid room-module--books" data-module="mod_books" aria-hidden="true">
+                <img src="./living-room-dress/modules/mod_bookshelf.png" alt="三层原木书架" />
+                <span id="mod-books-plane" class="mod-books__plane" aria-hidden="true" hidden>✉</span>
+              </div>
+
+              <div id="mod-jewelry-box" class="room-module room-module--mid room-module--jewelry" data-module="mod_jewelry_box" data-jewelry-state="closed" aria-hidden="true">
+                <img id="mod-jewelry-img" src="./living-room-dress/modules/mod_jewelry_closed.png" alt="窗角木质首饰盒" />
+                <span class="mod-jewelry__gleam" aria-hidden="true"></span>
+              </div>
+
+              <div id="mod-desk-set" class="room-module room-module--mid room-module--desk" data-module="mod_desk_set" data-steam="on" aria-hidden="true">
+                <img src="./living-room-dress/modules/mod_desk_set.png" alt="桌面软木垫与杯具" />
+                <span class="mod-desk__steam" aria-hidden="true">
+                  <i class="mod-desk__steam-wisp mod-desk__steam-wisp--1"></i>
+                  <i class="mod-desk__steam-wisp mod-desk__steam-wisp--2"></i>
+                </span>
+              </div>
 
               <!-- 墙面微缩拍立得纪念框 -->
               <button id="wall-polaroid" class="wall-polaroid" type="button" hidden title="查看墙上的明信片">
@@ -152,7 +175,22 @@
                 <img id="wall-polaroid-img" alt="纪念拍立得" />
               </button>
 
-              <!-- 居家动作态脱下的叠放针织毛衣包裹贴片 -->
+              <!-- z: 4 .macro-prop：床头顶板《奶肚黑猫警长发条钟》(430, 448) + 叠放衣包 + 桌面小立镜 + 接地阴影 -->
+              <button id="bedside-cat-clock" class="macro-prop macro-prop--cat-clock" type="button" aria-label="奶肚黑猫警长发条钟，轻触放大并翻转">
+                <img class="scene-cat-clock__img" src="./living-room-dress/props/clock_black_cat_scene.png" alt="奶肚黑猫警长发条钟" />
+                <!-- 每 12 秒巡视眨眼遮罩（对齐实测琥珀猫眼坐标） -->
+                <span class="scene-cat-clock__eye scene-cat-clock__eye--left" aria-hidden="true"></span>
+                <span class="scene-cat-clock__eye scene-cat-clock__eye--right" aria-hidden="true"></span>
+                <!-- 场景微缩白肚皮实时指针与专注星芒环 -->
+                <span class="scene-cat-clock__dial" aria-hidden="true">
+                  <span id="scene-clock-focus-ring" class="scene-cat-clock__focus-ring" hidden></span>
+                  <span id="scene-hand-hour" class="scene-cat-clock__hand scene-cat-clock__hand--hour"></span>
+                  <span id="scene-hand-minute" class="scene-cat-clock__hand scene-cat-clock__hand--minute"></span>
+                  <span class="scene-cat-clock__pin"></span>
+                </span>
+              </button>
+
+              <!-- 居家动作态脱下的叠放针织毛衣包裹贴片（右移至安全区零重叠） -->
               <button id="folded-outfit-prop" class="macro-prop macro-prop--folded" type="button" hidden aria-label="叠好的衣服">
                 <img src="./living-room-dress/props/prop_folded_knit.png" alt="" />
               </button>
@@ -162,12 +200,18 @@
                 <img src="./living-room-dress/props/prop_wood_mirror.png" alt="" />
               </button>
 
-              <!-- 脚底双层软阴影 + 原版完整 PetStage WebGL 画布 -->
+              <!-- 脚底双层软阴影 + z: 5 原版完整 PetStage WebGL 画布 -->
               <div id="pet-shadow-soft" class="pet-shadow pet-shadow--soft"></div>
               <div id="pet-shadow-contact" class="pet-shadow pet-shadow--contact"></div>
               <canvas id="gl-pet" class="gl-pet"></canvas>
 
-              <!-- 情绪漫画节拍飘字/泪珠/爱心宿主层 + 打盹 Zzz + 脏污提醒 + 搓澡泡泡 + 冲水闪光 -->
+              <!-- z: 6 [前景被子层] ①b 云朵绒毯（高于宠物层 z:5，支持整洁/微乱切换） -->
+              <div id="mod-bed-blanket" class="room-module mod-bed-front-blanket" data-module="mod_bed_blanket" data-blanket-state="tidy" aria-hidden="true">
+                <img id="mod-bed-blanket-img" src="./living-room-dress/modules/mod_blanket_tidy.png" alt="云朵绒毯被子" />
+              </div>
+
+              <!-- z: 7 情绪漫画节拍飘字 + 打盹 Zzz + 脏污提醒 + 搓澡泡泡 + 冲水闪光 + 台灯暖光光晕层 -->
+              <div id="room-lamp-glow" class="room-lamp-glow" aria-hidden="true" hidden></div>
               <div id="pet-fx-host" class="pet-fx-host" aria-hidden="true"></div>
               <div id="sleep-zz" class="sleep-zz" hidden>Zzz</div>
 
@@ -184,8 +228,15 @@
               <!-- 试衣间聚光柔暗角 -->
               <div class="fitting-vignette" aria-hidden="true"></div>
 
-              <!-- 角色与桌面交互层 -->
+              <!-- z: 8 角色与家具模组交互热区层（所有可点热区严格 x ∈ [290, 2500]） -->
               <div id="scene-hit-layer" class="scene-hit-layer">
+                <button id="hit-wall-art" class="module-hotspot" type="button" aria-label="查看墙面植物壁画"></button>
+                <button id="hit-bed-lamp" class="module-hotspot" type="button" aria-label="开关床头暖光灯"></button>
+                <button id="hit-bed-blanket" class="module-hotspot" type="button" aria-label="整理或掀开云朵被子"></button>
+                <button id="hit-bookshelf" class="module-hotspot" type="button" aria-label="打开三层原木书架"></button>
+                <button id="hit-jewelry-box" class="module-hotspot" type="button" aria-label="轻开或闭合木质首饰盒"></button>
+                <button id="hit-desk-mug" class="module-hotspot" type="button" aria-label="轻触桌面咖啡杯"></button>
+                <button id="hit-cat-clock" class="module-hotspot module-hotspot--clock" type="button" aria-label="打开奶肚黑猫警长发条钟"></button>
                 <button id="character-hotspot" class="scene-character-hotspot" type="button" hidden aria-label="轻触蛋宝宝"></button>
                 <button id="action-glow" class="action-glow" type="button" hidden aria-label="回应此刻的动作"></button>
               </div>
@@ -583,6 +634,112 @@
               </div>
             </section>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 《奶肚黑猫警长发条钟》居中 3D Flip 翻转弹窗（PRD-0003 P4） -->
+    <div id="clock-modal-overlay" class="clock-modal-overlay" role="dialog" aria-modal="true" aria-label="奶肚黑猫警长发条钟" hidden>
+      <div id="clock-modal-stage" class="clock-modal-stage">
+        <!-- 右上斜贴虚线纸签 × 关闭钮（自动避让微信胶囊） -->
+        <button id="btn-close-clock" class="clock-paper-close" type="button" aria-label="关闭黑猫警长发条钟">
+          <span>×</span>
+        </button>
+
+        <!-- 600ms FLIP 飞入容器 + 3D 透视舞台 -->
+        <div id="ip-clock-scene" class="ip-clock-scene">
+          <div id="ip-clock-card" class="ip-clock-card" data-flipped="false">
+            <!-- 正面 Front (translateZ(+4px))：双手叉腰大白肚皮表盘 + 6点钟执勤微窗（零倒计时焦虑） -->
+            <div id="ip-clock-front" class="ip-clock__face ip-clock__front" role="button" tabindex="0" aria-label="轻触黑猫警长表身翻看背面发条">
+              <img class="ip-clock__art" src="./living-room-dress/props/clock_black_cat_front.png" alt="奶肚黑猫警长发条钟正面" draggable="false" />
+              <!-- 弹窗正面机警眨眼 -->
+              <span class="ip-clock__eye ip-clock__eye--left" aria-hidden="true"></span>
+              <span class="ip-clock__eye ip-clock__eye--right" aria-hidden="true"></span>
+
+              <!-- 精确对齐白肚皮的圆形表盘叠加层 -->
+              <div class="ip-clock__dial" aria-hidden="true">
+                <!-- 专注金色星芒进度环 -->
+                <svg class="ip-clock__focus-svg" viewBox="0 0 120 120">
+                  <circle class="ip-clock__focus-track" cx="60" cy="60" r="54" />
+                  <circle id="ip-clock-focus-arc" class="ip-clock__focus-arc" cx="60" cy="60" r="54" stroke-dasharray="339.29" stroke-dashoffset="339.29" />
+                </svg>
+
+                <!-- 6点钟执勤巡逻微窗（严守零倒计时焦虑红线，仅显示 5h 陪伴状态） -->
+                <div id="ip-clock-patrol-window" class="ip-clock__patrol-window">
+                  <span id="ip-clock-patrol-text">🐾 书桌涂鸦值守</span>
+                </div>
+
+                <!-- 炭黑猫胡须/指挥棒时针分针 + 琥珀金秒针 -->
+                <span id="modal-hand-hour" class="ip-clock__hand ip-clock__hand--hour"></span>
+                <span id="modal-hand-minute" class="ip-clock__hand ip-clock__hand--minute"></span>
+                <span id="modal-hand-second" class="ip-clock__hand ip-clock__hand--second"></span>
+                <span class="ip-clock__pin"></span>
+              </div>
+            </div>
+
+            <!-- 对称 Z 轴 3 层哑光炭黑毛毡厚度中框片：translateZ(+2px / 0px / -2px) -->
+            <img class="ip-clock__mid ip-clock__mid--1" src="./living-room-dress/props/clock_black_cat_mid.png" alt="" aria-hidden="true" draggable="false" />
+            <img class="ip-clock__mid ip-clock__mid--2" src="./living-room-dress/props/clock_black_cat_mid.png" alt="" aria-hidden="true" draggable="false" />
+            <img class="ip-clock__mid ip-clock__mid--3" src="./living-room-dress/props/clock_black_cat_mid.png" alt="" aria-hidden="true" draggable="false" />
+
+            <!-- 背面 Back (rotateY(180deg) translateZ(+4px))：五角警星黄铜发条 + 夜巡班次拨盘 + 呼噜滴答拨杆 + 黑猫尾巴钟摆 -->
+            <div id="ip-clock-back" class="ip-clock__face ip-clock__back" aria-hidden="true">
+              <!-- 随秒针左右轻摆的黑猫尾巴钟摆（挂于背面下缘） -->
+              <div id="ip-clock-tail-pivot" class="ip-clock__tail-pivot" aria-hidden="true">
+                <img class="ip-clock__tail-img" src="./living-room-dress/props/clock_black_cat_tail.png" alt="" draggable="false" />
+              </div>
+
+              <img class="ip-clock__art" src="./living-room-dress/props/clock_black_cat_back.png" alt="奶肚黑猫警长发条钟背面" draggable="false" />
+
+              <!-- 精准嵌在胡桃木黄铜机械背板圆盘上的三大真交互控件 -->
+              <div class="ip-clock__backplate">
+                <!-- 1. 白班 / 黄昏哨 / 夜巡哨作息轻拨盘 -->
+                <div class="ip-clock__shift-dial" role="group" aria-label="夜巡班次拨盘">
+                  <button class="ip-clock__shift-btn" type="button" data-clock-shift="day" title="白班 06:00">☀️</button>
+                  <button class="ip-clock__shift-btn" type="button" data-clock-shift="sunset" title="黄昏哨 17:00">🌇</button>
+                  <button class="ip-clock__shift-btn" type="button" data-clock-shift="night" title="夜巡哨 19:30">🌙</button>
+                </div>
+
+                <!-- 2. 可拧动五角警星黄铜专注发条（15m +5✦ / 25m +10✦，锁屏时间戳补算） -->
+                <button id="btn-clock-windup" class="ip-clock__windup-btn" type="button" aria-label="拧动五角警星黄铜发条切换专注时长">
+                  <span id="ip-clock-windup-key" class="ip-clock__windup-key">
+                    <svg viewBox="0 0 80 80" width="100%" height="100%" aria-hidden="true">
+                      <defs>
+                        <linearGradient id="brassStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="#F7DF9A" />
+                          <stop offset="48%" stop-color="#CFA246" />
+                          <stop offset="100%" stop-color="#8A611C" />
+                        </linearGradient>
+                      </defs>
+                      <!-- 蝴蝶发条双耳 -->
+                      <ellipse cx="18" cy="40" rx="14" ry="11" fill="url(#brassStarGrad)" stroke="#624312" stroke-width="2" />
+                      <ellipse cx="18" cy="40" rx="6.5" ry="5" fill="#463222" />
+                      <ellipse cx="62" cy="40" rx="14" ry="11" fill="url(#brassStarGrad)" stroke="#624312" stroke-width="2" />
+                      <ellipse cx="62" cy="40" rx="6.5" ry="5" fill="#463222" />
+                      <!-- 中心五角警星徽章 -->
+                      <circle cx="40" cy="40" r="19" fill="url(#brassStarGrad)" stroke="#5E4011" stroke-width="2.2" />
+                      <polygon points="40,25 44.3,34.2 54.4,35.4 47,42.3 48.9,52.3 40,47.3 31.1,52.3 33,42.3 25.6,35.4 35.7,34.2" fill="#FFF3C6" stroke="#7A5416" stroke-width="1.3" stroke-linejoin="round" />
+                    </svg>
+                  </span>
+                  <span id="ip-clock-windup-label" class="ip-clock__windup-label">拧发条</span>
+                </button>
+
+                <!-- 3. 呼噜滴答机械拨杆 -->
+                <button id="btn-clock-tick-toggle" class="ip-clock__tick-lever" type="button" role="switch" aria-checked="false">
+                  <span class="ip-clock__tick-knob" aria-hidden="true"></span>
+                  <span id="ip-clock-tick-text" class="ip-clock__tick-text">呼噜滴答:关</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 弹窗底部实时读数、专注状态与翻转提示 -->
+        <div class="clock-modal-footer">
+          <div id="clock-modal-readout" class="clock-modal-readout">12 : 55 : 29</div>
+          <div id="clock-modal-sub" class="clock-modal-sub">11月24日 周二 · 白班</div>
+          <div id="clock-modal-focus-banner" class="clock-modal-focus-banner">拧一下背面警星发条：15m(+5✦) / 25m(+10✦) 盯梢专注</div>
+          <button id="btn-clock-flip-hint" class="clock-flip-pill" type="button">轻触黑猫翻看背面发条 ↻</button>
         </div>
       </div>
     </div>

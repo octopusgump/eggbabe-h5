@@ -615,8 +615,17 @@
         skinId: "black_cat_sheriff_v1",
         unlockedSkinIds: ["black_cat_sheriff_v1"],
         tickWhiteNoiseOn: false,
-        focusSession: { active: false, durationMin: 25, startedAt: null, todayRewardCount: 0 },
+        shiftId: "auto",
+        focusSession: {
+          active: false,
+          durationMin: 25,
+          startedAt: null,
+          todayRewardCount: 0,
+          lastRewardDate: null
+        },
         gentleRoutines: [
+          { id: "day_shift", time: "06:00", label: "白班哨：拉开窗帘晒太阳", enabled: true },
+          { id: "sunset_shift", time: "17:00", label: "黄昏哨：泡杯热茶歇一歇", enabled: true },
           { id: "night_lamp", time: "23:00", label: "夜巡哨：陪它关台灯休息", enabled: true }
         ]
       },
@@ -877,6 +886,114 @@
     return entry;
   }
 
+  function ensureModularAndClockDefaults(store, opts) {
+    const def = createDefaultState(opts);
+    if (!store.clockWidget || typeof store.clockWidget !== "object") {
+      store.clockWidget = def.clockWidget;
+    } else {
+      const cw = store.clockWidget;
+      if (!cw.anchorSlot) cw.anchorSlot = def.clockWidget.anchorSlot;
+      if (!cw.skinId) cw.skinId = def.clockWidget.skinId;
+      if (!Array.isArray(cw.unlockedSkinIds)) cw.unlockedSkinIds = def.clockWidget.unlockedSkinIds;
+      if (typeof cw.tickWhiteNoiseOn !== "boolean") cw.tickWhiteNoiseOn = false;
+      if (!cw.shiftId) cw.shiftId = "auto";
+      if (!cw.focusSession || typeof cw.focusSession !== "object") {
+        cw.focusSession = Object.assign({}, def.clockWidget.focusSession);
+      } else {
+        if (typeof cw.focusSession.active !== "boolean") cw.focusSession.active = false;
+        if (cw.focusSession.durationMin !== 15 && cw.focusSession.durationMin !== 25) {
+          cw.focusSession.durationMin = 25;
+        }
+        if (typeof cw.focusSession.todayRewardCount !== "number") cw.focusSession.todayRewardCount = 0;
+        if (cw.focusSession.lastRewardDate === undefined) cw.focusSession.lastRewardDate = null;
+      }
+      if (!Array.isArray(cw.gentleRoutines) || cw.gentleRoutines.length === 0) {
+        cw.gentleRoutines = def.clockWidget.gentleRoutines;
+      }
+    }
+
+    if (!store.house || typeof store.house !== "object") {
+      store.house = def.house;
+    }
+    if (!store.house.roomModules || typeof store.house.roomModules !== "object") {
+      store.house.roomModules = def.house.roomModules;
+    }
+    if (!store.house.roomModules.living_room || typeof store.house.roomModules.living_room !== "object") {
+      store.house.roomModules.living_room = def.house.roomModules.living_room;
+    } else {
+      const defMods = def.house.roomModules.living_room;
+      const curMods = store.house.roomModules.living_room;
+      Object.keys(defMods).forEach((k) => {
+        if (!curMods[k]) curMods[k] = JSON.parse(JSON.stringify(defMods[k]));
+      });
+    }
+    return store;
+  }
+
+  /**
+   * 锁屏时间戳幂等补算（PRD-0003 §3.3）：
+   * 基于 Date.now() - startedAt 判断 15m(+5✦) / 25m(+10✦) 专注发条是否已完成，
+   * 每日计奖上限 3 次（按 UTC+8 日期重置），完成后写入 P0 recordDailyEvent()。
+   */
+  function settleFocusSession(store, nowTs) {
+    if (!store || !store.clockWidget || !store.clockWidget.focusSession) {
+      return { settled: false, starsAwarded: 0, capped: false, durationMin: 0 };
+    }
+    const now = typeof nowTs === "number" && isFinite(nowTs) ? nowTs : Date.now();
+    const todayKey = getUtc8DateKey(now);
+    const fs = store.clockWidget.focusSession;
+
+    if (fs.lastRewardDate && fs.lastRewardDate !== todayKey) {
+      fs.todayRewardCount = 0;
+    }
+
+    if (!fs.active || typeof fs.startedAt !== "number" || !isFinite(fs.startedAt)) {
+      return { settled: false, starsAwarded: 0, capped: false, durationMin: fs.durationMin || 25 };
+    }
+
+    const durationMin = fs.durationMin === 15 ? 15 : 25;
+    const elapsedMs = now - fs.startedAt;
+    if (elapsedMs < durationMin * 60000) {
+      return {
+        settled: false,
+        starsAwarded: 0,
+        capped: false,
+        durationMin: durationMin,
+        progress: clamp(elapsedMs / (durationMin * 60000), 0, 1)
+      };
+    }
+
+    // 已达标：幂等结算并清空 active
+    fs.active = false;
+    fs.startedAt = null;
+
+    const currentCount = fs.lastRewardDate === todayKey ? Number(fs.todayRewardCount || 0) : 0;
+    const capped = currentCount >= 3;
+    const starsAwarded = capped ? 0 : (durationMin === 15 ? 5 : 10);
+
+    if (!capped) {
+      fs.todayRewardCount = currentCount + 1;
+      fs.lastRewardDate = todayKey;
+      if (store.companion) {
+        store.companion.starBalance = Math.max(0, Math.floor(Number(store.companion.starBalance || 0)) + starsAwarded);
+      }
+    }
+
+    const petId = store.activePetId === "yutu" ? "yutu" : "koi";
+    recordDailyEvent(store, todayKey, petId, {
+      focusMinutes: durationMin,
+      countsAsEffective: true
+    });
+
+    return {
+      settled: true,
+      starsAwarded: starsAwarded,
+      capped: capped,
+      durationMin: durationMin,
+      todayRewardCount: fs.todayRewardCount
+    };
+  }
+
   /* ---------- 8. 加载或自动升级 Store ---------- */
   function loadOrMigrateStore(adapter, catalog, opts) {
     const storeAdapter = adapter || createStorageAdapter();
@@ -911,6 +1028,7 @@
       if (!Array.isArray(existing.curioCabinet.deferredUnlockedIds)) {
         existing.curioCabinet.deferredUnlockedIds = [];
       }
+      ensureModularAndClockDefaults(existing, options);
       pruneDailyEventLog(existing.dailyEventLog, MAX_DAILY_LOG_DAYS);
       return { store: existing, migrated: false };
     }
@@ -918,6 +1036,7 @@
     const legacyV4 = storeAdapter.getJSON(LEGACY_V4_KEY);
     const legacyCare = storeAdapter.getJSON(LEGACY_CARE_KEY);
     const store = migrateFromLegacyV4(legacyV4, legacyCare, catalog, Object.assign({}, options, { profileMode: detectedMode }));
+    ensureModularAndClockDefaults(store, options);
     storeAdapter.setJSON(STORAGE_KEY, store);
     return { store, migrated: !!(legacyV4 || legacyCare) };
   }
@@ -955,6 +1074,8 @@
     migrateFromLegacyV4,
     recordEffectiveCompanionDay,
     recordDailyEvent,
+    ensureModularAndClockDefaults,
+    settleFocusSession,
     loadOrMigrateStore
   };
 });
