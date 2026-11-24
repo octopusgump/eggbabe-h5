@@ -289,6 +289,15 @@
           </span>
           <span class="care-3d-dock__label">装扮</span>
         </button>
+
+        <span class="care-3d-dock__divider" aria-hidden="true"></span>
+
+        <button id="dock-btn-activities" class="care-3d-dock__item" type="button">
+          <span class="care-3d-dock__icon-wrap">
+            <img src="./living-room-dress/ui/tb_activity.png" alt="" />
+          </span>
+          <span class="care-3d-dock__label">活动</span>
+        </button>
       </aside>
 
       <!-- 3D 百宝箱风格：拖拽投喂小零食托盘（支持轻点飞入嘴边 & 按住拖拽投喂） -->
@@ -462,35 +471,119 @@
       </div>
     </div>
 
-    <!-- 全屏 #FAFAF8 纪念册画布页 -->
-    <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="纪念册" hidden>
-      <header class="eb-nav-bar">
+    <!-- 全屏 #FAFAF8 纪念册与木质博古收藏格画布页（PRD-0003 P2） -->
+    <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="纪念册与多宝收藏格" hidden>
+      <header class="eb-nav-bar eb-nav-bar--capsule-safe">
         <button id="btn-close-album" class="eb-nav-bar__back" type="button" aria-label="返回">
           <span class="eb-nav-bar__chevron"></span>
         </button>
-        <h2 class="eb-nav-bar__title">纪念册</h2>
+        <h2 class="eb-nav-bar__title">纪念册 · 收藏格</h2>
         <span class="eb-nav-bar__spacer"></span>
       </header>
 
       <div class="keepsake-tabs">
         <div class="keepsake-tabs__track" role="tablist">
-          <button class="keepsake-tab" type="button" data-album-tab="keepsakes">遇见</button>
-          <button class="keepsake-tab keepsake-tab--active" type="button" data-album-tab="postcards">明信片</button>
+          <button class="keepsake-tab" type="button" data-album-tab="keepsakes" role="tab">收藏柜</button>
+          <button class="keepsake-tab keepsake-tab--active" type="button" data-album-tab="postcards" role="tab">明信片</button>
         </div>
       </div>
 
       <div class="keepsake-body">
+        <!-- P2 木质博古收藏格 + 41 件分页图鉴（在 keepsakes 页签显示） -->
+        <div id="curio-cabinet-view" class="curio-cabinet-view" hidden>
+          <!-- 上半区：真·可交互 3×4 (12 格) 暖橡木多宝柜 -->
+          <section class="curio-shelf-section" aria-label="我的多宝收藏格">
+            <div class="curio-shelf-head">
+              <div class="curio-shelf-head__left">
+                <span class="curio-shelf-head__title">🪵 我的多宝收藏格</span>
+                <span id="curio-placed-count" class="curio-shelf-head__sub">已摆 1/12 格</span>
+              </div>
+              <button id="btn-curio-arrange" class="curio-arrange-btn" type="button">✨ 摆放收藏品</button>
+            </div>
+            <p id="curio-arrange-hint" class="curio-arrange-hint" hidden>点选任意木格可摆入、替换，或连续点选两格互换位置</p>
+
+            <div class="oak-cabinet" role="region" aria-label="暖橡木 3×4 多宝格">
+              <span class="oak-cabinet__corner oak-cabinet__corner--tl" aria-hidden="true"></span>
+              <span class="oak-cabinet__corner oak-cabinet__corner--tr" aria-hidden="true"></span>
+              <span class="oak-cabinet__corner oak-cabinet__corner--bl" aria-hidden="true"></span>
+              <span class="oak-cabinet__corner oak-cabinet__corner--br" aria-hidden="true"></span>
+              <div id="curio-shelf-grid" class="oak-cabinet__grid"></div>
+            </div>
+          </section>
+
+          <!-- 下半区：41 件分类图鉴（4 页 × 12 格） -->
+          <section class="curio-catalog-section" aria-label="收藏图鉴">
+            <div class="curio-catalog-head">
+              <span id="curio-catalog-title" class="curio-catalog-head__title">收藏图鉴 · 全部小物件</span>
+              <span id="curio-progress-badge" class="curio-progress-badge">已收集 1 / 41</span>
+            </div>
+
+            <div id="curio-category-tabs" class="curio-cat-tabs" role="tablist" aria-label="藏品分类">
+              <button class="curio-cat-pill is-active" type="button" data-curio-cat="all">全部</button>
+              <button class="curio-cat-pill" type="button" data-curio-cat="shared">祈愿共有</button>
+              <button class="curio-cat-pill" type="button" data-curio-cat="yutu">玉兔专属</button>
+              <button class="curio-cat-pill" type="button" data-curio-cat="koi">锦鲤专属</button>
+              <button class="curio-cat-pill" type="button" data-curio-cat="daily">旅途日常</button>
+            </div>
+
+            <div id="curio-catalog-empty" class="keepsake-empty curio-catalog-empty" hidden>
+              <div class="keepsake-empty__ring" aria-hidden="true"></div>
+              <p class="keepsake-empty__text">去和它待一会儿吧</p>
+            </div>
+
+            <div id="curio-catalog-grid" class="curio-catalog-grid"></div>
+
+            <div id="curio-pagination" class="curio-pagination">
+              <button id="btn-curio-prev-page" class="curio-page-btn" type="button" aria-label="上一页">‹</button>
+              <span id="curio-page-indicator" class="curio-page-indicator">第 1 / 4 页</span>
+              <button id="btn-curio-next-page" class="curio-page-btn" type="button" aria-label="下一页">›</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- 明信片网格（在 postcards 页签显示） -->
         <div id="keepsake-empty" class="keepsake-empty" hidden>
           <div class="keepsake-empty__ring" aria-hidden="true"></div>
           <p class="keepsake-empty__text">去和它待一会儿吧</p>
         </div>
         <div id="keepsake-grid" class="keepsake-grid"></div>
       </div>
+
+      <!-- 多宝格摆放选择器浮层 -->
+      <div id="curio-picker-overlay" class="curio-sub-overlay" role="dialog" aria-modal="true" aria-label="选择摆入木格的小物件" hidden>
+        <div class="curio-picker-sheet">
+          <div class="curio-picker-sheet__head">
+            <span id="curio-picker-title" class="curio-picker-sheet__title">选择要摆入第 1 格的小物件</span>
+            <button id="btn-close-curio-picker" class="profile-journal-close" type="button" aria-label="关闭">×</button>
+          </div>
+          <div id="curio-picker-list" class="curio-picker-list"></div>
+          <div class="curio-picker-sheet__foot">
+            <button id="btn-curio-clear-slot" class="btn btn--secondary-soft btn--small" type="button" hidden>
+              <span class="btn-text">移下当前木格</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 未收集小物件《拾物线索卡》弹窗 -->
+      <div id="keepsake-clue-overlay" class="curio-sub-overlay" role="dialog" aria-modal="true" aria-label="拾物线索卡" hidden>
+        <div class="curio-clue-card">
+          <button id="btn-close-clue" class="profile-journal-close curio-clue-card__close" type="button" aria-label="关闭">×</button>
+          <div class="curio-clue-card__media">
+            <img id="clue-line-img" alt="" />
+          </div>
+          <span id="clue-category-tag" class="curio-clue-card__tag">玉兔专属</span>
+          <h3 id="clue-title" class="curio-clue-card__title">香与香插</h3>
+          <p id="clue-text" class="curio-clue-card__text"></p>
+          <span id="clue-source" class="curio-clue-card__source"></span>
+          <button id="btn-clue-go-doodle" class="curio-clue-card__doodle-btn" type="button">🎨 去「一起画」临摹拾取</button>
+        </div>
+      </div>
     </div>
 
     <!-- 回忆详情全屏画布页 -->
     <div id="keepsake-detail-view" class="keepsake-page keepsake-detail-page" role="dialog" aria-modal="true" aria-label="回忆详情" hidden>
-      <header class="eb-nav-bar">
+      <header class="eb-nav-bar eb-nav-bar--capsule-safe">
         <button id="btn-close-detail" class="eb-nav-bar__back" type="button" aria-label="返回纪念册">
           <span class="eb-nav-bar__chevron"></span>
         </button>
@@ -506,8 +599,18 @@
           <h3 id="detail-title" class="keepsake-detail-title">晚霞云朵坡</h3>
           <span id="detail-badge" class="keepsake-detail-badge">身穿 · 小黄鸭雨衣</span>
         </div>
+        <!-- A 线双宠双视角记忆切换器 -->
+        <div id="detail-pet-story-seg" class="detail-pet-story-seg" role="tablist" aria-label="切换伙伴记忆视角" hidden>
+          <button class="detail-pet-story-seg__btn is-active" type="button" data-story-pet="yutu">🐰 玉兔的记忆</button>
+          <button class="detail-pet-story-seg__btn" type="button" data-story-pet="koi">🐟 锦鲤的记忆</button>
+        </div>
         <p id="detail-story" class="keepsake-detail-story"></p>
         <span id="detail-date" class="keepsake-detail-date"></span>
+        <div id="detail-keepsake-actions" class="keepsake-detail-actions" hidden>
+          <button id="btn-detail-place-cabinet" class="btn btn--secondary-soft btn--small" type="button">
+            <span id="detail-place-cabinet-text" class="btn-text">摆进多宝格</span>
+          </button>
+        </div>
         <div id="detail-download-wrap" class="keepsake-detail-actions">
           <button id="btn-detail-download" class="btn btn--secondary-soft btn--small" type="button">
             <span class="btn-text">保存高清拍立得</span>
@@ -753,6 +856,30 @@
       </div>
     </div>
 
+    <!-- 活动列表弹窗（小游戏合集入口） -->
+    <div id="activity-modal" class="activity-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="活动列表">
+      <div id="activity-modal-backdrop" class="activity-modal__backdrop"></div>
+      <div class="activity-modal__card">
+        <div class="activity-modal__head">
+          <div class="activity-modal__titles">
+            <h2 class="activity-modal__title">活动列表</h2>
+            <p class="activity-modal__sub">选一个小游戏和蛋宝宝一起玩吧</p>
+          </div>
+          <button id="btn-close-activities" class="activity-modal__close" type="button" aria-label="关闭活动列表">✕</button>
+        </div>
+        <div id="activity-list" class="activity-list"></div>
+      </div>
+    </div>
+
+    <!-- 小游戏全屏浮层播放器 -->
+    <div id="activity-player" class="activity-player" hidden aria-hidden="true">
+      <div class="activity-player__bar">
+        <button id="btn-close-activity-player" class="activity-player__back" type="button">← 返回房间</button>
+        <span id="activity-player-title" class="activity-player__title"></span>
+        <a id="activity-player-ext" class="activity-player__ext" href="#" target="_blank" rel="noopener noreferrer">独立窗口 ↗</a>
+      </div>
+      <iframe id="activity-player-frame" class="activity-player__frame" title="活动小游戏" allow="autoplay; fullscreen"></iframe>
+    </div>
   </div>
 
   <script src="./living-room-dress/catalog-snapshot.js"></script>

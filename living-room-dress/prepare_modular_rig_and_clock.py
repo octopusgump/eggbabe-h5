@@ -13,11 +13,19 @@ import glob
 import json
 import os
 import subprocess
+import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-REPO = "/home/antigravity/octopusgump/eggbabe-h5"
-ART_DIR = "/home/antigravity/.gemini/jetski/brain/v1/default/jetski_remote_agents_3p_devbox/e0b241dd-d122-4a4e-9e66-da9841cfe250"
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+ART_DIR = (
+    sys.argv[1]
+    if len(sys.argv) > 1
+    else os.environ.get(
+        "EGGBABE_ART_DIR",
+        "/home/antigravity/.gemini/jetski/brain/v1/default/jetski_remote_agents_3p_devbox/e0b241dd-d122-4a4e-9e66-da9841cfe250",
+    )
+)
 SCRATCH = os.path.join(ART_DIR, "scratch")
 OUT_PANO = os.path.join(REPO, "living-room-dress/panoramas")
 OUT_MOD = os.path.join(REPO, "living-room-dress/modules")
