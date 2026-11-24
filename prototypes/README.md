@@ -14,5 +14,4 @@
 | 目录名 | 作者 | 玩法简介 | 线上预览链接 | 状态 |
 | :--- | :--- | :--- | :--- | :--- |
 | [`haixinke-bottle-game/`](./haixinke-bottle-game/) | haixinke | 瓶空一翻（抛瓶立稳 H5 小游戏） | [`/prototypes/haixinke-bottle-game/`](https://octopusgump.github.io/eggbabe-h5/prototypes/haixinke-bottle-game/) | 待评审 |
-
 | [`alesia0411-daily-fortune/`](./alesia0411-daily-fortune/) | Alesia0411 | 每日一签：互动摇签、分类配图、宠物陪伴与 AI 解签 | [预览（合入 main 后生效）](https://octopusgump.github.io/eggbabe-h5/prototypes/alesia0411-daily-fortune/) | 待评审 |
