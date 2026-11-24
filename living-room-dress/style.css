@@ -3438,3 +3438,28 @@ button:active {
   border: 0;
   background: #FFFFFF;
 }
+
+.activity-card__thumb--contain {
+  object-fit: contain;
+  padding: 6px;
+}
+
+.curio-clue-card__doodle-btn {
+  margin-top: 12px;
+  width: 100%;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #2C4634;
+  color: #FAF6EE;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(34, 58, 42, 0.18);
+  transition: transform 0.14s ease;
+}
+
+.curio-clue-card__doodle-btn:active {
+  transform: scale(0.98);
+}
+

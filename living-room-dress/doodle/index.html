@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>一起画 · 蛋宝宝陪伴小游戏</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="doodle-app" class="doodle-app">
+    <!-- 独立窗口打开时的顶栏（内嵌于 #activity-player 时自动隐藏避免双顶栏） -->
+    <header id="standalone-header" class="doodle-topbar">
+      <a id="btn-standalone-back" class="doodle-topbar__back" href="../../">← 返回房间</a>
+      <h1 class="doodle-topbar__title">一起画 · 拾物临摹</h1>
+      <span id="standalone-star-pill" class="doodle-topbar__stars">✦ 0</span>
+    </header>
+
+    <!-- 顶部状态条：再看一眼 (3/3) & 换一件 -->
+    <div id="prop-chrome-bar" class="prop-chrome-bar">
+      <button id="btn-look-again" class="prop-look-pill" type="button" aria-live="polite">
+        <span id="look-pill-text">再看一眼 · 3/3 次</span>
+      </button>
+      <button id="btn-reroll-prop" class="prop-reroll-btn" type="button" title="换一件未收集的小物件临摹">
+        🎲 换一件
+      </button>
+    </div>
+
+    <!-- 主舞台：暖米色圆角画纸 + 虚线内框 + 简笔偷看层 + 高清画布 -->
+    <main class="prop-stage-wrap">
+      <div id="prop-paper-stage" class="prop-paper-stage">
+        <div class="prop-paper-board">
+          <div class="prop-paper-dash"></div>
+          <div class="prop-paper-meta">
+            <span id="paper-target-tag" class="prop-paper-tag">祈愿共有 · 临摹拾物</span>
+            <span id="paper-stroke-hint" class="prop-paper-strokes">准备看线稿…</span>
+          </div>
+        </div>
+
+        <!-- 5 秒偷看简笔线稿层（开局自动 5s + 3 次手动再看一眼） -->
+        <div id="prop-peek-layer" class="prop-peek-layer" aria-hidden="false">
+          <div id="prop-peek-card" class="prop-peek-card">
+            <span id="peek-badge" class="prop-peek-badge">先看 5 秒记住轮廓</span>
+            <div class="prop-sketch-box">
+              <img id="prop-sketch-img" class="prop-sketch-img" alt="小物件简笔线稿" />
+            </div>
+            <h2 id="peek-prop-name" class="prop-peek-name">小物件</h2>
+            <p class="prop-peek-caption">不用画得一模一样，凭记忆画出大概样子就好～</p>
+            <div class="prop-peek-progress">
+              <div id="peek-progress-fill" class="prop-peek-progress__fill"></div>
+            </div>
+            <button id="btn-skip-peek" class="prop-skip-peek-btn" type="button">我记住了，直接开画 ✎</button>
+          </div>
+        </div>
+
+        <!-- 绘画 Canvas 容器 -->
+        <div id="prop-canvas-slot" class="prop-canvas-slot">
+          <canvas id="doodle-canvas" class="doodle-canvas"></canvas>
+        </div>
+
+        <!-- 右侧悬浮撤销 / 清空 3D 按钮轨 -->
+        <div id="canvas-action-rail" class="canvas-action-rail is-dimmed">
+          <button id="btn-undo" class="rail-btn" type="button" disabled aria-label="撤销一步">
+            <img id="icon-undo" src="../../assets/shared/png/doodle/tool_undo_disabled.png" alt="" />
+            <span>撤销</span>
+          </button>
+          <button id="btn-clear" class="rail-btn" type="button" disabled aria-label="清空画面">
+            <img id="icon-clear" src="../../assets/shared/png/doodle/tool_clear_disabled.png" alt="" />
+            <span>清空</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- 底部主操作与 3D 画具抽屉 -->
+    <footer id="doodle-footer" class="doodle-footer is-dimmed">
+      <button id="btn-finish-draw" class="prop-finish-btn" type="button" hidden>画好了 ✨</button>
+
+      <section id="tool-panel" class="tool-panel">
+        <!-- 子参数面板：画笔粗细与颜色 / 橡皮大小 / 贴纸选择 -->
+        <div id="subpanel-brush" class="tool-subpanel">
+          <div class="subpanel-row">
+            <span class="subpanel-label">粗细</span>
+            <div id="brush-size-list" class="size-pill-row"></div>
+          </div>
+          <div class="subpanel-row">
+            <span class="subpanel-label">颜色</span>
+            <div id="brush-color-list" class="color-swatch-row"></div>
+          </div>
+        </div>
+
+        <div id="subpanel-eraser" class="tool-subpanel" hidden>
+          <div class="subpanel-row">
+            <span class="subpanel-label">橡皮大小</span>
+            <div id="eraser-size-list" class="size-pill-row"></div>
+          </div>
+        </div>
+
+        <div id="subpanel-sticker" class="tool-subpanel" hidden>
+          <div class="subpanel-row">
+            <span class="subpanel-label">点选印章后在画纸轻点盖章</span>
+            <div id="sticker-list" class="sticker-pill-row"></div>
+          </div>
+        </div>
+
+        <!-- 底部三枚 3D 工具切换钮 -->
+        <div class="tool-Switch-row" role="tablist" aria-label="画具选择">
+          <button class="tool-btn is-selected" type="button" data-tool="brush" aria-label="画笔">
+            <span class="tool-btn__icon-wrap">
+              <img src="../../assets/shared/png/doodle/tool_brush.png" alt="" />
+              <span id="active-color-dot" class="tool-btn__color-dot"></span>
+            </span>
+            <span class="tool-btn__text">画笔</span>
+          </button>
+          <button class="tool-btn" type="button" data-tool="eraser" aria-label="橡皮擦">
+            <span class="tool-btn__icon-wrap">
+              <img src="../../assets/shared/png/doodle/tool_eraser.png" alt="" />
+            </span>
+            <span class="tool-btn__text">橡皮</span>
+          </button>
+          <button class="tool-btn" type="button" data-tool="sticker" aria-label="小印章贴纸">
+            <span class="tool-btn__icon-wrap">
+              <img src="../../assets/shared/png/doodle/tool_sticker.png" alt="" />
+            </span>
+            <span class="tool-btn__text">贴纸</span>
+          </button>
+        </div>
+      </section>
+    </footer>
+
+    <!-- 完成揭晓与解锁庆祝层（对齐小程序 prop-unlock-layer） -->
+    <div id="prop-unlock-layer" class="prop-unlock-layer" hidden aria-modal="true" role="dialog" aria-label="成功拾得小物件">
+      <div class="prop-unlock-card">
+        <div id="unlock-award-wrap" class="prop-unlock-award">
+          <img id="unlock-star-img" class="prop-unlock-star" src="../ui/star_neutral.png" alt="" />
+          <span id="unlock-award-plus" class="prop-unlock-plus">+10</span>
+        </div>
+
+        <span id="unlock-status-pill" class="prop-unlock-pill">✨ 新收入多宝收藏格</span>
+
+        <div class="prop-unlock-compare">
+          <div class="prop-unlock-reveal">
+            <img id="unlock-colored-img" class="prop-unlock-image" alt="" />
+            <span class="prop-unlock-cap">拾得原物</span>
+          </div>
+          <div class="prop-unlock-myart">
+            <img id="unlock-sketch-preview" class="prop-unlock-myart__img" alt="我的临摹手稿" />
+            <span class="prop-unlock-cap">我的手稿</span>
+          </div>
+        </div>
+
+        <h2 id="unlock-prop-name" class="prop-unlock-name">祈福签</h2>
+        <p id="unlock-gift-line" class="prop-unlock-gift">“这个小道具，送给你。”</p>
+        <p id="unlock-story" class="prop-unlock-story"></p>
+
+        <div class="prop-unlock-actions">
+          <button id="btn-unlock-open-curio" class="unlock-btn unlock-btn--primary" type="button">🏺 去收藏格看看</button>
+          <div class="prop-unlock-subactions">
+            <button id="btn-unlock-next" class="unlock-btn unlock-btn--ghost" type="button">🎨 再画一件</button>
+            <button id="btn-unlock-done" class="unlock-btn unlock-btn--ghost" type="button">好的 · 回房间</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../catalog-snapshot.js"></script>
+  <script src="../cross-end-store.js"></script>
+  <script src="./doodle.js"></script>
+</body>
+</html>
