@@ -1656,8 +1656,9 @@
   }
 
   function setCareUiMode(nextMode) {
-    if (careUiMode === "bath" && nextMode !== "bath" && animMode === "scrub") {
-      startAnim("idle", performance.now());
+    if (careUiMode === "bath" && nextMode !== "bath") {
+      if (animMode === "scrub") startAnim("idle", performance.now());
+      soapBubbleLayerEl.innerHTML = "";
     }
     careUiMode = careUiMode === nextMode ? "none" : nextMode;
     if (careUiMode !== "none" && state.roomState !== "free_stand") {
