@@ -568,6 +568,13 @@ button:active {
 .world-scroll::-webkit-scrollbar {
   display: none;
 }
+.page.is-bathing .world-scroll {
+  overflow-x: hidden;
+  touch-action: none;
+}
+.page.is-bathing .pano-box {
+  touch-action: none;
+}
 .world-track {
   position: relative;
   height: 100dvh;
@@ -694,7 +701,8 @@ button:active {
 .page[data-state="away"] .gl-pet,
 .page[data-state="away"] .pet-shadow,
 .page[data-state="away"] .sleep-zz {
-  opacity: 0;
+  opacity: 0 !important;
+  visibility: hidden;
   pointer-events: none;
 }
 

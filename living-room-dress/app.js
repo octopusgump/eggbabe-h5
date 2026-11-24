@@ -2293,8 +2293,9 @@
       const baseW = (rt.id === "yutu" ? 315 : 345) * deskDepthScale(petPos.y);
       panoToBoxStyle(shSoftEl, ax, ay + 12, baseW * p.shS, baseW * 0.34 * p.shS);
       panoToBoxStyle(shConEl, ax, ay + 6, baseW * 0.56 * p.shS, baseW * 0.18 * p.shS);
-      shSoftEl.style.opacity = String(0.92 * p.shO);
-      shConEl.style.opacity = String(0.95 * p.shO);
+      const hideShadow = isNightSleepingNow() || state.roomState !== "free_stand";
+      shSoftEl.style.opacity = hideShadow ? "0" : String(0.92 * p.shO);
+      shConEl.style.opacity = hideShadow ? "0" : String(0.95 * p.shO);
     }
   }
 
@@ -2334,6 +2335,7 @@
       soapBubbleLayerEl.innerHTML = "";
     }
     careUiMode = careUiMode === nextMode ? "none" : nextMode;
+    appEl.classList.toggle("is-bathing", careUiMode === "bath");
     if (careUiMode !== "none" && state.roomState !== "free_stand") {
       applyRoomState("free_stand", true);
     } else if (careUiMode !== "none") {
@@ -2559,6 +2561,7 @@
 
   function completeBath() {
     careUiMode = "none";
+    appEl.classList.remove("is-bathing");
     dockBtnBathEl.classList.remove("is-active");
     bathPanelEl.hidden = true;
 
@@ -2583,13 +2586,23 @@
   let petTouch = null;
   let lastPetStarAt = 0;
 
-  hitLayerEl.addEventListener("pointerdown", (ev) => {
+  panoBoxEl.addEventListener("pointerdown", (ev) => {
     if (!isWebGLActive()) return;
+    if (ev.target && ev.target.closest && ev.target.closest("button")) return;
     const pt = clientToPano(ev.clientX, ev.clientY);
-    if (isPanoPointOnPet(pt.x, pt.y, 30)) {
+    const pad = careUiMode === "bath" ? 75 : 30;
+    if (isPanoPointOnPet(pt.x, pt.y, pad)) {
+      if (careUiMode === "bath") ev.preventDefault();
       petTouch = { x0: ev.clientX, y0: ev.clientY, lastX: ev.clientX, lastY: ev.clientY, pt0: pt, moved: false };
     }
   });
+
+  // 手机端搓澡时阻止 Safari/Chrome 接管横向滚动
+  window.addEventListener("touchmove", (ev) => {
+    if (careUiMode === "bath" && petTouch) {
+      ev.preventDefault();
+    }
+  }, { passive: false });
 
   window.addEventListener("pointermove", (ev) => {
     if (!petTouch || !isWebGLActive()) return;
@@ -2599,12 +2612,12 @@
     petTouch.lastY = ev.clientY;
 
     if (careUiMode === "bath") {
-      if (stepDist > 4) {
+      if (stepDist > 2.5) {
         petTouch.moved = true;
         const pt = clientToPano(ev.clientX, ev.clientY);
         scrubLean = clamp((pt.x - petPos.x) / 160, -1, 1);
         if (animMode !== "scrub") startAnim("scrub", performance.now());
-        bathProgress = Math.min(100, bathProgress + stepDist * 0.26);
+        bathProgress = Math.min(100, bathProgress + stepDist * 0.28);
         bathPctTextEl.textContent = Math.round(bathProgress) + "%";
         bathFillBarEl.style.width = Math.round(bathProgress) + "%";
 
@@ -2638,6 +2651,15 @@
       }
     }
   });
+
+  function resetPetTouchState() {
+    if (!petTouch) return;
+    petTouch = null;
+    petLean = 0;
+    scrubLean = 0;
+    if (animMode === "pet" || animMode === "scrub") startAnim("idle", performance.now());
+  }
+  window.addEventListener("pointercancel", resetPetTouchState);
 
   window.addEventListener("pointerup", () => {
     if (!petTouch) return;
@@ -2686,7 +2708,8 @@
     return { x, y };
   }
 
-  hitLayerEl.addEventListener("click", (ev) => {
+  panoBoxEl.addEventListener("click", (ev) => {
+    if (ev.target && ev.target.closest && ev.target.closest("button")) return;
     if ((mousePan && mousePan.moved) || isFittingOpen || careUiMode !== "none" || state.roomState !== "free_stand") return;
     const pt = clientToPano(ev.clientX, ev.clientY);
     if (isPanoPointOnPet(pt.x, pt.y, 24) || pt.y < 970) return;
