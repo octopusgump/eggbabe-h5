@@ -16,13 +16,13 @@
   const PROP_DRAWING_REWARD = 10;
   const DAILY_MINIGAME_STAR_CAP = 45;
 
-  // 对齐 companion-drawing-gate.js 门禁常量
+  // 门禁常量：有效绘画时间缩短至 3 秒（3000ms）
   const GRID_SIZE = 10;
-  const MIN_STROKES = 5;
-  const MIN_ACTIVE_MS = 3600;
-  const MIN_CELLS = 5;
+  const MIN_STROKES = 3;
+  const MIN_ACTIVE_MS = 3000;
+  const MIN_CELLS = 4;
   const IDLE_GAP_MS = 1200;
-  const INCOMPLETE_HINT = "再画一会儿，让我看得清楚一点。";
+  const INCOMPLETE_HINT = "再画满 3 秒，让我看得清楚一点～";
 
   // 对齐 egg-shell-art.js 画笔颜色、粗细、橡皮与贴纸
   const BRUSH_SIZES = [2, 5, 8, 12, 18];
@@ -205,7 +205,7 @@
   function evaluateGate(tracker) {
     const enoughStrokes = tracker.strokes >= MIN_STROKES;
     const enoughCells = tracker.cells.size >= MIN_CELLS;
-    const enoughEffort = tracker.activeMs >= MIN_ACTIVE_MS || tracker.pathLenNorm >= 0.85;
+    const enoughEffort = tracker.activeMs >= MIN_ACTIVE_MS || tracker.pathLenNorm >= 0.65;
     const ok = enoughStrokes && enoughCells && enoughEffort;
     return { ok, hint: ok ? "" : INCOMPLETE_HINT };
   }
@@ -329,9 +329,14 @@
 
     const brushCount = gateTracker.strokes;
     if (!drawingLocked) {
-      paperStrokeHintEl.textContent = brushCount === 0
-        ? "凭记忆在画纸上落笔吧"
-        : (brushCount < MIN_STROKES ? `已落笔 ${brushCount}/${MIN_STROKES} 笔` : `已落笔 ${brushCount} 笔 · 可点击「画好了」`);
+      if (brushCount === 0) {
+        paperStrokeHintEl.textContent = "凭记忆在画纸上落笔吧";
+      } else if (evaluateGate(gateTracker).ok) {
+        paperStrokeHintEl.textContent = `已落笔 ${brushCount} 笔 · 可点击「画好了」`;
+      } else {
+        const sec = Math.min(3, (gateTracker.activeMs / 1000)).toFixed(1);
+        paperStrokeHintEl.textContent = `正在临摹 · ${sec} / 3.0 秒`;
+      }
     }
   }
 
@@ -510,9 +515,11 @@
   function finishPointer(ev) {
     if (!currentOp) return;
     try { canvasEl.releasePointerCapture(ev.pointerId); } catch (_) {}
+    if (currentOp.tool === "brush") {
+      trackElapsed();
+    }
     operations.push(currentOp);
     currentOp = null;
-    gateTracker.lastActiveAt = null;
     redrawAll();
   }
 
