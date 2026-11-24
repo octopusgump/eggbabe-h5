@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Convert all catalog.json runtime images (backgrounds, pet base/expressions,
-full-body sets, and thumbnails) into lightweight WebP assets under
-assets/shared/webp/ while preserving original PNG/JPG source files untouched.
-Updates assets/shared/catalog.json in-place to point to the optimized WebP files.
+"""DEPRECATED & ARCHIVED — DO NOT RUN.
+Per AGENTS.md §1 and PRD-0003 P0, eggbabe-h5 strictly uses compressed PNG
+under assets/shared/png/ (zero .webp assets allowed for full H5 + iOS WeChat
+mini-program compatibility).
 """
 from __future__ import annotations
+
+import sys
+raise SystemExit("DEPRECATED: WebP conversion is prohibited by AGENTS.md. Use pngquant PNG pipeline instead.")
 
 import json
 from pathlib import Path

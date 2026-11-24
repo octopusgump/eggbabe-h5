@@ -9,9 +9,9 @@
 <body>
   <div id="app" class="page" data-period="day" data-state="free_stand">
 
-    <!-- DEV-ONLY：默认隐藏，仅 ?demo=1 或 2.4s 内连点左上状态牌 5 次时显示 -->
+    <!-- DEV-ONLY：默认隐藏，仅 ?demo=1 或 2.4s 内连点「个人信息弹窗」星标 5 次时显示 -->
     <div id="dev-testers" class="dev-testers" hidden>
-      <div class="stage-tester" style="top: calc(12px + env(safe-area-inset-top, 0px));">
+      <div class="stage-tester" style="top: max(calc(12px + env(safe-area-inset-top, 0px)), var(--wx-capsule-top, 12px));">
         <button id="btn-acceptance-toggle" class="stage-tester-button" type="button" aria-label="展开验收工具">
           <span class="stage-tester-tag">验收</span><span>工具</span><span id="acceptance-chevron" class="stage-tester-chevron">⌄</span>
         </button>
@@ -45,6 +45,13 @@
           </button>
           <div id="menu-care" class="mood-tester-menu" hidden></div>
         </div>
+
+        <div class="tester-block">
+          <button class="mood-tester-button" type="button" data-tester="profileMode">
+            <span class="mood-tester-tag">端态</span><span id="tester-profile-mode-label">h5</span><span class="mood-tester-chevron">⌄</span>
+          </button>
+          <div id="menu-profileMode" class="mood-tester-menu" hidden></div>
+        </div>
       </div>
     </div>
 
@@ -58,10 +65,10 @@
       </div>
     </div>
 
-    <!-- 左上状态栈：三阶陪伴星星牌（含锦鲤/玉兔快捷切换 + 养成等级条） + 双模小挂钟 -->
+    <!-- 左上状态栈：精简常驻版陪伴星星牌（点击打开个人信息与伙伴档案弹窗） + 双模小挂钟 -->
     <div id="life-status-stack" class="life-status-stack">
       <div class="pet-mood-anchor">
-        <div id="pet-mood-tab" class="pet-mood-tab pet-mood-tab--post-hatch" role="button" tabindex="0" aria-label="查看蛋宝宝心情与陪伴状态">
+        <div id="pet-mood-tab" class="pet-mood-tab pet-mood-tab--post-hatch" role="button" tabindex="0" aria-label="打开个人信息与伙伴档案">
           <div class="pet-mood-tab__room-header">
             <div class="pet-mood-tab__star-row">
               <span id="room-star-widget" class="companion-star companion-star--room">
@@ -73,29 +80,36 @@
                 <span class="companion-star__dust companion-star__dust--2"></span>
                 <span class="companion-star__dust companion-star__dust--3"></span>
               </span>
-              <span id="hud-star-count" class="pet-mood-tab__star-value">120</span>
+              <span id="hud-star-count" class="pet-mood-tab__star-value">128</span>
               <span id="hud-star-gain" class="pet-mood-tab__star-gain" hidden>+8</span>
-              <span id="hud-lv-pill" class="pet-mood-tab__lv-pill">Lv.1</span>
+              <span id="hud-lv-pill" class="pet-mood-tab__lv-pill"><span class="pet-mood-tab__days-prefix">陪伴 </span><span id="hud-days-num">1</span> 天</span>
             </div>
-            <span id="hud-companion-days" class="pet-mood-tab__days">连续一起 12 天</span>
           </div>
 
           <div id="mood-room-detail" class="pet-mood-tab__room-detail pet-mood-tab__room-detail--open">
             <div class="pet-mood-tab__name-row">
-              <span id="hud-pet-name" class="pet-mood-tab__pet-name">锦小鲤</span>
+              <span id="hud-pet-name" class="pet-mood-tab__pet-name">锦小鲤 · 锦鲤</span>
               <button id="btn-hud-switch-pet" class="pet-mood-tab__switch-btn" type="button" title="切换锦鲤与玉兔">
-                <span id="hud-switch-pet-text">换玉兔</span>
+                <span id="hud-switch-pet-text">⇄ 玉兔</span>
               </button>
             </div>
             <div class="pet-mood-tab__mood-inline">
               <span class="pet-mood-tab__mood-prefix">今日心情：</span>
               <span id="hud-mood-icon" class="pet-mood-tab__mood-emoji">😊</span>
               <span id="hud-mood-label" class="pet-mood-tab__mood-name">愉快</span>
+              <span class="pet-mood-tab__chevron" aria-hidden="true">›</span>
             </div>
 
-            <div id="mood-room-sentence" class="pet-mood-tab__room-sentence">
-              <p id="hud-mood-text" class="pet-mood-tab__sentence-text">我想了想，觉得自己运气挺不错的。</p>
-              <span id="hud-care-mini" class="pet-mood-tab__ai-note">饱食 60% · 清洁 60%</span>
+            <div id="hud-care-mini" class="pet-mood-tab__care-row" aria-label="饱食度与清洁度">
+              <span id="hud-care-hunger" class="pet-mood-tab__care-item">
+                <span class="pet-mood-tab__care-text">🍙 饱食 <b id="hud-hunger-val">68%</b></span>
+                <span class="pet-mood-tab__care-track"><span id="hud-hunger-bar" class="pet-mood-tab__care-fill" style="width:68%"></span></span>
+              </span>
+              <span class="pet-mood-tab__care-sep" aria-hidden="true">·</span>
+              <span id="hud-care-hygiene" class="pet-mood-tab__care-item">
+                <span class="pet-mood-tab__care-text">🫧 清洁 <b id="hud-hygiene-val">72%</b></span>
+                <span class="pet-mood-tab__care-track"><span id="hud-hygiene-bar" class="pet-mood-tab__care-fill" style="width:72%"></span></span>
+              </span>
             </div>
           </div>
         </div>
@@ -442,9 +456,141 @@
       </div>
     </div>
 
+    <!-- 暖白方格手帐「个人信息与伙伴档案」弹窗（PRD-0003 P1） -->
+    <div id="profile-modal-overlay" class="profile-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" hidden>
+      <div class="profile-journal-card">
+        <div class="profile-journal-card__spine" aria-hidden="true"></div>
+        <div class="profile-journal-card__inner">
+          <header class="profile-journal-header">
+            <h2 id="profile-modal-title" class="profile-journal-header__title">👤 个人信息与伙伴档案</h2>
+            <button id="btn-close-profile" class="profile-journal-close" type="button" aria-label="关闭个人信息弹窗">×</button>
+          </header>
+
+          <div class="profile-journal-scroll">
+            <!-- 分区一：登录账号与身份信息（按 4 档 profileMode 合规适配） -->
+            <section class="profile-section profile-account" aria-label="账号信息">
+              <div class="profile-account__top">
+                <div id="profile-avatar" class="profile-avatar" aria-hidden="true">蛋</div>
+                <div class="profile-account__meta">
+                  <div class="profile-account__name-row">
+                    <span id="profile-user-nickname" class="profile-account__nickname">蛋宝好友</span>
+                    <button id="btn-edit-user-nickname" class="profile-pencil-btn" type="button" aria-label="修改昵称" title="修改昵称">✎</button>
+                    <span id="profile-sync-badge" class="profile-sync-badge">本地已保存</span>
+                  </div>
+                  <div class="profile-account__id-row">
+                    <span class="profile-account__id-label">蛋宝宝号：<code id="profile-public-id">EB-000000</code></span>
+                    <button id="btn-copy-public-id" class="profile-copy-pill" type="button">复制</button>
+                  </div>
+                  <div id="profile-phone-row" class="profile-account__phone-row">
+                    <span id="profile-phone-text" class="profile-account__phone-text">跨端存档备份</span>
+                    <button id="btn-profile-phone-action" class="profile-phone-pill" type="button">生成跨端引继码</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="profile-bio-box">
+                <span class="profile-bio-box__label">简介：</span>
+                <span id="profile-user-bio" class="profile-bio-box__text">每天陪小家伙晒会儿太阳</span>
+                <button id="btn-edit-user-bio" class="profile-pencil-btn profile-pencil-btn--sm" type="button" aria-label="编辑简介" title="编辑简介">✎</button>
+              </div>
+            </section>
+
+            <!-- 分区二：当前宠物核心档案卡 -->
+            <section class="profile-section profile-pet" aria-label="伙伴档案">
+              <div class="profile-pet__header">
+                <span class="profile-section__label">伙伴档案</span>
+                <div class="profile-pet-seg" role="tablist" aria-label="切换伙伴">
+                  <button class="profile-pet-seg__btn is-active" type="button" data-profile-pet="koi" role="tab" aria-selected="true">🐟 锦鲤 (12套)</button>
+                  <button class="profile-pet-seg__btn" type="button" data-profile-pet="yutu" role="tab" aria-selected="false">🐰 玉兔 (24套)</button>
+                </div>
+              </div>
+
+              <div class="profile-pet__card">
+                <div class="profile-pet__thumb-wrap">
+                  <img id="profile-pet-thumb" class="profile-pet__thumb" alt="当前伙伴穿搭" />
+                </div>
+                <div class="profile-pet__info">
+                  <div class="profile-pet__name-row">
+                    <span id="profile-pet-name" class="profile-pet__name">锦小鲤</span>
+                    <button id="btn-edit-pet-name" class="profile-pencil-btn" type="button" aria-label="修改伙伴昵称" title="修改伙伴昵称（≤10字）">✎</button>
+                    <span id="profile-pet-lv" class="profile-lv-badge">亲密度 Lv.1</span>
+                  </div>
+                  <div class="profile-pet__mood-row">
+                    <span class="profile-pet__mood-label">今日心情：</span>
+                    <span id="profile-mood-icon" class="profile-pet__mood-icon">😊</span>
+                    <span id="profile-mood-label" class="profile-pet__mood-name">愉快</span>
+                  </div>
+                  <p id="profile-mood-quote" class="profile-pet__mood-quote">“我想了想，觉得自己运气挺不错的。”</p>
+                  <span id="profile-outfit-tag" class="profile-pet__outfit-tag">身穿 · 小黄鸭雨衣</span>
+                </div>
+              </div>
+
+              <div class="profile-stats-grid">
+                <button id="profile-star-badge" class="profile-stat-card profile-stat-card--star" type="button" aria-label="星星数量">
+                  <div class="profile-stat-card__top">
+                    <span class="profile-stat-card__label">⭐ 星星数量</span>
+                    <span id="profile-star-value" class="profile-stat-card__val">128 ✦</span>
+                  </div>
+                  <span id="profile-star-hint" class="profile-stat-card__sub">每天照料与互动可累积星星</span>
+                </button>
+                <div class="profile-stat-card">
+                  <div class="profile-stat-card__top">
+                    <span class="profile-stat-card__label">📅 陪伴天数</span>
+                    <span id="profile-total-days" class="profile-stat-card__val">累计 1 天</span>
+                  </div>
+                  <span id="profile-streak-days" class="profile-stat-card__sub">连续一起 1 天</span>
+                </div>
+              </div>
+
+              <div class="profile-bars">
+                <div id="profile-bar-hunger-row" class="profile-bar-row">
+                  <span class="profile-bar-row__label">🍙 饱食度</span>
+                  <div class="profile-bar-row__track"><div id="profile-bar-hunger" class="profile-bar-row__fill" style="width:68%"></div></div>
+                  <span id="profile-val-hunger" class="profile-bar-row__val">68%</span>
+                </div>
+                <div id="profile-bar-hygiene-row" class="profile-bar-row">
+                  <span class="profile-bar-row__label">🫧 清洁度</span>
+                  <div class="profile-bar-row__track"><div id="profile-bar-hygiene" class="profile-bar-row__fill" style="width:72%"></div></div>
+                  <span id="profile-val-hygiene" class="profile-bar-row__val">72%</span>
+                </div>
+                <div class="profile-bar-row profile-bar-row--exp">
+                  <span class="profile-bar-row__label">💛 亲密经验</span>
+                  <div class="profile-bar-row__track"><div id="profile-bar-exp" class="profile-bar-row__fill profile-bar-row__fill--exp" style="width:25%"></div></div>
+                  <span id="profile-val-exp" class="profile-bar-row__val">15 / 60</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- 分区三：陪伴足迹概览条 -->
+            <section class="profile-section profile-footprints" aria-label="陪伴足迹">
+              <div class="profile-footprints__head">
+                <span class="profile-section__label">🏠 陪伴足迹</span>
+                <span class="profile-footprints__hint">轻点直达</span>
+              </div>
+              <div class="profile-footprints__grid">
+                <button id="fp-btn-keepsakes" class="profile-fp-pill" type="button">
+                  <span id="fp-keepsakes-text">小物件 1/41</span>
+                </button>
+                <button id="fp-btn-outfits" class="profile-fp-pill" type="button">
+                  <span id="fp-outfits-text">穿搭 36套</span>
+                </button>
+                <button id="fp-btn-diaries" class="profile-fp-pill profile-fp-pill--upcoming" type="button">
+                  <span id="fp-diaries-text">日记 0篇</span>
+                </button>
+                <button id="fp-btn-postcards" class="profile-fp-pill" type="button">
+                  <span id="fp-postcards-text">明信片 0张</span>
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="./living-room-dress/catalog-snapshot.js"></script>
+  <script src="./living-room-dress/cross-end-store.js"></script>
   <script src="./living-room-dress/app.js"></script>
 </body>
 </html>
