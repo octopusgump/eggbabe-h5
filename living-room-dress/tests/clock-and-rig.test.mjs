@@ -134,3 +134,50 @@ test("settleFocusSession recovers lock-screen elapsed timestamps idempotently wi
   assert.equal(rNext.starsAwarded, 10);
   assert.equal(store.companion.starBalance, initialStars + 35);
 });
+
+test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and unified toolbox rooms & backgrounds", () => {
+  const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
+  const appJs = fs.readFileSync(path.join(REPO, "living-room-dress/app.js"), "utf8");
+  const P5Data = require(path.join(REPO, "living-room-dress/p5-rooms-and-games.js"));
+
+  // 1. Sleep pat-to-wake hotspot & 3-stage animation hooks
+  assert.ok(html.includes('id="hit-sleep-pet"'), "sleep pat-to-wake hotspot must exist");
+  assert.ok(appJs.includes("function isPetSleepingNow()"), "isPetSleepingNow helper must exist");
+  assert.ok(appJs.includes("function promptPatToWake("), "promptPatToWake helper must exist");
+  assert.ok(appJs.includes("function wakePetWithPatAnimation()"), "wakePetWithPatAnimation must exist");
+  assert.ok(appJs.includes('promptPatToWake("feed")'), "feed must be guarded when sleeping");
+  assert.ok(appJs.includes('promptPatToWake("bath")'), "bath must be guarded when sleeping");
+  assert.ok(appJs.includes('promptPatToWake("wardrobe")'), "wardrobe must be guarded when sleeping");
+  assert.ok(appJs.includes('nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.png"'), "nightLit panorama must be configured");
+
+  // 2. Unified rooms & backgrounds inside bottom-right toolbox; top pill hidden; wardrobe bg tab removed
+  assert.ok(html.includes('id="tb-btn-spaces"'), "toolbox must contain unified 房间背景 entry");
+  assert.ok(html.includes('id="house-bgs-pane"'), "house guide modal must include #house-bgs-pane");
+  assert.ok(html.includes('data-house-tab="bgs"'), "house guide modal must include 场景背景 tab");
+  assert.ok(html.includes('id="room-switcher-pill" class="room-switcher-pill" type="button" hidden'), "top room-switcher-pill must be hidden to avoid topbar overlap");
+  assert.equal(html.includes('id="tab-wardrobe-bgs"'), false, "duplicate wardrobe background tab must be removed");
+
+  // 3. Every room in ROOMS_CATALOG must point to an existing PNG (no broken thumbnails)
+  for (const room of P5Data.ROOMS_CATALOG) {
+    const abs = path.join(REPO, room.bgFile);
+    assert.ok(fs.existsSync(abs), `missing room thumbnail PNG: ${room.bgFile}`);
+    assert.ok(room.bgFile.endsWith(".png"), `room thumbnail must be PNG: ${room.bgFile}`);
+  }
+
+  // 4. Clock 25-min focus timer removed; legacy 唤回桌面 removed; dedicated tb_bg_3d.png exists
+  assert.equal(html.includes('id="btn-clock-windup"'), false, "25m focus windup button must be removed");
+  assert.equal(html.includes('id="clock-modal-focus-banner"'), false, "focus banner must be removed");
+  assert.equal(html.includes('id="scene-clock-focus-ring"'), false, "scene clock focus ring must be removed");
+  assert.equal(html.includes('id="tb-btn-desk-toggle"'), false, "legacy 唤回桌面 button must be removed");
+  assert.ok(html.includes('./living-room-dress/ui/tb_bg_3d.png'), "toolbox 背景 button must use dedicated tb_bg_3d.png");
+  assert.ok(fs.existsSync(path.join(REPO, "living-room-dress/ui/tb_bg_3d.png")), "tb_bg_3d.png must exist on disk");
+
+  // 5. Partner profile modal minimalist cleanup (no footprints, no exp bar, no stat subtitles, no spine)
+  assert.equal(html.includes("profile-footprints"), false, "陪伴足迹 section must be removed from profile modal");
+  assert.equal(html.includes("profile-bar-row--exp"), false, "亲密经验 bar must be removed from profile modal");
+  assert.equal(html.includes('id="profile-star-hint"'), false, "star subtitle fluff must be removed");
+  assert.equal(html.includes('id="profile-streak-days"'), false, "streak subtitle fluff must be removed");
+  assert.equal(html.includes("profile-journal-card__spine"), false, "legacy notebook spine must be removed");
+});
+
+

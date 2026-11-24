@@ -15,7 +15,8 @@
     id: "cozy_living_room_v1",
     panoramas: {
       day: "./living-room-dress/panoramas/cozy_room_day.png",
-      night: "./living-room-dress/panoramas/cozy_room_night.png"
+      night: "./living-room-dress/panoramas/cozy_room_night.png",
+      nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.png"
     },
     sleepSprites: {
       yutu: "./living-room-dress/modules/yutu_bed_sleep.png",
@@ -30,7 +31,8 @@
       night: "./living-room-dress/props/sill_night_jar.png"
     },
     anchors: {
-      corkHome: { x: 1520, y: 1205 }
+      corkHome: { x: 1520, y: 1205 },
+      bedCenter: { x: 580, y: 980 }
     },
     slots: {
       lampGlow: [695, 345, 620, 520],
@@ -44,7 +46,8 @@
     hotspots: {
       lamp: [595, 195, 200, 300],
       bookshelf: [920, 415, 430, 505],
-      deskMirror: [1815, 685, 390, 440]
+      deskMirror: [1815, 685, 390, 440],
+      sleepPet: [250, 620, 760, 740]
     }
   };
   const CORK_HOME = COZY_SCENE_CONFIG.anchors.corkHome;
@@ -434,6 +437,7 @@
   const hitBookshelfEl = $("hit-bookshelf");
   const hitDeskMirrorEl = $("hit-desk-mirror");
   const hitCatClockEl = $("hit-cat-clock");
+  const hitSleepPetEl = $("hit-sleep-pet");
 
   const wallPolaroidEl = $("wall-polaroid");
   const wallPolaroidImgEl = $("wall-polaroid-img");
@@ -747,8 +751,6 @@
   function resolvePatrolWindowText(now) {
     const h = now.getHours();
     if (h >= 23 || h < 6) return "🌙 深夜静默值守";
-    const fs = getClockWidget().focusSession;
-    if (fs && fs.active) return "🐾 盯梢专注执勤";
     const map = {
       sleep: "🌙 被窝夜巡休整",
       lazy: "☁️ 被角打盹值守",
@@ -768,75 +770,36 @@
   }
 
   function checkAndSettleFocusSession() {
-    const res = Store.settleFocusSession(crossStore, Date.now());
-    if (!res || !res.settled) return false;
-    const prevStars = state.stars;
-    const nextStars = Number(crossStore.companion.starBalance || prevStars);
-    state.stars = nextStars;
-    persistState();
-    if (res.starsAwarded > 0) {
-      sfx.star();
-      animateStarsTo(nextStars, res.starsAwarded);
-      showSceneFeedback(`黑猫警长盯梢 ${res.durationMin} 分钟完成！获得 +${res.starsAwarded}✦`, "dialogue", null, 3200);
-    } else {
-      showSceneFeedback(`已完成 ${res.durationMin} 分钟安静陪伴（今日发条星星已满 3 次）`, "system", null, 2600);
-    }
-    if (typeof renderMoodTab === "function") renderMoodTab();
-    renderBlackCatClockUI();
-    return true;
+    return false;
   }
 
   function renderBlackCatClockUI() {
     const cw = getClockWidget();
-    const fs = cw.focusSession;
     const now = new Date();
     const shiftKey = resolveActiveShift(now);
     const shiftDef = CLOCK_SHIFT_DEFS[shiftKey] || CLOCK_SHIFT_DEFS.day;
 
-    // 1. 正面微窗（零倒计时数字）与专注金色星芒进度环
-    ipClockPatrolTextEl.textContent = resolvePatrolWindowText(now);
-    const isFocusing = !!(fs && fs.active && typeof fs.startedAt === "number");
-    ipClockDialEl.classList.toggle("is-focus-active", isFocusing);
-    sceneClockFocusRingEl.hidden = !isFocusing;
-    clockDutyHintEl.classList.toggle("is-focusing", isFocusing);
-    clockDutyHintTextEl.textContent = isFocusing ? "🐾 警长盯梢中" : "🐾 警长值班中";
+    // 1. 正面微窗（纯粹走时与值守状态）
+    if (ipClockPatrolTextEl) ipClockPatrolTextEl.textContent = resolvePatrolWindowText(now);
+    if (ipClockDialEl) ipClockDialEl.classList.remove("is-focus-active");
+    if (clockDutyHintEl) clockDutyHintEl.classList.remove("is-focusing");
+    if (clockDutyHintTextEl) clockDutyHintTextEl.textContent = "🐾 警长值班中";
+    if (ipClockFocusArcEl) ipClockFocusArcEl.style.strokeDashoffset = FOCUS_CIRCUMFERENCE.toFixed(2);
 
-    if (isFocusing) {
-      const durMs = (fs.durationMin === 15 ? 15 : 25) * 60000;
-      const prog = clamp((Date.now() - fs.startedAt) / durMs, 0.04, 1);
-      ipClockFocusArcEl.style.strokeDashoffset = (FOCUS_CIRCUMFERENCE * (1 - prog)).toFixed(2);
-    } else {
-      ipClockFocusArcEl.style.strokeDashoffset = FOCUS_CIRCUMFERENCE.toFixed(2);
-    }
-
-    // 2. 背面发条状态与文案
-    btnClockWindupEl.classList.toggle("is-active", isFocusing);
-    ipClockWindupKeyEl.style.transform = `rotate(${clockKeyAngle}deg)`;
-    if (isFocusing) {
-      const reward = fs.durationMin === 15 ? 5 : 10;
-      ipClockWindupLabelEl.textContent = `${fs.durationMin}m 盯梢中`;
-      clockModalFocusBannerEl.textContent = `发条已拧紧：${fs.durationMin} 分钟盯梢专注（+${reward}✦ · 锁屏不断）`;
-    } else {
-      const todayKey = Store.getUtc8DateKey();
-      const used = fs.lastRewardDate === todayKey ? Number(fs.todayRewardCount || 0) : 0;
-      ipClockWindupLabelEl.textContent = "拧发条";
-      clockModalFocusBannerEl.textContent = `拧警星发条：15m(+5✦) / 25m(+10✦) · 今日 ${used}/3 次`;
-    }
-
-    // 3. 背面班次拨盘高亮
+    // 2. 背面班次拨盘高亮
     clockModalEl.querySelectorAll("[data-clock-shift]").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.clockShift === shiftKey);
     });
 
-    // 4. 背面呼噜滴答机械拨杆
+    // 3. 背面呼噜滴答机械拨杆
     const tickOn = !!cw.tickWhiteNoiseOn;
-    btnClockTickToggleEl.setAttribute("aria-checked", String(tickOn));
-    ipClockTickTextEl.textContent = tickOn ? "呼噜滴答:开" : "呼噜滴答:关";
+    if (btnClockTickToggleEl) btnClockTickToggleEl.setAttribute("aria-checked", String(tickOn));
+    if (ipClockTickTextEl) ipClockTickTextEl.textContent = tickOn ? "呼噜滴答:开" : "呼噜滴答:关";
 
-    // 5. 底部副标题与翻转提示
+    // 4. 底部副标题与翻转提示
     const wk = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][now.getDay()];
-    clockModalSubEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${wk} · ${shiftDef.label}`;
-    btnClockFlipHintEl.textContent = clockFlipped ? "点一下翻回正面表盘 ↻" : "轻触黑猫翻看背面发条 ↻";
+    if (clockModalSubEl) clockModalSubEl.textContent = `${now.getMonth() + 1}月${now.getDate()}日 ${wk} · ${shiftDef.label}`;
+    if (btnClockFlipHintEl) btnClockFlipHintEl.textContent = clockFlipped ? "点一下翻回正面表盘 ↻" : "轻触黑猫翻看背面 ↻";
   }
 
   function updateBlackCatClockTick() {
@@ -959,34 +922,7 @@
     }
   });
 
-  // 背面①：拧动五角警星黄铜发条（不计时 -> 15m +5✦ -> 25m +10✦ -> 不计时）
-  btnClockWindupEl.addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    const cw = getClockWidget();
-    const fs = cw.focusSession;
-    clockKeyAngle += 120;
-    sfx.ratchet();
-
-    if (!fs.active) {
-      fs.active = true;
-      fs.durationMin = 15;
-      fs.startedAt = Date.now();
-      showSceneFeedback("咔哒～发条拧好：15 分钟盯梢专注开始（+5✦）", "dialogue");
-    } else if (fs.durationMin === 15) {
-      fs.active = true;
-      fs.durationMin = 25;
-      fs.startedAt = Date.now();
-      showSceneFeedback("再拧半圈：升级为 25 分钟盯梢专注（+10✦）", "dialogue");
-    } else {
-      fs.active = false;
-      fs.startedAt = null;
-      showSceneFeedback("已松开警星发条，休息一下吧～", "system");
-    }
-    persistState();
-    renderBlackCatClockUI();
-  });
-
-  // 背面②：白班 / 黄昏哨 / 夜巡哨作息拨盘
+  // 背面①：白班 / 黄昏哨 / 夜巡哨作息拨盘
   clockModalEl.querySelectorAll("[data-clock-shift]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
@@ -1233,7 +1169,7 @@
     });
     profilePetThumbEl.src = getPetDisplayThumbUrl(petId, state.savedSet[petId]);
     profilePetNameEl.textContent = getPetName(petId);
-    profilePetLvEl.textContent = `亲密度 Lv.${ps.level}`;
+    if (profilePetLvEl) profilePetLvEl.textContent = `亲密度 Lv.${ps.level}`;
     profileMoodIconEl.textContent = mood.icon;
     profileMoodLabelEl.textContent = mood.label;
     profileMoodQuoteEl.textContent = `“${mood.text}”`;
@@ -1241,12 +1177,9 @@
 
     profileStarValueEl.textContent = `${state.stars} ✦`;
     profileTotalDaysEl.textContent = `累计 ${crossStore.companion.totalCompanionDays || 1} 天`;
-    profileStreakDaysEl.textContent = `连续一起 ${crossStore.companion.companionDays || 1} 天`;
 
     const hungerPct = Math.round(clamp(ps.hunger, 0, 100));
     const hygienePct = Math.round(clamp(ps.hygiene, 0, 100));
-    const nextExp = expForNextLevel(ps.level);
-    const expPct = Math.round(clamp((ps.exp / Math.max(1, nextExp)) * 100, 0, 100));
 
     profileBarHungerEl.style.width = `${hungerPct}%`;
     profileValHungerEl.textContent = `${hungerPct}%`;
@@ -1255,21 +1188,6 @@
     profileBarHygieneEl.style.width = `${hygienePct}%`;
     profileValHygieneEl.textContent = `${hygienePct}%`;
     profileBarHygieneRowEl.classList.toggle("is-warning", hygienePct < 30);
-
-    profileBarExpEl.style.width = `${expPct}%`;
-    profileValExpEl.textContent = `${Math.round(ps.exp)} / ${nextExp}`;
-
-    // 分区三：陪伴足迹概览（wx-mp-ordinary 隐藏收集总数分母）
-    const ksCount = state.keepsakes.length;
-    fpKeepsakesTextEl.textContent = mode === "wx-mp-ordinary"
-      ? `已留存 ${ksCount} 件`
-      : `小物件 ${ksCount}/${Store.TOTAL_KEEPSAKES_COUNT}`;
-
-    const koiCount = (catalog.pets && catalog.pets.koi && catalog.pets.koi.items && catalog.pets.koi.items.length) || 12;
-    const yutuCount = (catalog.pets && catalog.pets.yutu && catalog.pets.yutu.items && catalog.pets.yutu.items.length) || 24;
-    fpOutfitsTextEl.textContent = `穿搭 ${koiCount + yutuCount}套`;
-    fpDiariesTextEl.textContent = `日记 ${(crossStore.diaries || []).length}篇`;
-    fpPostcardsTextEl.textContent = `明信片 ${state.postcards.length}张`;
   }
 
   function openProfileModal() {
@@ -1412,27 +1330,6 @@
       devTestersEl.hidden = !devTestersEl.hidden;
       showSceneFeedback(devTestersEl.hidden ? "验收工具已收起" : "验收工具已开启", "system");
     }
-  });
-
-  $("fp-btn-keepsakes").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    openKeepsakeAlbum("keepsakes");
-  });
-  $("fp-btn-outfits").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    enterFittingRoom();
-  });
-  $("fp-btn-diaries").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    openDiaryCover();
-  });
-  $("fp-btn-postcards").addEventListener("click", () => {
-    sfx.tap();
-    closeProfileModal();
-    openKeepsakeAlbum("postcards");
   });
 
   if (new URLSearchParams(window.location.search).get("demo") === "1") {
@@ -2462,12 +2359,20 @@
     sfx.tap();
     setToolboxOpen(false);
     triggerRebound(dockBtnFeedEl);
+    if (isPetSleepingNow()) {
+      promptPatToWake("feed");
+      return;
+    }
     setCareUiMode("feed");
   });
   dockBtnBathEl.addEventListener("click", () => {
     sfx.tap();
     setToolboxOpen(false);
     triggerRebound(dockBtnBathEl);
+    if (isPetSleepingNow()) {
+      promptPatToWake("bath");
+      return;
+    }
     setCareUiMode("bath");
   });
   dockBtnWardrobeEl.addEventListener("click", () => {
@@ -2475,6 +2380,10 @@
     setToolboxOpen(false);
     setCareUiMode("none");
     triggerRebound(dockBtnWardrobeEl);
+    if (isPetSleepingNow()) {
+      promptPatToWake("wardrobe");
+      return;
+    }
     enterFittingRoom();
   });
   $("btn-close-feed").addEventListener("click", () => { sfx.tap(); setCareUiMode("none"); });
@@ -2823,6 +2732,121 @@
     );
   }
 
+  function isPetSleepingNow() {
+    return isNightSleepingNow() || state.roomState === "sleep";
+  }
+
+  let pendingWakeAction = null;
+  let wakeGuideTimer = 0;
+  let wakeAnimBusy = false;
+
+  function clearWakeGuideHint() {
+    if (wakeGuideTimer) {
+      clearTimeout(wakeGuideTimer);
+      wakeGuideTimer = 0;
+    }
+    if (hitSleepPetEl) hitSleepPetEl.classList.remove("is-guided");
+  }
+
+  function promptPatToWake(actionType) {
+    const petName = state.petId === "yutu" ? "玉兔" : "锦鲤";
+    const actionLabelMap = {
+      feed: "吃零食",
+      bath: "洗香香",
+      wardrobe: "试新衣服"
+    };
+    const actText = actionLabelMap[actionType] || "玩耍";
+    pendingWakeAction = { type: actionType, expiresAt: Date.now() + 15000 };
+
+    const bedX = (COZY_SCENE_CONFIG.anchors && COZY_SCENE_CONFIG.anchors.bedCenter && COZY_SCENE_CONFIG.anchors.bedCenter.x) || 580;
+    scrollToPanoX(bedX, true);
+    showSceneFeedback(`${petName}正在被窝里香香睡觉呢～拍一拍它起床再${actText}吧 💤`, "dialogue");
+
+    if (hitSleepPetEl) {
+      hitSleepPetEl.hidden = false;
+      hitSleepPetEl.classList.remove("is-guided");
+      void hitSleepPetEl.offsetWidth;
+      hitSleepPetEl.classList.add("is-guided");
+      if (wakeGuideTimer) clearTimeout(wakeGuideTimer);
+      wakeGuideTimer = setTimeout(() => {
+        if (hitSleepPetEl) hitSleepPetEl.classList.remove("is-guided");
+        wakeGuideTimer = 0;
+      }, 3600);
+    }
+  }
+
+  function wakePetWithPatAnimation() {
+    if (wakeAnimBusy || !isPetSleepingNow()) return;
+    wakeAnimBusy = true;
+    clearWakeGuideHint();
+
+    const petName = state.petId === "yutu" ? "玉兔" : "锦鲤";
+    const wasNightBedSleep = isNightSleepingNow();
+    const pending = (pendingWakeAction && pendingWakeAction.expiresAt > Date.now()) ? pendingWakeAction.type : null;
+    pendingWakeAction = null;
+
+    // Stage 1 (0–260ms): 轻拍软弹微抖 + 醒啦气泡
+    sfx.tap();
+    if (petSleepSpriteEl && wasNightBedSleep) {
+      petSleepSpriteEl.classList.remove("is-waking-fade");
+      petSleepSpriteEl.classList.add("is-waking-pat");
+    }
+    showSceneFeedback(`轻拍了拍${petName}…「唔，揉揉眼睛醒啦！」`, "dialogue");
+
+    const step2Delay = REDUCED_MOTION ? 40 : 260;
+    const step3Delay = REDUCED_MOTION ? 80 : 540;
+    const doneDelay = REDUCED_MOTION ? 120 : 900;
+
+    // Stage 2 (260–540ms): 开灯掀被淡出 + 镜头移回软木垫
+    setTimeout(() => {
+      if (petSleepSpriteEl && wasNightBedSleep) {
+        petSleepSpriteEl.classList.remove("is-waking-pat");
+        petSleepSpriteEl.classList.add("is-waking-fade");
+      }
+      if (wasNightBedSleep) {
+        const mods = getLivingRoomModules();
+        mods.mod_lamp.state = "on";
+        sfx.lampClick(true);
+        syncPanoramaImage(false);
+        persistState();
+      } else if (state.roomState === "sleep") {
+        applyRoomState("free_stand", false);
+      }
+      scrollToPanoX(CORK_HOME.x, true);
+    }, step2Delay);
+
+    // Stage 3 (540–900ms): 站立宠物蹦跳落回软木垫
+    setTimeout(() => {
+      if (petSleepSpriteEl) {
+        petSleepSpriteEl.classList.remove("is-waking-pat", "is-waking-fade");
+      }
+      wakeAnimBusy = false;
+      syncRoomModules();
+      layoutScenePropsAndHotspots();
+      if (glCanvas) {
+        glCanvas.classList.remove("is-waking-arrive");
+        void glCanvas.offsetWidth;
+        glCanvas.classList.add("is-waking-arrive");
+      }
+      sfx.hop();
+      startAnim("minihop", performance.now());
+    }, step3Delay);
+
+    // 完成：落稳后衔接原本意图或打招呼
+    setTimeout(() => {
+      if (glCanvas) glCanvas.classList.remove("is-waking-arrive");
+      if (pending === "feed") {
+        setCareUiMode("feed");
+      } else if (pending === "bath") {
+        setCareUiMode("bath");
+      } else if (pending === "wardrobe") {
+        enterFittingRoom();
+      } else {
+        showSceneFeedback(`${petName}伸了个大懒腰，起床陪你啦 ✨`, "dialogue");
+      }
+    }, doneDelay);
+  }
+
   function syncRoomModules() {
     // ① 床头暖光灯：夜晚开灯切真实暖灯底图 cozy_room_night_lit.png，白天开灯叠柔光晕
     const lampLit = isBedsideLampLit();
@@ -2853,13 +2877,18 @@
     const sleepSrc = COZY_SCENE_CONFIG.sleepSprites && COZY_SCENE_CONFIG.sleepSprites[state.petId];
     const showNightSleep = isNightSleepingNow();
     appEl.classList.toggle("is-night-sleeping", showNightSleep);
-    if (petSleepSpriteEl) {
+    if (petSleepSpriteEl && !wakeAnimBusy) {
       petSleepSpriteEl.hidden = !showNightSleep;
       const box = (COZY_SCENE_CONFIG.sleepBoxes && COZY_SCENE_CONFIG.sleepBoxes[state.petId]) || [92, 443, 1161, 1012];
       panoToBoxStyle(petSleepSpriteEl, box[0], box[1], box[2], box[3], "top-left");
       if (showNightSleep && petSleepSpriteImgEl && petSleepSpriteImgEl.getAttribute("src") !== sleepSrc) {
         petSleepSpriteImgEl.src = sleepSrc;
       }
+    }
+    if (hitSleepPetEl) {
+      const showSleepPatHit = isPetSleepingNow() && !isFittingOpen && !wakeAnimBusy;
+      hitSleepPetEl.hidden = !showSleepPatHit;
+      if (!showSleepPatHit) clearWakeGuideHint();
     }
 
     // ④ 窗台天气/时段小摆件（白天展示晴天小多肉盆栽，夜晚展示微光星光瓶）
@@ -2921,7 +2950,7 @@
       hitCatClockEl.hidden = true;
     }
 
-    // 核心 4 组透明交互热区（台灯、书架、桌面原木小立镜、黑猫钟）
+    // 核心透明交互热区（台灯、书架、桌面原木小立镜、黑猫钟、床上睡觉拍醒热区）
     const showModHits = isCozyInteractive && !isFittingOpen;
     hitBedLampEl.hidden = !showModHits;
     hitBookshelfEl.hidden = !showModHits;
@@ -2930,6 +2959,14 @@
       panoToBoxStyle(hitBedLampEl, cfg.hotspots.lamp[0], cfg.hotspots.lamp[1], cfg.hotspots.lamp[2], cfg.hotspots.lamp[3], "top-left");
       panoToBoxStyle(hitBookshelfEl, cfg.hotspots.bookshelf[0], cfg.hotspots.bookshelf[1], cfg.hotspots.bookshelf[2], cfg.hotspots.bookshelf[3], "top-left");
       panoToBoxStyle(hitDeskMirrorEl, cfg.hotspots.deskMirror[0], cfg.hotspots.deskMirror[1], cfg.hotspots.deskMirror[2], cfg.hotspots.deskMirror[3], "top-left");
+    }
+    if (hitSleepPetEl) {
+      const showSleepPatHit = isPetSleepingNow() && !isFittingOpen && !wakeAnimBusy;
+      hitSleepPetEl.hidden = !showSleepPatHit;
+      if (showSleepPatHit && cfg.hotspots.sleepPet) {
+        const sp = cfg.hotspots.sleepPet;
+        panoToBoxStyle(hitSleepPetEl, sp[0], sp[1], sp[2], sp[3], "top-left");
+      }
     }
 
     // 墙面微缩拍立得落位书本上方干净白墙留白槽
@@ -2976,12 +3013,26 @@
     openClockModal();
   });
 
+  // 睡眠拍醒热区：拍一拍床上的玉兔/锦鲤 → 播放三段式起床小动画
+  if (hitSleepPetEl) {
+    hitSleepPetEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (mousePan && mousePan.moved) return;
+      wakePetWithPatAnimation();
+    });
+  }
+
   // 核心热点 2：床头暖光灯透明热区点击（夜晚：开灯起床陪你 ↔ 关灯盖被睡觉）
   hitBedLampEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
     const mods = getLivingRoomModules();
     const nextLit = !isBedsideLampLit();
+    const petName = state.petId === "yutu" ? "玉兔" : "锦鲤";
+    if (state.period === "night" && nextLit && isNightSleepingNow()) {
+      wakePetWithPatAnimation();
+      return;
+    }
     mods.mod_lamp.state = nextLit ? "on" : "off";
     sfx.lampClick(nextLit);
     syncPanoramaImage(false);
@@ -2989,7 +3040,7 @@
     persistState();
     if (state.period === "night") {
       showSceneFeedback(
-        nextLit ? "咔哒～暖灯亮起，玉兔起床陪你聊聊天啦" : "咔哒～关掉小台灯，玉兔钻回被窝香香入睡",
+        nextLit ? `咔哒～暖灯亮起，${petName}起床陪你聊聊天啦` : `咔哒～关掉小台灯，${petName}钻回被窝香香入睡`,
         "dialogue"
       );
     } else {
@@ -3023,11 +3074,15 @@
     awayNoteBubbleEl.addEventListener("click", handleMailOrAwayBubbleClick);
   }
 
-  // 核心热点 5：桌面原木小立镜透明热区 → 进入试衣间（与右侧「装扮」按钮并行）
+  // 核心热点 5：桌面原木小立镜透明热区 → 进入试衣间（睡觉时先引导拍醒）
   hitDeskMirrorEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
     sfx.tap();
+    if (isPetSleepingNow()) {
+      promptPatToWake("wardrobe");
+      return;
+    }
     enterFittingRoom();
   });
   foldedOutfitPropEl.addEventListener("click", (ev) => {
@@ -3120,7 +3175,6 @@
     renderContextEntry();
     renderMoodTab();
     updateDevTesterLabels();
-    tbDeskToggleLabelEl.textContent = nextKey === "free_stand" ? "日常动作" : "唤回桌面";
     if (def.screen !== undefined && !isCustomBgActive()) {
       scrollToScreen(def.screen, smoothScroll !== false);
     }
@@ -3167,25 +3221,14 @@
   btnToolboxEl.addEventListener("click", () => { sfx.tap(); setToolboxOpen(!toolboxOpen); });
   toolboxDismissEl.addEventListener("click", () => setToolboxOpen(false));
 
+  $("tb-btn-spaces")?.addEventListener("click", () => {
+    setToolboxOpen(false);
+    openHouseGuide("bgs");
+  });
   $("tb-btn-album").addEventListener("click", () => {
     setToolboxOpen(false);
     tbAlbumDotEl.hidden = true;
     openKeepsakeAlbum("postcards");
-  });
-  $("tb-btn-desk-toggle").addEventListener("click", () => {
-    setToolboxOpen(false);
-    if (state.roomState === "free_stand") {
-      state.stageBgId = "living_room";
-      const cycle = ["drawing", "sleep", "reading", "window", "gaming", "music", "lazy", "stare"];
-      const pick = cycle[Math.floor(Math.random() * cycle.length)];
-      applyRoomState(pick, true);
-      showSceneFeedback(ROOM_STATES[pick].line, "dialogue");
-    } else {
-      applyRoomState("free_stand", true);
-      sfx.hop();
-      startAnim("minihop", performance.now());
-      showSceneFeedback("回到桌面软木垫啦～", "dialogue");
-    }
   });
   $("tb-btn-wallpaper").addEventListener("click", async () => {
     setToolboxOpen(false);
@@ -3320,12 +3363,14 @@
   function renderWardrobeGrid() {
     const pCfg = catalog.pets[state.petId];
     if (!pCfg) return;
-    const bgTotal = 1 + (catalog.backgrounds ? catalog.backgrounds.length : 0);
     tabWardrobeItemsEl.textContent = `套装 (${pCfg.items.length})`;
-    tabWardrobeBgsEl.textContent = `背景 (${bgTotal})`;
+    if (tabWardrobeBgsEl) {
+      const bgTotal = 1 + (catalog.backgrounds ? catalog.backgrounds.length : 0);
+      tabWardrobeBgsEl.textContent = `背景 (${bgTotal})`;
+    }
     wardrobeGridEl.innerHTML = "";
 
-    if (activeWardrobeTab === "items") {
+    if (activeWardrobeTab === "items" || !tabWardrobeBgsEl) {
       const curSet = state.savedSet[state.petId];
       const bareCard = document.createElement("button");
       bareCard.type = "button";
@@ -4610,6 +4655,7 @@
   /* ---------- P5 房间切换、边缘木门牌、小厨房 & 小院子（含户外原木信箱） ---------- */
   const houseGuideOverlayEl = $("house-guide-overlay");
   const houseRoomsPaneEl = $("house-rooms-pane");
+  const houseBgsPaneEl = $("house-bgs-pane");
   const houseDecorPaneEl = $("house-decor-pane");
   const roomSwitcherPillEl = $("room-switcher-pill");
   const roomSwitcherLabelEl = $("room-switcher-label");
@@ -4834,9 +4880,50 @@
       b.classList.toggle("is-active", b.dataset.houseTab === activeHouseTab);
     });
     if (houseRoomsPaneEl) houseRoomsPaneEl.hidden = activeHouseTab !== "rooms";
+    if (houseBgsPaneEl) houseBgsPaneEl.hidden = activeHouseTab !== "bgs";
     if (houseDecorPaneEl) houseDecorPaneEl.hidden = activeHouseTab !== "decor";
     if (activeHouseTab === "rooms") renderHouseRoomsPane();
+    else if (activeHouseTab === "bgs") renderHouseBgsPane();
     else renderHouseDecorPane();
+  }
+
+  function renderHouseBgsPane() {
+    if (!houseBgsPaneEl) return;
+    const livingThumb = state.period === "night"
+      ? COZY_SCENE_CONFIG.panoramas.night
+      : COZY_SCENE_CONFIG.panoramas.day;
+    const allBgs = [{ id: "living_room", name: "破壳起居室", thumbUrl: livingThumb }]
+      .concat((catalog.backgrounds || []).map((b) => ({ id: b.id, name: b.name, thumbUrl: sharedUrl(b.file) })));
+
+    const curRoom = getActiveRoomId();
+    houseBgsPaneEl.innerHTML = `<div class="house-bgs-grid">${allBgs.map((bg) => {
+      const selected = curRoom === "living_room" && state.stageBgId === bg.id;
+      return `
+        <button class="house-bg-card${selected ? " is-selected" : ""}" type="button" data-house-bg="${bg.id}">
+          ${selected ? `<span class="house-bg-card__check">✓</span>` : ""}
+          <img class="house-bg-card__thumb" src="${bg.thumbUrl}" alt="${bg.name}" loading="lazy" />
+          <span class="house-bg-card__name">${bg.name}</span>
+        </button>
+      `;
+    }).join("")}</div>`;
+
+    houseBgsPaneEl.querySelectorAll("[data-house-bg]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const bgId = btn.dataset.houseBg;
+        const picked = allBgs.find((b) => b.id === bgId);
+        sfx.tap();
+        if (crossStore && crossStore.house) {
+          crossStore.house.activeRoomId = "living_room";
+        }
+        state.stageBgId = bgId;
+        persistState();
+        syncAltRoomProps();
+        syncCustomStageBg();
+        layoutScenePropsAndHotspots();
+        renderHouseBgsPane();
+        if (picked) showSceneFeedback(`已切换场景背景「${picked.name}」`, "system");
+      });
+    });
   }
 
   function renderHouseRoomsPane() {
