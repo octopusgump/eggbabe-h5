@@ -2228,10 +2228,14 @@
     } else if (animMode === "doze") {
       const b = Math.sin((now / 4400) * Math.PI * 2);
       const isKoi = rt.id === "koi";
-      sleepZzEl.hidden = false;
-      const topPt = petCanvasPtToBoxPx(rt, rt.cfg.cx + 90, rt.cfg.head.y - rt.cfg.head.ry * 0.9, lastPose);
-      sleepZzEl.style.left = topPt[0].toFixed(1) + "px";
-      sleepZzEl.style.top = topPt[1].toFixed(1) + "px";
+      if (isNightSleepingNow() || state.roomState !== "free_stand") {
+        sleepZzEl.hidden = true;
+      } else {
+        sleepZzEl.hidden = false;
+        const topPt = petCanvasPtToBoxPx(rt, rt.cfg.cx + 90, rt.cfg.head.y - rt.cfg.head.ry * 0.9, lastPose);
+        sleepZzEl.style.left = topPt[0].toFixed(1) + "px";
+        sleepZzEl.style.top = topPt[1].toFixed(1) + "px";
+      }
       return makePose({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: isKoi ? 6 : 8, rot: 1, earL: -5 + b, earR: (isKoi ? 8 : 54) + 2.5 * b, wDoze: 1, shS: 1.03 });
     }
 
