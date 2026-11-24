@@ -13,4 +13,4 @@
 
 | 目录名 | 作者 | 玩法简介 | 线上预览链接 | 状态 |
 | :--- | :--- | :--- | :--- | :--- |
-| _（示例）`gump-koi-pond/`_ | _gump_ | _锦鲤池塘互动原型_ | _`/prototypes/gump-koi-pond/`_ | _开发中 / 待评审 / 已转正 / 已归档_ |
+| [`haixinke-bottle-game/`](./haixinke-bottle-game/) | haixinke | 瓶空一翻（抛瓶立稳 H5 小游戏） | [`/prototypes/haixinke-bottle-game/`](https://octopusgump.github.io/eggbabe-h5/prototypes/haixinke-bottle-game/) | 待评审 |

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f1ecdf">
+  <meta name="color-scheme" content="light">
+  <title>瓶空一翻</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header class="toolbar">
+      <a class="wordmark" href="./" aria-label="瓶空一翻，返回首页">瓶空一翻</a>
+      <button class="page-back" id="page-back" type="button" hidden>返回首页</button>
+      <div class="toolbar-actions">
+        <button id="choose-level" type="button" aria-haspopup="dialog" aria-controls="level-picker" hidden>第 1 关</button>
+        <button class="sound" id="sound" type="button" aria-pressed="false">声音关</button>
+      </div>
+    </header>
+    <section id="home" class="home" aria-labelledby="home-title">
+      <div class="home-brand">
+        <img class="home-logo" src="./logo.png" width="432" height="432" alt="">
+        <h1 id="home-title">瓶空一翻</h1>
+      </div>
+      <button class="primary" id="continue-chapter" type="button">开始闯关</button>
+      <button id="open-challenges" type="button">挑战</button>
+      <button id="open-appearances" type="button">换个瓶</button>
+    </section>
+    <section id="appearances" class="appearances" aria-label="瓶子外观" tabindex="-1" hidden>
+      <figure class="appearance-preview">
+        <canvas id="bottle-preview" width="320" height="220" aria-hidden="true"></canvas>
+        <figcaption id="appearance-caption" aria-live="polite"></figcaption>
+      </figure>
+      <div class="appearance-options" role="group" aria-label="预览外观"></div>
+      <button class="primary" id="equip-appearance" type="button" disabled>使用此瓶子</button>
+    </section>
+    <dialog id="level-picker" class="level-picker" aria-labelledby="level-picker-title">
+      <div class="level-picker-heading">
+        <h2 id="level-picker-title">选关</h2>
+        <button id="cancel-level-picker" type="button" autofocus>取消</button>
+      </div>
+      <div id="level-options" class="level-options"></div>
+    </dialog>
+    <section id="challenges" class="challenge-menu" aria-labelledby="challenges-title" hidden>
+      <h1 id="challenges-title" tabindex="-1">挑战</h1>
+      <section class="medal-entry" aria-labelledby="streak-title">
+        <div>
+          <img class="medal-art" src="./medal-streak.png" width="144" height="144" alt="">
+          <div>
+            <h2 id="streak-title">连翻到底</h2>
+            <p id="streak-unlock" class="medal-description">通过第 1 关后解锁。</p>
+            <p id="challenge-score" class="medal-description" hidden>个人纪录 <strong id="challenge-record">0 次</strong></p>
+          </div>
+        </div>
+        <button class="medal-button" id="start-streak" type="button" disabled>未解锁</button>
+      </section>
+      <section class="medal-entry" data-medal="book-stack" aria-labelledby="medal-title">
+        <div>
+          <img class="medal-art" src="./medal-book-stack.png" width="144" height="144" alt="">
+          <div>
+            <h2 id="medal-title">书堆双稳</h2>
+            <p class="medal-description">通过第 2 关后解锁。</p>
+          </div>
+        </div>
+        <button class="medal-button" data-start-challenge="2" type="button" disabled>未解锁</button>
+      </section>
+      <section class="medal-entry" data-medal="narrow-platform" aria-labelledby="narrow-medal-title">
+        <div>
+          <img class="medal-art" src="./medal-narrow-platform.png" width="144" height="144" alt="">
+          <div>
+            <h2 id="narrow-medal-title">窄台靶心</h2>
+            <p class="medal-description">通过第 4 关后解锁。</p>
+          </div>
+        </div>
+        <button class="medal-button" data-start-challenge="4" type="button" disabled>未解锁</button>
+      </section>
+      <section class="medal-entry" data-medal="both-docks" aria-labelledby="docks-medal-title">
+        <div>
+          <img class="medal-art" src="./medal-both-docks.png" width="144" height="144" alt="">
+          <div>
+            <h2 id="docks-medal-title">左右逢稳</h2>
+            <p class="medal-description">通过第 5 关后解锁。</p>
+          </div>
+        </div>
+        <button class="medal-button" data-start-challenge="5" type="button" disabled>未解锁</button>
+      </section>
+    </section>
+    <section id="play" aria-labelledby="level-title" hidden>
+      <div class="level-heading">
+        <div>
+          <p class="challenge-eyebrow" id="challenge-eyebrow" hidden>技巧挑战</p>
+          <h1 id="level-title" tabindex="-1">桌上首飞</h1>
+          <p id="instruction">向上轻快一划，等瓶子站稳。</p>
+        </div>
+        <span class="level-count" id="level-count">1 / 5</span>
+      </div>
+      <div class="streak-scores" id="streak-scores" hidden>
+        <span>本轮连翻 <strong id="streak-round">0 次</strong></span>
+        <span>个人纪录 <strong id="streak-record">0 次</strong></span>
+      </div>
+      <div class="dock-progress" id="dock-progress" hidden>
+        <span id="dock-left">左端 待立稳</span>
+        <span id="dock-right">右端 待立稳</span>
+      </div>
+      <div class="playfield">
+        <div class="court-frame">
+          <canvas id="court" width="720" height="840" aria-label="翻瓶区。向上轻划，把瓶子落在亮起的目标上。"></canvas>
+          <div class="pause-layer" id="pause-layer" hidden>
+            <div class="pause-card">
+              <strong id="pause-title">已暂停</strong>
+              <p id="pause-note">当前一投会从暂停位置接着进行。</p>
+              <button class="primary" type="button" id="resume">继续</button>
+            </div>
+          </div>
+        </div>
+        <div id="readout" class="readout" data-phase="idle">
+          <div class="message" role="status" aria-atomic="true">
+            <strong id="status">等你出手</strong>
+            <small id="detail">等瓶底在亮起的台面上站稳。</small>
+          </div>
+          <div class="hold">
+            <span id="timer">0.00 / 0.45 秒</span>
+            <progress id="progress" value="0" max="0.45" aria-label="立稳进度"></progress>
+          </div>
+        </div>
+      </div>
+      <div class="challenge-progress" id="challenge-progress" hidden>
+        <span>连续立稳 <strong id="challenge-streak">0 / 2</strong></span>
+        <span class="streak-marks" id="streak-marks" aria-hidden="true"><i></i><i></i></span>
+      </div>
+      <p class="center-challenge-note" id="center-challenge-note" hidden>台面金色区域为中央三分之一，以最终立稳位置结算。</p>
+      <div class="actions">
+        <p id="action-note">在画面里上划投掷</p>
+        <button id="result-challenges" type="button" hidden>挑战</button>
+        <button class="primary" type="button" id="next" hidden>下一关</button>
+      </div>
+    </section>
+    <p class="storage-note" id="storage-note" hidden>本次进度无法跨次保存。</p>
+    <noscript>请开启浏览器的 JavaScript 功能后游玩。</noscript>
+  </main>
+  <script type="module" src="./play.mjs"></script>
+</body>
+</html>
