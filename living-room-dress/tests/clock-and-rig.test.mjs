@@ -8,35 +8,35 @@ const require = createRequire(import.meta.url);
 const REPO = path.resolve(import.meta.dirname, "../..");
 const Store = require(path.join(REPO, "living-room-dress/cross-end-store.js"));
 
-test("floating #room-clock is removed and bedside Black Cat Sheriff clock + 5 modular layers are mounted", () => {
+test("floating #room-clock is removed and unified cozy room + nighttime sleep patch + 4 core hotspots are mounted", () => {
   const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
   assert.equal(html.includes('id="room-clock"'), false, "legacy floating #room-clock must be removed");
+  assert.equal(html.includes('id="mod-desk-set"'), false, "cluttered #mod-desk-set cutout must be removed");
+  assert.equal(html.includes('id="mod-jewelry-box"'), false, "cluttered #mod-jewelry-box cutout must be removed");
+  assert.equal(html.includes('id="mod-wall-art"'), false, "cluttered #mod-wall-art cutout must be removed");
+  assert.equal(html.includes('id="mod-bed-blanket"'), false, "daytime blanket overlay must be removed");
+  assert.equal(html.includes('id="hit-bed-blanket"'), false, "daytime blanket hotspot must be removed");
+  assert.ok(html.includes("cozy_room_day.png"), "default panorama must point to unified cozy_room_day.png");
   assert.ok(html.includes('id="bedside-cat-clock"'), "bedside Black Cat Sheriff clock must be mounted");
   assert.ok(html.includes('id="clock-modal-overlay"'), "Flip clock modal must exist");
-  assert.ok(html.includes('id="mod-wall-art"'), "wall art module must exist");
-  assert.ok(html.includes('id="mod-bed-base"'), "bed base module must exist");
-  assert.ok(html.includes('id="mod-bed-blanket"'), "foreground blanket module must exist");
-  assert.ok(html.includes('id="mod-lamp"'), "bedside lamp module must exist");
-  assert.ok(html.includes('id="mod-books"'), "bookshelf module must exist");
-  assert.ok(html.includes('id="mod-jewelry-box"'), "jewelry box module must exist");
-  assert.ok(html.includes('id="mod-desk-set"'), "desk set module must exist");
+  assert.ok(html.includes('id="pet-sleep-sprite"'), "nighttime tucked sleeping sprite layer must exist");
+  assert.ok(html.includes('id="room-atmosphere-tint"'), "unified global atmosphere tint layer must exist");
+  assert.ok(html.includes('id="books-mail-bubble"'), "bookshelf unread mail bubble must exist");
+  assert.ok(html.includes('id="hit-bed-lamp"'), "bedside lamp transparent hotspot must exist");
+  assert.ok(html.includes('id="hit-bookshelf"'), "bookshelf transparent hotspot must exist");
+  assert.ok(html.includes('id="hit-desk-mirror"'), "desk mirror fitting-room hotspot must exist");
+  assert.ok(html.includes('id="hit-cat-clock"'), "cat clock hotspot must exist");
 });
 
-test("all new room shell, module, and clock assets exist as compressed PNGs with zero .webp references", () => {
+test("all final cozy room assets (day, night, nightLit, yutu/koi sleep, 2 sill props) and clock assets exist as compressed PNGs with zero .webp or legacy modular references", () => {
   const expectedPngs = [
-    "living-room-dress/panoramas/room_shell_day.png",
-    "living-room-dress/panoramas/room_shell_sunset.png",
-    "living-room-dress/panoramas/room_shell_night.png",
-    "living-room-dress/modules/mod_bed_base.png",
-    "living-room-dress/modules/mod_blanket_tidy.png",
-    "living-room-dress/modules/mod_blanket_rumpled.png",
-    "living-room-dress/modules/mod_lamp_on.png",
-    "living-room-dress/modules/mod_lamp_off.png",
-    "living-room-dress/modules/mod_bookshelf.png",
-    "living-room-dress/modules/mod_jewelry_closed.png",
-    "living-room-dress/modules/mod_jewelry_peek.png",
-    "living-room-dress/modules/mod_wall_art.png",
-    "living-room-dress/modules/mod_desk_set.png",
+    "living-room-dress/panoramas/cozy_room_day.png",
+    "living-room-dress/panoramas/cozy_room_night.png",
+    "living-room-dress/panoramas/cozy_room_night_lit.png",
+    "living-room-dress/modules/yutu_bed_sleep.png",
+    "living-room-dress/modules/koi_bed_sleep.png",
+    "living-room-dress/props/sill_sunny_plant.png",
+    "living-room-dress/props/sill_night_jar.png",
     "living-room-dress/props/clock_black_cat_front.png",
     "living-room-dress/props/clock_black_cat_back.png",
     "living-room-dress/props/clock_black_cat_mid.png",
@@ -61,10 +61,12 @@ test("all new room shell, module, and clock assets exist as compressed PNGs with
   ].reduce((sum, rel) => sum + fs.statSync(path.join(REPO, rel)).size, 0);
   assert.ok(clockTotalBytes < 180 * 1024, `clock PNG bundle (${clockTotalBytes}B) should stay < 180 KB`);
 
-  // Verify zero .webp references in index.html & living-room-dress active source files
+  // Verify zero .webp and zero deleted legacy modular PNG asset references in active source files
+  const deprecatedRe = /(room_shell_|mod_bed_base|mod_blanket_|mod_bookshelf|mod_desk_set|mod_jewelry_|mod_lamp_|mod_wall_art|prop_wood_mirror|sill_rainy_teru)[^"'\s]*\.png/i;
   for (const rel of ["index.html", "living-room-dress/app.js", "living-room-dress/style.css", "living-room-dress/cross-end-store.js"]) {
     const src = fs.readFileSync(path.join(REPO, rel), "utf8");
     assert.equal(/\.webp\b/i.test(src), false, `${rel} must not reference .webp`);
+    assert.equal(deprecatedRe.test(src), false, `${rel} must not reference deleted legacy modular assets`);
   }
 });
 

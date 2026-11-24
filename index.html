@@ -132,58 +132,23 @@
         <div id="world-track" class="world-track">
           <div id="camera-rig" class="camera-rig">
             <div id="pano-box" class="pano-box">
-              <!-- z: 0~1 干净空房间底壳（仅保留墙面、木台面地板与大窗天色） / 烘焙动作全景图 -->
+              <!-- z: 0~1 一体化干净柔和房间底图（日 / 昏 / 夜像素级锁死对齐） / 烘焙动作全景图 -->
               <img id="pano-prev" class="world-panorama-bg world-panorama-bg--previous" alt="" hidden />
-              <img id="pano-curr" class="world-panorama-bg" src="./living-room-dress/panoramas/room_shell_day.png" alt="蛋宝宝起居室" />
+              <img id="pano-curr" class="world-panorama-bg" src="./living-room-dress/panoramas/cozy_room_day.png" alt="蛋宝宝起居室" />
               <img id="pano-preload" class="world-panorama-preload" alt="" hidden />
 
-              <!-- z: 2 背景墙饰模组：⑤ 墙面植物相框壁画 & 窗边手绘植物签（原画透视 1:1 对齐） -->
-              <div id="mod-wall-art" class="room-module room-module--wall" data-module="mod_wall_art" aria-hidden="true">
-                <img src="./living-room-dress/modules/mod_wall_art.png" alt="墙面植物壁画" />
-              </div>
-
-              <!-- z: 3 中景家具模组（独立贴地接触阴影 Contact AO，零悬浮 drop-shadow 贴纸感） -->
-              <div id="mod-bed-base" class="room-module room-module--mid room-module--bed-base" data-module="mod_bed_base" aria-hidden="true">
-                <span class="mod-contact-shadow mod-contact-shadow--bed" aria-hidden="true"></span>
-                <img src="./living-room-dress/modules/mod_bed_base.png" alt="U型原木床" />
-              </div>
-
-              <div id="mod-lamp" class="room-module room-module--mid room-module--lamp" data-module="mod_lamp" data-lamp-on="false" aria-hidden="true">
-                <span class="mod-contact-shadow mod-contact-shadow--lamp" aria-hidden="true"></span>
-                <img id="mod-lamp-img" src="./living-room-dress/modules/mod_lamp_off.png" alt="床头暖光灯" />
-              </div>
-
-              <div id="mod-books" class="room-module room-module--mid room-module--books" data-module="mod_books" aria-hidden="true">
-                <span class="mod-contact-shadow mod-contact-shadow--books" aria-hidden="true"></span>
-                <img src="./living-room-dress/modules/mod_bookshelf.png" alt="三层原木书架" />
-                <span id="mod-books-plane" class="mod-books__plane" aria-hidden="true" hidden>✉</span>
-                <span id="mod-books-diary-mark" class="mod-books__diary-mark" aria-hidden="true" hidden>🔖</span>
-                <!-- 书架中层实时微缩映射多宝格前 3 件藏品（PRD-0003 P3） -->
-                <div id="mod-books-curio-minis" class="mod-books__curio-minis" aria-hidden="true"></div>
-              </div>
-
-              <div id="mod-jewelry-box" class="room-module room-module--mid room-module--jewelry" data-module="mod_jewelry_box" data-jewelry-state="closed" aria-hidden="true">
-                <span class="mod-contact-shadow mod-contact-shadow--jewelry" aria-hidden="true"></span>
-                <img id="mod-jewelry-img" src="./living-room-dress/modules/mod_jewelry_closed.png" alt="窗角木质首饰盒" />
-                <span class="mod-jewelry__gleam" aria-hidden="true"></span>
-              </div>
-
-              <div id="mod-desk-set" class="room-module room-module--mid room-module--desk" data-module="mod_desk_set" data-steam="on" aria-hidden="true">
-                <span class="mod-contact-shadow mod-contact-shadow--mug" aria-hidden="true"></span>
-                <img src="./living-room-dress/modules/mod_desk_set.png" alt="桌面软木垫与杯具" />
-                <span class="mod-desk__steam" aria-hidden="true">
-                  <i class="mod-desk__steam-wisp mod-desk__steam-wisp--1"></i>
-                  <i class="mod-desk__steam-wisp mod-desk__steam-wisp--2"></i>
-                </span>
-              </div>
-
-              <!-- 墙面微缩拍立得纪念框 -->
+              <!-- 墙面微缩拍立得纪念框（落位书本上方干净白墙留白槽） -->
               <button id="wall-polaroid" class="wall-polaroid" type="button" hidden title="查看墙上的明信片">
                 <span class="wall-polaroid__pin"></span>
                 <img id="wall-polaroid-img" alt="纪念拍立得" />
               </button>
 
-              <!-- z: 4 .macro-prop：床头顶板《奶肚黑猫警长发条钟》(430, 448) + 接地阴影 -->
+              <!-- 书架上方轻气泡提示（未读来信时浮现，类似《动物去哪儿》信箱轻反馈） -->
+              <button id="books-mail-bubble" class="scene-mail-bubble" type="button" hidden aria-label="查看新来信">
+                <span class="scene-mail-bubble__text">有新来信 ✉</span>
+              </button>
+
+              <!-- z: 4 .macro-prop：床头顶板左侧留白槽《奶肚黑猫警长发条钟》+ 接地阴影 -->
               <button id="bedside-cat-clock" class="macro-prop macro-prop--cat-clock" type="button" aria-label="奶肚黑猫警长发条钟，轻触放大并翻转">
                 <span class="scene-cat-clock__shadow" aria-hidden="true"></span>
                 <img class="scene-cat-clock__img" src="./living-room-dress/props/clock_black_cat_scene.png" alt="奶肚黑猫警长发条钟" />
@@ -204,22 +169,37 @@
                 <img src="./living-room-dress/props/prop_folded_knit.png" alt="" />
               </button>
 
-              <!-- 桌面微距原木小立镜 -->
-              <button id="desk-mirror-prop" class="macro-prop macro-prop--mirror" type="button" aria-label="照镜子试新衣">
-                <img src="./living-room-dress/props/prop_wood_mirror.png" alt="" />
-              </button>
-
               <!-- 脚底双层软阴影 + z: 5 原版完整 PetStage WebGL 画布 -->
               <div id="pet-shadow-soft" class="pet-shadow pet-shadow--soft"></div>
               <div id="pet-shadow-contact" class="pet-shadow pet-shadow--contact"></div>
               <canvas id="gl-pet" class="gl-pet"></canvas>
 
-              <!-- z: 6 [前景被子层] ①b 云朵绒毯（高于宠物层 z:5，服帖床垫零悬浮投影） -->
-              <div id="mod-bed-blanket" class="room-module mod-bed-front-blanket" data-module="mod_bed_blanket" data-blanket-state="tidy" aria-hidden="true">
-                <img id="mod-bed-blanket-img" src="./living-room-dress/modules/mod_blanket_tidy.png" alt="云朵绒毯被子" />
+              <!-- z: 6 [夜晚整床无缝入睡贴片] 云朵被+枕头+玉兔/锦鲤睡颜像素级对齐 -->
+              <div id="pet-sleep-sprite" class="pet-sleep-sprite" hidden aria-hidden="true">
+                <img id="pet-sleep-sprite-img" src="./living-room-dress/modules/yutu_bed_sleep.png" alt="盖被入睡的蛋宝宝" />
               </div>
 
-              <!-- z: 7 情绪漫画节拍飘字 + 打盹 Zzz + 脏污提醒 + 搓澡泡泡 + 冲水闪光 + 双层台灯暖光光锥 -->
+              <!-- z: 6 [窗台天气/时段小摆件槽位] 严格限 1 件，随白天/夜晚/天气切换 -->
+              <div id="sill-weather-prop" class="sill-weather-prop" aria-hidden="true">
+                <span class="sill-weather-prop__shadow" aria-hidden="true"></span>
+                <img id="sill-weather-prop-img" src="./living-room-dress/props/sill_sunny_plant.png" alt="窗台小摆件" />
+              </div>
+
+              <!-- z: 7 全局轻度统一氛围层 + 零新图微动效（白天光尘 / 夜晚星闪） + 台灯柔光锥 + 出门留条 -->
+              <div id="room-atmosphere-tint" class="room-atmosphere-tint" aria-hidden="true"></div>
+              <div id="room-ambient-fx" class="room-ambient-fx" aria-hidden="true">
+                <span class="ambient-mote ambient-mote--1"></span>
+                <span class="ambient-mote ambient-mote--2"></span>
+                <span class="ambient-mote ambient-mote--3"></span>
+                <span class="ambient-mote ambient-mote--4"></span>
+                <span class="ambient-star ambient-star--1"></span>
+                <span class="ambient-star ambient-star--2"></span>
+                <span class="ambient-star ambient-star--3"></span>
+                <span class="ambient-star ambient-star--4"></span>
+              </div>
+              <button id="away-note-bubble" class="scene-away-note" type="button" hidden aria-label="查看外出留条">
+                <span class="scene-away-note__text">背着小包出门采风啦 📮</span>
+              </button>
               <div id="room-lamp-glow" class="room-lamp-glow" aria-hidden="true" hidden>
                 <span class="room-lamp-glow__shade"></span>
                 <span class="room-lamp-glow__cone"></span>
@@ -240,14 +220,15 @@
               <!-- 试衣间聚光柔暗角 -->
               <div class="fitting-vignette" aria-hidden="true"></div>
 
-              <!-- z: 8 角色与家具模组交互热区层（所有可点热区严格 x ∈ [290, 2500]） -->
+              <!-- z: 8 核心 4 组透明交互热区层（台灯、书架、桌面原木小立镜、黑猫钟） -->
               <div id="scene-hit-layer" class="scene-hit-layer">
-                <button id="hit-wall-art" class="module-hotspot" type="button" aria-label="查看墙面植物壁画"></button>
                 <button id="hit-bed-lamp" class="module-hotspot" type="button" aria-label="开关床头暖光灯"></button>
-                <button id="hit-bed-blanket" class="module-hotspot" type="button" aria-label="整理或掀开云朵被子"></button>
-                <button id="hit-bookshelf" class="module-hotspot" type="button" aria-label="打开三层原木书架"></button>
-                <button id="hit-jewelry-box" class="module-hotspot" type="button" aria-label="轻开或闭合木质首饰盒"></button>
-                <button id="hit-desk-mug" class="module-hotspot" type="button" aria-label="轻触桌面咖啡杯"></button>
+                <button id="hit-bookshelf" class="module-hotspot" type="button" aria-label="查看来信与书架中枢">
+                  <div id="mod-books-curio-minis" class="mod-books__curio-minis" aria-hidden="true" hidden></div>
+                </button>
+                <button id="hit-desk-mirror" class="module-hotspot module-hotspot--mirror" type="button" aria-label="照镜子进入试衣间">
+                  <span class="mirror-glint" aria-hidden="true"></span>
+                </button>
                 <button id="hit-cat-clock" class="module-hotspot module-hotspot--clock" type="button" aria-label="打开奶肚黑猫警长发条钟"></button>
                 <button id="character-hotspot" class="scene-character-hotspot" type="button" hidden aria-label="轻触蛋宝宝"></button>
                 <button id="action-glow" class="action-glow" type="button" hidden aria-label="回应此刻的动作"></button>
