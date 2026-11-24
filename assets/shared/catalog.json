@@ -1182,5 +1182,11 @@
     "undoDisabled": "assets/shared/png/doodle/tool_undo_disabled.png",
     "clear": "assets/shared/png/doodle/tool_clear.png",
     "clearDisabled": "assets/shared/png/doodle/tool_clear_disabled.png"
+  },
+  "listenUi": {
+    "speechBubbles": "assets/shared/png/listen/speech_bubbles_3d.png",
+    "spark1": "assets/shared/png/listen/spark_1.png",
+    "spark2": "assets/shared/png/listen/spark_2.png",
+    "spark3": "assets/shared/png/listen/spark_3.png"
   }
 }

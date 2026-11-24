@@ -4986,13 +4986,20 @@
   }
 
   function openNativeMinigame(gameId) {
+    if (gameId === "listen-qa") {
+      const listenAct = ACTIVITIES.find((a) => a.id === "listen-qa");
+      if (listenAct) {
+        openActivityPlayer(listenAct);
+        return;
+      }
+    }
     if (!nativeMgOverlayEl || !nativeMgBodyEl || !P5Data) return;
     closeNativeMinigame();
     const earned = getTodayMiniGameStarsEarned();
     if (nativeMgSubEl) nativeMgSubEl.textContent = `今日游艺获星 ${earned} / ${Store.DAILY_MINIGAME_STAR_CAP} ✦`;
     nativeMgOverlayEl.hidden = false;
 
-    if (gameId === "listen-qa") {
+    if (gameId === "listen-qa-legacy") {
       if (nativeMgTitleEl) nativeMgTitleEl.textContent = "💬 听你说";
       const questions = P5Data.pickListenSessionQuestions(Store.getUtc8DateKey() + ":" + Date.now());
       let step = 0;
@@ -5271,11 +5278,11 @@
     {
       id: "listen-qa",
       name: "听你说",
-      tag: "治愈轻问答 · +10✦",
-      desc: "5 大生活话题轻问答，生成今日伙伴印象签与每日首组星星",
-      thumb: "./living-room-dress/ui/chat_koi.png",
+      tag: "治愈轻聊 · +10✦",
+      desc: "5 大生活维度共 26 组轻问答，收下伙伴为你记下的专属心意回信",
+      thumb: sharedUrl("assets/shared/png/listen/speech_bubbles_3d.png"),
       containThumb: true,
-      native: true
+      url: "./living-room-dress/listen/"
     },
     {
       id: "treasure-memory",
@@ -5342,8 +5349,19 @@
       state.companionDays = Number(latest.companion.companionDays || 1);
       state.totalCompanionDays = Number(latest.companion.totalCompanionDays || 1);
     }
+    if (latest.pets && typeof latest.pets === "object") {
+      ["koi", "yutu"].forEach((pid) => {
+        if (latest.pets[pid] && latest.pets[pid].care) {
+          careAll[pid] = latest.pets[pid].care;
+          crossStore.pets[pid].care = latest.pets[pid].care;
+        }
+      });
+    }
     if (latest.dailyEventLog && typeof latest.dailyEventLog === "object") {
       crossStore.dailyEventLog = latest.dailyEventLog;
+    }
+    if (latest.listeningState && typeof latest.listeningState === "object") {
+      crossStore.listeningState = latest.listeningState;
     }
     renderMoodTab();
     syncRoomModules();
@@ -5454,6 +5472,11 @@
           showSceneFeedback("已为你摆入多宝收藏格 ✨", "system");
         }
       }
+    } else if (data.type === "eggbabe:listen-complete") {
+      syncFromExternalStoreUpdate();
+    } else if (data.type === "eggbabe:listen-nav") {
+      closeActivityPlayer();
+      showSceneFeedback("伙伴已把你说的小事记在心里 ✦", "system");
     }
   });
 
