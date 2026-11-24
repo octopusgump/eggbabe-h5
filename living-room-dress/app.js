@@ -3571,6 +3571,98 @@
     requestAnimationFrame(mainLoop);
   }
 
+  /* ---------- 活动列表（小游戏合集） ---------- */
+  const ACTIVITIES = [
+    {
+      id: "haixinke-bottle-game",
+      name: "瓶空一翻",
+      tag: "物理挑战",
+      desc: "抛瓶立稳闯关，收集技巧勋章与限定瓶身外观",
+      thumb: "./prototypes/haixinke-bottle-game/logo.png",
+      url: "./prototypes/haixinke-bottle-game/"
+    },
+    {
+      id: "alesia0411-daily-fortune",
+      name: "每日一签",
+      tag: "每日好运",
+      desc: "摇签抽今日签文，宠物陪伴与专属插画解签",
+      thumb: "./prototypes/alesia0411-daily-fortune/assets/theme/fortune-cylinder.png",
+      url: "./prototypes/alesia0411-daily-fortune/"
+    }
+  ];
+
+  const activityModalEl = $("activity-modal");
+  const activityListEl = $("activity-list");
+  const activityPlayerEl = $("activity-player");
+  const activityPlayerTitleEl = $("activity-player-title");
+  const activityPlayerExtEl = $("activity-player-ext");
+  const activityPlayerFrameEl = $("activity-player-frame");
+
+  function openActivityModal() {
+    if (!activityModalEl || !activityListEl) return;
+    activityListEl.innerHTML = ACTIVITIES.map((item) => `
+      <button class="activity-card" type="button" data-activity-id="${item.id}">
+        <img class="activity-card__thumb" src="${item.thumb}" alt="" />
+        <div class="activity-card__body">
+          <div class="activity-card__top">
+            <span class="activity-card__name">${item.name}</span>
+            <span class="activity-card__tag">${item.tag}</span>
+          </div>
+          <p class="activity-card__desc">${item.desc}</p>
+        </div>
+        <span class="activity-card__go">去玩</span>
+      </button>
+    `).join("");
+    activityListEl.querySelectorAll(".activity-card").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = ACTIVITIES.find((a) => a.id === btn.dataset.activityId);
+        if (!target) return;
+        sfx.tap();
+        closeActivityModal();
+        openActivityPlayer(target);
+      });
+    });
+    activityModalEl.hidden = false;
+    activityModalEl.setAttribute("aria-hidden", "false");
+  }
+
+  function closeActivityModal() {
+    if (!activityModalEl) return;
+    activityModalEl.hidden = true;
+    activityModalEl.setAttribute("aria-hidden", "true");
+  }
+
+  function openActivityPlayer(item) {
+    if (!activityPlayerEl || !activityPlayerFrameEl) return;
+    activityPlayerTitleEl.textContent = item.name;
+    activityPlayerExtEl.href = item.url;
+    activityPlayerFrameEl.src = item.url;
+    activityPlayerEl.hidden = false;
+    activityPlayerEl.setAttribute("aria-hidden", "false");
+  }
+
+  function closeActivityPlayer() {
+    if (!activityPlayerEl || !activityPlayerFrameEl) return;
+    activityPlayerEl.hidden = true;
+    activityPlayerEl.setAttribute("aria-hidden", "true");
+    activityPlayerFrameEl.src = "about:blank";
+  }
+
+  const dockBtnActivitiesEl = $("dock-btn-activities");
+  if (dockBtnActivitiesEl) {
+    dockBtnActivitiesEl.addEventListener("click", () => {
+      sfx.tap();
+      setToolboxOpen(false);
+      openActivityModal();
+    });
+  }
+  const btnCloseActivitiesEl = $("btn-close-activities");
+  if (btnCloseActivitiesEl) btnCloseActivitiesEl.addEventListener("click", closeActivityModal);
+  const activityBackdropEl = $("activity-modal-backdrop");
+  if (activityBackdropEl) activityBackdropEl.addEventListener("click", closeActivityModal);
+  const btnCloseActivityPlayerEl = $("btn-close-activity-player");
+  if (btnCloseActivityPlayerEl) btnCloseActivityPlayerEl.addEventListener("click", () => { sfx.tap(); closeActivityPlayer(); });
+
   boot().catch((err) => {
     console.error("Failed to boot living-room-dress:", err);
   });
