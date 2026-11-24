@@ -3228,3 +3228,213 @@ button:active {
 }
 
 
+
+/* ---------- 活动列表弹窗 & 小游戏全屏浮层 ---------- */
+.activity-modal[hidden],
+.activity-player[hidden] {
+  display: none !important;
+}
+
+.activity-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.activity-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(24, 34, 28, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.activity-modal__card {
+  position: relative;
+  width: min(400px, 100%);
+  max-height: min(76dvh, 560px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  background: #FAF6EE;
+  border: 1px solid rgba(53, 72, 60, 0.14);
+  box-shadow: 0 18px 48px rgba(20, 32, 24, 0.24);
+  overflow: hidden;
+}
+
+.activity-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid rgba(53, 72, 60, 0.08);
+}
+
+.activity-modal__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #24382B;
+}
+
+.activity-modal__sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #6B746B;
+}
+
+.activity-modal__close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(53, 72, 60, 0.08);
+  color: #35483C;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.activity-list {
+  padding: 14px 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.activity-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(53, 72, 60, 0.1);
+  background: #FFFFFF;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.activity-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(53, 72, 60, 0.24);
+  box-shadow: 0 6px 18px rgba(34, 54, 41, 0.08);
+}
+
+.activity-card:active {
+  transform: scale(0.985);
+}
+
+.activity-card__thumb {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #F1EADC;
+  border: 1px solid rgba(53, 72, 60, 0.08);
+}
+
+.activity-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.activity-card__top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.activity-card__name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #24382B;
+}
+
+.activity-card__tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #EAF2E6;
+  color: #3E6542;
+}
+
+.activity-card__desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #677068;
+}
+
+.activity-card__go {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #2C4634;
+  color: #FAF6EE;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.activity-player {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  background: #F4EFE4;
+}
+
+.activity-player__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: max(10px, env(safe-area-inset-top, 10px)) 14px 10px;
+  background: #FAF6EE;
+  border-bottom: 1px solid rgba(53, 72, 60, 0.12);
+}
+
+.activity-player__back,
+.activity-player__ext {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.activity-player__back {
+  border: 1px solid rgba(53, 72, 60, 0.16);
+  background: #FFFFFF;
+  color: #24382B;
+}
+
+.activity-player__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #24382B;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-player__ext {
+  color: #3E6542;
+  background: #EAF2E6;
+}
+
+.activity-player__frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #FFFFFF;
+}

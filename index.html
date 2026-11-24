@@ -229,6 +229,15 @@
           </span>
           <span class="care-3d-dock__label">装扮</span>
         </button>
+
+        <span class="care-3d-dock__divider" aria-hidden="true"></span>
+
+        <button id="dock-btn-activities" class="care-3d-dock__item" type="button">
+          <span class="care-3d-dock__icon-wrap">
+            <img src="./living-room-dress/ui/tb_activity.png" alt="" />
+          </span>
+          <span class="care-3d-dock__label">活动</span>
+        </button>
       </aside>
 
       <!-- 3D 百宝箱风格：拖拽投喂小零食托盘（支持轻点飞入嘴边 & 按住拖拽投喂） -->
@@ -678,6 +687,31 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 活动列表弹窗（小游戏合集入口） -->
+    <div id="activity-modal" class="activity-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="活动列表">
+      <div id="activity-modal-backdrop" class="activity-modal__backdrop"></div>
+      <div class="activity-modal__card">
+        <div class="activity-modal__head">
+          <div class="activity-modal__titles">
+            <h2 class="activity-modal__title">活动列表</h2>
+            <p class="activity-modal__sub">选一个小游戏和蛋宝宝一起玩吧</p>
+          </div>
+          <button id="btn-close-activities" class="activity-modal__close" type="button" aria-label="关闭活动列表">✕</button>
+        </div>
+        <div id="activity-list" class="activity-list"></div>
+      </div>
+    </div>
+
+    <!-- 小游戏全屏浮层播放器 -->
+    <div id="activity-player" class="activity-player" hidden aria-hidden="true">
+      <div class="activity-player__bar">
+        <button id="btn-close-activity-player" class="activity-player__back" type="button">← 返回房间</button>
+        <span id="activity-player-title" class="activity-player__title"></span>
+        <a id="activity-player-ext" class="activity-player__ext" href="#" target="_blank" rel="noopener noreferrer">独立窗口 ↗</a>
+      </div>
+      <iframe id="activity-player-frame" class="activity-player__frame" title="活动小游戏" allow="autoplay; fullscreen"></iframe>
     </div>
 
   </div>
