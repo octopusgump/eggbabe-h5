@@ -703,7 +703,7 @@
       "category": "shared",
       "categoryLabel": "祈愿共有",
       "sourceHint": "旅行 / 上学 / 一起画",
-      "clue": "陪它去远行或在后续「一起画」玩法中偶遇，也许会带回这支祈福签。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「祈福签」的简笔线稿即可拾取入柜。",
       "stories": {
         "yutu": "玉兔求过一支签，签文她一直没拆开看。她说还没发生的事先别知道，留着比知道好。所以那支签到现在还是空的。",
         "koi": "锦鲤陪一个赶考的人去求签，签文那人拿走了，木签留给了它。它说字该给需要的人，木头自己留着就行。"
@@ -718,7 +718,7 @@
       "category": "shared",
       "categoryLabel": "祈愿共有",
       "sourceHint": "打工 / 旅行 / 一起画",
-      "clue": "在外出打工、旅行或后续「一起画」偶遇中，有机会拾到这枚耐磨的旧铜钱。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「铜钱」的简笔线稿即可拾取入柜。",
       "stories": {
         "yutu": "玉兔在月宫捣药，一枚铜钱掉进药臼里，捣了三年也没捣碎。她后来把它挂在腰上，说这东西比自己耐磨。",
         "koi": "锦鲤跃过龙门那天，鳞片下卡着这枚铜钱。它一直没取下来，说是那天唯一带下来的东西。"
@@ -733,7 +733,7 @@
       "category": "shared",
       "categoryLabel": "祈愿共有",
       "sourceHint": "旅行 / 一起画",
-      "clue": "外出旅行或后续「一起画」玩法中，也许会遇见这枚小小的平安符。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「平安符」的简笔线稿即可拾取入柜。",
       "stories": {
         "yutu": "玉兔绣了几百枚平安符送人，自己留的这枚是唯一绣坏的。她说绣好的都送出去了，说明运气也一样。",
         "koi": "河里的平安符锦鲤见一枚捞一枚，捞了很多年。它自己那枚是最早捞的，一直没舍得替谁转交出去。"
@@ -748,7 +748,7 @@
       "category": "shared",
       "categoryLabel": "祈愿共有",
       "sourceHint": "旅行 / 居家 / 一起画",
-      "clue": "多在房间里陪它待一会儿，或在后续「一起画」玩法中，可能会闻到这只香囊的草木味。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「香囊」的简笔线稿即可拾取入柜。",
       "stories": {
         "yutu": "玉兔捣药时总有一味多出来一点，她全收进这个香囊。攒了几百年，现在这里面是唯一没人开过的方子。",
         "koi": "锦鲤替一位老人把香囊送到河那头，送到时人已经不在了。它没打开看，说反正也不是给它的。"
@@ -763,7 +763,7 @@
       "category": "shared",
       "categoryLabel": "祈愿共有",
       "sourceHint": "打工 / 上学 / 一起画",
-      "clue": "即将在后续「一起画」与远行玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「红绳手链」的简笔线稿即可拾取入柜。",
       "stories": {
         "yutu": "玉兔替人系过一根红绳，那人走时说线太长了。她把剪下来的一截系在自己腕上，说这样两边都算数。",
         "koi": "锦鲤见过太多红绳落进水里。它捡起最旧的那一根，说总得有人替他们记着。"
@@ -778,7 +778,7 @@
       "category": "shared",
       "categoryLabel": "祈愿共有",
       "sourceHint": "居家 / 旅行 / 一起画",
-      "clue": "在居家日常互动或后续「一起画」玩法中，听见清脆一声响也许就是它。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「小铜铃」的简笔线稿即可拾取入柜。",
       "stories": {
         "yutu": "玉兔的耳朵太长，走路听不见自己的脚步，就在身上挂了个铃铛。现在她不需要了，但还是挂着。",
         "koi": "锦鲤在水里听不见铃铛响。它带着这个，是为了上岸的时候能确认自己真的上来了。"
@@ -804,7 +804,7 @@
       "category": "yutu",
       "categoryLabel": "玉兔专属",
       "sourceHint": "外出 / 一起画",
-      "clue": "即将在后续远行与「一起画」玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「自行车铃」的简笔线稿即可拾取入柜。",
       "story": "玉兔学骑车摔了很多次，只有铃铛一直没坏。她说这是唯一没嫌弃过她的零件。",
       "img": "assets/shared/png/keepsakes/k_r02_bicycle_bell.png",
       "lineImg": "assets/shared/png/keepsakes/line/k_r02_bicycle_bell.png"
@@ -815,7 +815,7 @@
       "category": "yutu",
       "categoryLabel": "玉兔专属",
       "sourceHint": "居家互动 / 一起画",
-      "clue": "和玉兔多多居家互动，或在后续「一起画」中偶遇这只羽毛毽子。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「毽子」的简笔线稿即可拾取入柜。",
       "story": "玉兔踢毽子从来没超过十个。她说重点不是踢多少，是毽子落下来的时候你还在原地。",
       "img": "assets/shared/png/keepsakes/k_r04_traditional_shuttlecock.png",
       "lineImg": "assets/shared/png/keepsakes/line/k_r04_traditional_shuttlecock.png"
@@ -870,7 +870,7 @@
       "category": "yutu",
       "categoryLabel": "玉兔专属",
       "sourceHint": "打工 / 居家 / 一起画",
-      "clue": "在玉兔的日常互动或后续「一起画」玩法中，也许会找到这支磨圆了头的迷你玉杵。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「迷你玉杵」的简笔线稿即可拾取入柜。",
       "story": "玉兔捣药捣了很久，杵头都磨圆了。她换了新的，旧的没扔，说这个知道她用了多大力气。",
       "img": "assets/shared/png/keepsakes/jade_rabbit_mini_jade_pestle.png",
       "lineImg": "assets/shared/png/keepsakes/line/jade_rabbit_mini_jade_pestle.png"
@@ -903,7 +903,7 @@
       "category": "yutu",
       "categoryLabel": "玉兔专属",
       "sourceHint": "上学 / 一起画",
-      "clue": "即将在后续「一起画」与上学玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「药草包」的简笔线稿即可拾取入柜。",
       "story": "玉兔认药认错过很多次，师父让她把认错的留下来。这一包越攒越厚，厚到她现在闭着眼都能认出来——全是错的那些。",
       "img": "assets/shared/png/keepsakes/jade_rabbit_herb_pouch.png",
       "lineImg": "assets/shared/png/keepsakes/line/jade_rabbit_herb_pouch.png"
@@ -914,7 +914,7 @@
       "category": "yutu",
       "categoryLabel": "玉兔专属",
       "sourceHint": "旅行 / 一起画道具池",
-      "clue": "即将在后续远行与「一起画」道具池中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「玉兔头盔」的简笔线稿即可拾取入柜。",
       "story": "玉兔戴这顶圆头盔时，两只长耳朵根本塞不进去，只能从头顶小黄鸭旁边竖出来。她还是每次出门都扣紧下巴带，说保护好脑瓜就已经够忙了。",
       "img": "assets/shared/png/keepsakes/jade_rabbit_helmet.png",
       "lineImg": "assets/shared/png/keepsakes/line/jade_rabbit_helmet.png"
@@ -947,7 +947,7 @@
       "category": "koi",
       "categoryLabel": "锦鲤专属",
       "sourceHint": "外出散步 / 一起画",
-      "clue": "即将在后续远行散步与「一起画」玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「纸风车」的简笔线稿即可拾取入柜。",
       "story": "有个孩子把风车插在河边就走了，锦鲤守了三天。它现在出门都带着，走得比谁都慢——走快了风车会转，那就不是风吹的了。",
       "img": "assets/shared/png/keepsakes/boon_koi_paper_pinwheel.png",
       "lineImg": "assets/shared/png/keepsakes/line/boon_koi_paper_pinwheel.png"
@@ -980,7 +980,7 @@
       "category": "koi",
       "categoryLabel": "锦鲤专属",
       "sourceHint": "小院子池边 / 一起画",
-      "clue": "即将在后续「晴日小院子」与「一起画」玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「鱼形浮漂」的简笔线稿即可拾取入柜。",
       "story": "锦鲤钓鱼从来钓不上东西，因为浮漂做成了鱼的样子，鱼都不敢过来。它知道，但没换。",
       "img": "assets/shared/png/keepsakes/k_k06_fish_shaped_bobber.png",
       "lineImg": "assets/shared/png/keepsakes/line/k_k06_fish_shaped_bobber.png"
@@ -1013,7 +1013,7 @@
       "category": "koi",
       "categoryLabel": "锦鲤专属",
       "sourceHint": "旅行 / 一起画",
-      "clue": "即将在后续远行与「一起画」玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「鱼形木牌」的简笔线稿即可拾取入柜。",
       "story": "庙里掉进水的许愿牌，锦鲤捞起来一看，上面写着「想变成一条鱼」。它带着这块牌子很多年，一直没想明白该羡慕谁。",
       "img": "assets/shared/png/keepsakes/boon_koi_fish_wooden_plaque.png",
       "lineImg": "assets/shared/png/keepsakes/line/boon_koi_fish_wooden_plaque.png"
@@ -1035,7 +1035,7 @@
       "category": "koi",
       "categoryLabel": "锦鲤专属",
       "sourceHint": "旅行 / 一起画",
-      "clue": "即将在后续远行与「一起画」玩法中开放偶遇。",
+      "clue": "打开右侧或工具箱「活动 · 一起画」，凭记忆临摹「水纹玉佩」的简笔线稿即可拾取入柜。",
       "story": "玉佩上的纹路和锦鲤游过时的水纹一样。它说这是有人认真看过它游泳才刻得出来的。",
       "img": "assets/shared/png/keepsakes/boon_koi_water_ripple_jade_pendant.png",
       "lineImg": "assets/shared/png/keepsakes/line/boon_koi_water_ripple_jade_pendant.png"
@@ -1172,5 +1172,15 @@
       "img": "assets/shared/png/keepsakes/dried_tea_tag.png",
       "lineImg": "assets/shared/png/keepsakes/line/dried_tea_tag.png"
     }
-  ]
+  ],
+  "doodleUi": {
+    "palette": "assets/shared/png/doodle/palette_3d.png",
+    "brush": "assets/shared/png/doodle/tool_brush.png",
+    "eraser": "assets/shared/png/doodle/tool_eraser.png",
+    "sticker": "assets/shared/png/doodle/tool_sticker.png",
+    "undo": "assets/shared/png/doodle/tool_undo.png",
+    "undoDisabled": "assets/shared/png/doodle/tool_undo_disabled.png",
+    "clear": "assets/shared/png/doodle/tool_clear.png",
+    "clearDisabled": "assets/shared/png/doodle/tool_clear_disabled.png"
+  }
 }

@@ -3170,7 +3170,9 @@
     showSceneFeedback("已摆进暖橡木多宝格", "system");
   }
 
+  let activeClueItem = null;
   function openKeepsakeClue(item) {
+    activeClueItem = item;
     clueLineImgEl.src = sharedUrl(item.lineImg);
     clueLineImgEl.alt = item.name;
     clueCategoryTagEl.textContent = item.categoryLabel || "旅途日常";
@@ -3568,11 +3570,23 @@
     renderContextEntry();
     layoutScenePropsAndHotspots();
     scrollToScreen(1, false);
+    if (new URLSearchParams(window.location.search).get("open") === "curio") {
+      openKeepsakeAlbum("keepsakes");
+    }
     requestAnimationFrame(mainLoop);
   }
 
   /* ---------- 活动列表（小游戏合集） ---------- */
   const ACTIVITIES = [
+    {
+      id: "doodle-together",
+      name: "一起画",
+      tag: "拾物临摹 · +10✦",
+      desc: "偷看 5 秒简笔线稿凭记忆临摹，解锁小物件自动摆进收藏格",
+      thumb: sharedUrl("assets/shared/png/doodle/palette_3d.png"),
+      containThumb: true,
+      url: "./living-room-dress/doodle/"
+    },
     {
       id: "haixinke-bottle-game",
       name: "瓶空一翻",
@@ -3598,11 +3612,32 @@
   const activityPlayerExtEl = $("activity-player-ext");
   const activityPlayerFrameEl = $("activity-player-frame");
 
+  function syncFromExternalStoreUpdate() {
+    const latest = storageAdapter.getJSON(Store.STORAGE_KEY);
+    if (!latest || typeof latest !== "object") return;
+    if (latest.curioCabinet && Array.isArray(latest.curioCabinet.unlockedIds)) {
+      crossStore.curioCabinet = latest.curioCabinet;
+      state.keepsakes = latest.curioCabinet.unlockedIds.slice();
+    }
+    if (latest.companion && typeof latest.companion === "object") {
+      crossStore.companion = latest.companion;
+      state.stars = Number(latest.companion.starBalance || 0);
+      state.companionDays = Number(latest.companion.companionDays || 1);
+      state.totalCompanionDays = Number(latest.companion.totalCompanionDays || 1);
+    }
+    if (latest.dailyEventLog && typeof latest.dailyEventLog === "object") {
+      crossStore.dailyEventLog = latest.dailyEventLog;
+    }
+    renderMoodTab();
+    if (profileModalEl && !profileModalEl.hidden) renderProfileModal();
+    if (albumViewEl && !albumViewEl.hidden) renderAlbumGrid();
+  }
+
   function openActivityModal() {
     if (!activityModalEl || !activityListEl) return;
     activityListEl.innerHTML = ACTIVITIES.map((item) => `
       <button class="activity-card" type="button" data-activity-id="${item.id}">
-        <img class="activity-card__thumb" src="${item.thumb}" alt="" />
+        <img class="activity-card__thumb${item.containThumb ? " activity-card__thumb--contain" : ""}" src="${item.thumb}" alt="" />
         <div class="activity-card__body">
           <div class="activity-card__top">
             <span class="activity-card__name">${item.name}</span>
@@ -3632,11 +3667,15 @@
     activityModalEl.setAttribute("aria-hidden", "true");
   }
 
-  function openActivityPlayer(item) {
+  function openActivityPlayer(item, queryObj) {
     if (!activityPlayerEl || !activityPlayerFrameEl) return;
+    const standaloneQs = new URLSearchParams(queryObj || {});
+    const embedQs = new URLSearchParams(Object.assign({ embed: "1" }, queryObj || {}));
+    const standaloneHref = standaloneQs.toString() ? `${item.url}?${standaloneQs.toString()}` : item.url;
+    const frameSrc = `${item.url}${item.url.includes("?") ? "&" : "?"}${embedQs.toString()}`;
     activityPlayerTitleEl.textContent = item.name;
-    activityPlayerExtEl.href = item.url;
-    activityPlayerFrameEl.src = item.url;
+    activityPlayerExtEl.href = standaloneHref;
+    activityPlayerFrameEl.src = frameSrc;
     activityPlayerEl.hidden = false;
     activityPlayerEl.setAttribute("aria-hidden", "false");
   }
@@ -3645,8 +3684,46 @@
     if (!activityPlayerEl || !activityPlayerFrameEl) return;
     activityPlayerEl.hidden = true;
     activityPlayerEl.setAttribute("aria-hidden", "true");
-    activityPlayerFrameEl.src = "about:blank";
+    syncFromExternalStoreUpdate();
+    requestAnimationFrame(() => {
+      if (activityPlayerEl.hidden) {
+        activityPlayerFrameEl.src = "about:blank";
+      }
+    });
   }
+
+  const btnClueGoDoodleEl = $("btn-clue-go-doodle");
+  if (btnClueGoDoodleEl) {
+    btnClueGoDoodleEl.addEventListener("click", () => {
+      sfx.tap();
+      const targetPropId = activeClueItem ? activeClueItem.id : "";
+      keepsakeClueOverlayEl.hidden = true;
+      albumViewEl.hidden = true;
+      const doodleAct = ACTIVITIES.find((a) => a.id === "doodle-together");
+      if (doodleAct) {
+        openActivityPlayer(doodleAct, targetPropId ? { propId: targetPropId } : undefined);
+      }
+    });
+  }
+
+  window.addEventListener("message", (ev) => {
+    const data = ev && ev.data;
+    if (!data || typeof data !== "object") return;
+    if (data.type === "eggbabe:doodle-complete") {
+      syncFromExternalStoreUpdate();
+      if (data.newlyUnlocked) {
+        tbAlbumDotEl.hidden = false;
+      }
+    } else if (data.type === "eggbabe:doodle-nav") {
+      closeActivityPlayer();
+      if (data.target === "curio") {
+        openKeepsakeAlbum("keepsakes");
+        if (data.propId) {
+          showSceneFeedback("已为你摆入多宝收藏格 ✨", "system");
+        }
+      }
+    }
+  });
 
   const dockBtnActivitiesEl = $("dock-btn-activities");
   if (dockBtnActivitiesEl) {
