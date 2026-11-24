@@ -507,6 +507,30 @@
   const polaroidOutfitEl = $("polaroid-outfit");
 
   const albumViewEl = $("keepsake-album-view");
+  const curioCabinetViewEl = $("curio-cabinet-view");
+  const curioPlacedCountEl = $("curio-placed-count");
+  const btnCurioArrangeEl = $("btn-curio-arrange");
+  const curioArrangeHintEl = $("curio-arrange-hint");
+  const curioShelfGridEl = $("curio-shelf-grid");
+  const curioCatalogTitleEl = $("curio-catalog-title");
+  const curioProgressBadgeEl = $("curio-progress-badge");
+  const curioCatalogEmptyEl = $("curio-catalog-empty");
+  const curioCatalogGridEl = $("curio-catalog-grid");
+  const curioPaginationEl = $("curio-pagination");
+  const btnCurioPrevPageEl = $("btn-curio-prev-page");
+  const btnCurioNextPageEl = $("btn-curio-next-page");
+  const curioPageIndicatorEl = $("curio-page-indicator");
+  const curioPickerOverlayEl = $("curio-picker-overlay");
+  const curioPickerTitleEl = $("curio-picker-title");
+  const curioPickerListEl = $("curio-picker-list");
+  const btnCurioClearSlotEl = $("btn-curio-clear-slot");
+  const keepsakeClueOverlayEl = $("keepsake-clue-overlay");
+  const clueLineImgEl = $("clue-line-img");
+  const clueCategoryTagEl = $("clue-category-tag");
+  const clueTitleEl = $("clue-title");
+  const clueTextEl = $("clue-text");
+  const clueSourceEl = $("clue-source");
+
   const keepsakeEmptyEl = $("keepsake-empty");
   const keepsakeGridEl = $("keepsake-grid");
   const detailViewEl = $("keepsake-detail-view");
@@ -514,8 +538,11 @@
   const detailHeroImgEl = $("detail-hero-img");
   const detailTitleEl = $("detail-title");
   const detailBadgeEl = $("detail-badge");
+  const detailPetStorySegEl = $("detail-pet-story-seg");
   const detailStoryEl = $("detail-story");
   const detailDateEl = $("detail-date");
+  const detailKeepsakeActionsEl = $("detail-keepsake-actions");
+  const detailPlaceCabinetTextEl = $("detail-place-cabinet-text");
   const detailDownloadWrapEl = $("detail-download-wrap");
 
   function triggerRebound(el) {
@@ -2033,6 +2060,8 @@
     const ps = careAll[state.petId];
     ps.hunger = clamp(ps.hunger + snack.hunger, 0, 100);
     Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { snackId: snack.id });
+    if (state.petId === "yutu" && snack.id === "osmanthus_cake") unlockKeepsake("jade_rabbit_osmanthus_branch", "feed:osmanthus_cake");
+    if (state.petId === "koi" && snack.id === "star_candy") unlockKeepsake("boon_koi_fortune_bead", "feed:star_candy");
     const leveled = addCareExp(state.petId, snack.exp);
 
     sfx.munch();
@@ -2172,6 +2201,7 @@
     const ps = careAll[state.petId];
     ps.hygiene = 100;
     Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { bathed: true });
+    unlockKeepsake(state.petId === "yutu" ? "k_r01_yellow_rubber_duck" : "k_k04_origami_paper_boat", "bath:complete");
     const leveled = addCareExp(state.petId, 24);
     sfx.splash();
     startAnim("rinse", performance.now());
@@ -2357,31 +2387,40 @@
     ev.stopPropagation();
     const def = ROOM_STATES[state.roomState];
     if (!def) return;
+    const dk = Store.getUtc8DateKey();
+    const slotKey = `${dk}_${state.petId}_${state.roomState}`;
+    if (!Array.isArray(crossStore.companion.actedSlotKeys)) crossStore.companion.actedSlotKeys = [];
+    const alreadyActedToday = crossStore.companion.actedSlotKeys.includes(slotKey);
+    if (!alreadyActedToday) {
+      crossStore.companion.actedSlotKeys.push(slotKey);
+      if (crossStore.companion.actedSlotKeys.length > 60) {
+        crossStore.companion.actedSlotKeys = crossStore.companion.actedSlotKeys.slice(-60);
+      }
+    }
     state.actedStates[`${state.petId}:${state.roomState}`] = true;
     actionGlowEl.hidden = true;
     sfx.star();
-    if (def.keepsakeId) {
-      const norm = Store.keepsakeAliasNormalizer([def.keepsakeId]);
-      const cid = norm.unlockedIds[0] || def.keepsakeId;
-      if (!state.keepsakes.includes(cid)) {
-        state.keepsakes.unshift(cid);
-        if (Array.isArray(crossStore.curioCabinet.shelfSlots) && !crossStore.curioCabinet.shelfSlots.includes(cid)) {
-          const emptyIdx = crossStore.curioCabinet.shelfSlots.indexOf(null);
-          if (emptyIdx >= 0) crossStore.curioCabinet.shelfSlots[emptyIdx] = cid;
-        }
-        crossStore.curioCabinet.unlockedMeta[cid] = {
-          unlockedAt: Store.getUtc8IsoString(),
-          source: "scene:" + state.roomState,
-          isNew: true
-        };
-        tbAlbumDotEl.hidden = false;
-      }
-    }
-    Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, {
+
+    const petRoomDropMap = {
+      sleep: "retained_sugar_painting_ladle",
+      reading: state.petId === "yutu" ? "k_r05_vintage_moon_rabbit_newspaper" : "k_k01_lotus_leaf_bookmark",
+      drawing: state.petId === "koi" ? "k_k07_dried_paint_palette" : "short_pencil",
+      gaming: state.petId === "yutu" ? "k_r07_rabbit_silhouette_badge" : "cork_coaster",
+      window: state.petId === "yutu" ? "jade_rabbit_moon_phase_cards" : "boon_koi_lotus_lantern"
+    };
+    const dropId = petRoomDropMap[state.roomState] || def.keepsakeId;
+    if (dropId) unlockKeepsake(dropId, "scene:" + state.roomState);
+    if (def.keepsakeId && def.keepsakeId !== dropId) unlockKeepsake(def.keepsakeId, "scene:" + state.roomState);
+
+    Store.recordDailyEvent(crossStore, dk, state.petId, {
       visitedState: state.roomState,
-      keepsakeId: def.keepsakeId
+      keepsakeId: dropId || def.keepsakeId
     });
-    animateStarsTo(state.stars + 3, 3);
+    if (!alreadyActedToday) {
+      animateStarsTo(state.stars + 3, 3);
+    } else {
+      persistState();
+    }
     renderMoodTab();
     if (def.actionFeedback) showSceneFeedback(def.actionFeedback, "dialogue");
   });
@@ -2947,27 +2986,275 @@
     if (state.postcards.length > 0) openDetailView("postcard", state.postcards[0]);
   });
 
-  /* ---------- 19. 全屏 #FAFAF8 纪念册与详情页 ---------- */
-  let currentAlbumTab = "postcards";
+  /* ---------- 19. 全屏 #FAFAF8 纪念册、P2 木质博古收藏格与详情页 ---------- */
+  let currentAlbumTab = "keepsakes";
   let activeDetailPostcard = null;
+  let activeDetailKeepsake = null;
+  let activeDetailStoryPet = "yutu";
+  let curioArrangeMode = false;
+  let curioSelectedSlotIdx = -1;
+  let curioPickerTargetSlot = -1;
+  let curioCategory = "all";
+  let curioPage = 1;
+  const CURIO_PAGE_SIZE = 12;
+
+  function getAllCatalogKeepsakes() {
+    if (catalog && Array.isArray(catalog.keepsakes) && catalog.keepsakes.length > 0) {
+      return catalog.keepsakes;
+    }
+    return Object.values(KEPSAKE_DEFS).map((k) => ({
+      id: Store.keepsakeAliasNormalizer([k.id]).unlockedIds[0] || k.id,
+      name: k.name,
+      category: "daily",
+      categoryLabel: "旅途日常",
+      img: k.img,
+      lineImg: k.img,
+      sourceHint: "日常回忆",
+      clue: "多在房间里陪它待一会儿，也许就会遇见它。",
+      story: k.story
+    }));
+  }
+
+  function getKeepsakeById(rawId) {
+    if (!rawId) return null;
+    const norm = Store.keepsakeAliasNormalizer([rawId]);
+    const cid = norm.unlockedIds[0] || rawId;
+    return getAllCatalogKeepsakes().find((k) => k.id === cid) || null;
+  }
+
+  function ensureShelfSlots() {
+    if (!Array.isArray(crossStore.curioCabinet.shelfSlots) || crossStore.curioCabinet.shelfSlots.length !== 12) {
+      const slots = new Array(12).fill(null);
+      state.keepsakes.slice(0, 12).forEach((id, i) => { slots[i] = id; });
+      crossStore.curioCabinet.shelfSlots = slots;
+    }
+    return crossStore.curioCabinet.shelfSlots;
+  }
+
+  function unlockKeepsake(rawId, source) {
+    if (!rawId) return false;
+    const norm = Store.keepsakeAliasNormalizer([rawId]);
+    const cid = norm.unlockedIds[0] || rawId;
+    if (state.keepsakes.includes(cid)) return false;
+    state.keepsakes.unshift(cid);
+    const slots = ensureShelfSlots();
+    if (!slots.includes(cid)) {
+      const emptyIdx = slots.indexOf(null);
+      if (emptyIdx >= 0) slots[emptyIdx] = cid;
+    }
+    crossStore.curioCabinet.unlockedMeta[cid] = {
+      unlockedAt: Store.getUtc8IsoString(),
+      source: source || "companion",
+      isNew: true
+    };
+    tbAlbumDotEl.hidden = false;
+    persistState();
+    return true;
+  }
+
+  function renderCurioShelf() {
+    const slots = ensureShelfSlots();
+    const placedCount = slots.filter(Boolean).length;
+    curioPlacedCountEl.textContent = `已摆 ${placedCount}/12 格`;
+    btnCurioArrangeEl.textContent = curioArrangeMode ? "✓ 完成摆放" : "✨ 摆放收藏品";
+    btnCurioArrangeEl.classList.toggle("is-active", curioArrangeMode);
+    curioArrangeHintEl.hidden = !curioArrangeMode;
+
+    curioShelfGridEl.innerHTML = "";
+    for (let i = 0; i < 12; i++) {
+      const kid = slots[i];
+      const item = kid ? getKeepsakeById(kid) : null;
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.dataset.slotIdx = String(i);
+      cell.className = "oak-slot" + (item ? "" : " oak-slot--empty") + (curioSelectedSlotIdx === i ? " is-selected" : "");
+
+      if (item) {
+        cell.setAttribute("aria-label", `第 ${i + 1} 格：${item.name}`);
+        cell.innerHTML =
+          `<span class="oak-slot__figure"><img class="oak-slot__img" src="${sharedUrl(item.img)}" alt="${item.name}" /></span>` +
+          `<span class="oak-slot__plate">${item.name}</span>`;
+      } else {
+        cell.setAttribute("aria-label", `第 ${i + 1} 格：空木格，点击摆入收藏品`);
+        cell.innerHTML = `<span class="oak-slot__plus">+</span><span class="oak-slot__empty-label">空木格</span>`;
+      }
+
+      cell.addEventListener("click", () => {
+        sfx.tap();
+        handleCurioSlotClick(i);
+      });
+      curioShelfGridEl.appendChild(cell);
+    }
+  }
+
+  function handleCurioSlotClick(slotIdx) {
+    const slots = ensureShelfSlots();
+    const currentId = slots[slotIdx];
+
+    if (curioArrangeMode) {
+      if (curioSelectedSlotIdx === -1) {
+        curioSelectedSlotIdx = slotIdx;
+        renderCurioShelf();
+        if (!currentId) {
+          openCurioPicker(slotIdx);
+          curioSelectedSlotIdx = -1;
+          renderCurioShelf();
+        }
+      } else if (curioSelectedSlotIdx === slotIdx) {
+        curioSelectedSlotIdx = -1;
+        renderCurioShelf();
+        openCurioPicker(slotIdx);
+      } else {
+        const prevIdx = curioSelectedSlotIdx;
+        const tmp = slots[prevIdx];
+        slots[prevIdx] = slots[slotIdx];
+        slots[slotIdx] = tmp;
+        curioSelectedSlotIdx = -1;
+        persistState();
+        renderCurioShelf();
+        renderCurioCatalog();
+        showSceneFeedback("已调换多宝格陈列位置", "system");
+      }
+      return;
+    }
+
+    if (currentId) {
+      const item = getKeepsakeById(currentId);
+      if (item) openDetailView("keepsake", item);
+    } else {
+      openCurioPicker(slotIdx);
+    }
+  }
+
+  function openCurioPicker(slotIdx) {
+    curioPickerTargetSlot = slotIdx;
+    const slots = ensureShelfSlots();
+    const curId = slots[slotIdx];
+    curioPickerTitleEl.textContent = `选择摆入第 ${slotIdx + 1} 格的小物件`;
+    btnCurioClearSlotEl.hidden = !curId;
+    curioPickerListEl.innerHTML = "";
+
+    const unlockedItems = state.keepsakes.map((id) => getKeepsakeById(id)).filter(Boolean);
+    if (unlockedItems.length === 0) {
+      curioPickerListEl.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#8C8274;font-size:12px;">还没有小物件，先在房间陪它玩一会儿吧</p>`;
+    } else {
+      unlockedItems.forEach((it) => {
+        const placedIdx = slots.indexOf(it.id);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "curio-picker-opt" + (placedIdx >= 0 ? " is-placed" : "");
+        btn.innerHTML =
+          `<img src="${sharedUrl(it.img)}" alt="${it.name}" />` +
+          `<span>${it.name}${placedIdx >= 0 ? ` (#${placedIdx + 1})` : ""}</span>`;
+        btn.addEventListener("click", () => {
+          sfx.tap();
+          placeKeepsakeInSlot(it.id, slotIdx);
+          curioPickerOverlayEl.hidden = true;
+        });
+        curioPickerListEl.appendChild(btn);
+      });
+    }
+    curioPickerOverlayEl.hidden = false;
+  }
+
+  function placeKeepsakeInSlot(keepsakeId, targetIdx) {
+    const slots = ensureShelfSlots();
+    const oldIdx = slots.indexOf(keepsakeId);
+    if (oldIdx >= 0 && oldIdx !== targetIdx) {
+      slots[oldIdx] = slots[targetIdx];
+    }
+    slots[targetIdx] = keepsakeId;
+    persistState();
+    renderCurioShelf();
+    renderCurioCatalog();
+    showSceneFeedback("已摆进暖橡木多宝格", "system");
+  }
+
+  function openKeepsakeClue(item) {
+    clueLineImgEl.src = sharedUrl(item.lineImg);
+    clueLineImgEl.alt = item.name;
+    clueCategoryTagEl.textContent = item.categoryLabel || "旅途日常";
+    clueTitleEl.textContent = item.name;
+    clueTextEl.textContent = item.clue || "多在房间里陪它待一会儿，也许就会遇见它。";
+    clueSourceEl.textContent = item.sourceHint ? `拾物途径：${item.sourceHint}` : "";
+    keepsakeClueOverlayEl.hidden = false;
+  }
+
+  function renderCurioCatalog() {
+    const allItems = getAllCatalogKeepsakes();
+    const unlockedSet = new Set(state.keepsakes);
+    const slots = ensureShelfSlots();
+    const placedSet = new Set(slots.filter(Boolean));
+    const isOrdinary = crossStore.profileMode === "wx-mp-ordinary";
+
+    const unlockedCount = allItems.filter((k) => unlockedSet.has(k.id)).length;
+    curioCatalogTitleEl.textContent = isOrdinary ? "已留存的小物件" : "收藏图鉴 · 全部小物件";
+    curioProgressBadgeEl.textContent = isOrdinary
+      ? `已留存 ${unlockedCount} 件`
+      : `已收集 ${unlockedCount} / ${allItems.length}`;
+
+    document.querySelectorAll("[data-curio-cat]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.curioCat === curioCategory);
+    });
+
+    let filtered = curioCategory === "all"
+      ? allItems
+      : allItems.filter((k) => k.category === curioCategory);
+
+    if (isOrdinary) {
+      filtered = filtered.filter((k) => unlockedSet.has(k.id));
+    }
+
+    const totalPages = Math.max(1, Math.ceil(filtered.length / CURIO_PAGE_SIZE));
+    if (curioPage > totalPages) curioPage = totalPages;
+    if (curioPage < 1) curioPage = 1;
+
+    const start = (curioPage - 1) * CURIO_PAGE_SIZE;
+    const pageItems = filtered.slice(start, start + CURIO_PAGE_SIZE);
+
+    curioCatalogGridEl.innerHTML = "";
+    curioCatalogEmptyEl.hidden = pageItems.length > 0;
+    curioPaginationEl.hidden = filtered.length <= CURIO_PAGE_SIZE;
+    curioPageIndicatorEl.textContent = `第 ${curioPage} / ${totalPages} 页`;
+    btnCurioPrevPageEl.disabled = curioPage <= 1;
+    btnCurioNextPageEl.disabled = curioPage >= totalPages;
+
+    pageItems.forEach((ks) => {
+      const unlocked = unlockedSet.has(ks.id);
+      const placed = placedSet.has(ks.id);
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "curio-item-card" + (unlocked ? "" : " curio-item-card--locked");
+      card.dataset.keepsakeId = ks.id;
+      const imgUrl = sharedUrl(unlocked ? ks.img : ks.lineImg);
+      const badgeHtml = unlocked
+        ? (placed ? `<span class="curio-item-card__badge">已入柜</span>` : "")
+        : `<span class="curio-item-card__q">?</span>`;
+      card.innerHTML =
+        badgeHtml +
+        `<span class="curio-item-card__media"><img class="curio-item-card__img" src="${imgUrl}" alt="${ks.name}" loading="lazy" /></span>` +
+        `<span class="curio-item-card__name">${ks.name}</span>`;
+      card.addEventListener("click", () => {
+        sfx.tap();
+        if (unlocked) openDetailView("keepsake", ks);
+        else openKeepsakeClue(ks);
+      });
+      curioCatalogGridEl.appendChild(card);
+    });
+  }
 
   async function renderAlbumGrid() {
     document.querySelectorAll("[data-album-tab]").forEach((t) => t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab));
     keepsakeGridEl.innerHTML = "";
     if (currentAlbumTab === "keepsakes") {
-      const list = state.keepsakes
-        .map((id) => KEPSAKE_DEFS[id] || KEPSAKE_DEFS[Store.toLegacyKeepsakeId(id)])
-        .filter(Boolean);
-      keepsakeEmptyEl.hidden = list.length > 0;
-      list.forEach((ks) => {
-        const cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "keepsake-cell keepsake-cell--keepsake";
-        cell.innerHTML = `<div class="keepsake-cell__media"><img src="${ks.img}" alt="${ks.name}" /></div><div class="keepsake-cell__label">${ks.name}</div>`;
-        cell.addEventListener("click", () => { sfx.tap(); openDetailView("keepsake", ks); });
-        keepsakeGridEl.appendChild(cell);
-      });
+      curioCabinetViewEl.hidden = false;
+      keepsakeEmptyEl.hidden = true;
+      keepsakeGridEl.hidden = true;
+      renderCurioShelf();
+      renderCurioCatalog();
     } else {
+      curioCabinetViewEl.hidden = true;
+      keepsakeGridEl.hidden = false;
       const list = state.postcards;
       const scenes = getAllPostcardScenes();
       keepsakeEmptyEl.hidden = list.length > 0;
@@ -2988,24 +3275,52 @@
   }
 
   function openKeepsakeAlbum(tab) {
-    currentAlbumTab = tab || "postcards";
+    currentAlbumTab = tab || "keepsakes";
+    curioArrangeMode = false;
+    curioSelectedSlotIdx = -1;
     albumViewEl.hidden = false;
     renderAlbumGrid();
+  }
+
+  function renderDetailKeepsakeStory() {
+    if (!activeDetailKeepsake) return;
+    const item = activeDetailKeepsake;
+    if (item.stories && item.stories.yutu && item.stories.koi) {
+      detailPetStorySegEl.hidden = false;
+      document.querySelectorAll("[data-story-pet]").forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.storyPet === activeDetailStoryPet);
+      });
+      detailStoryEl.textContent = item.stories[activeDetailStoryPet] || item.stories.yutu;
+    } else {
+      detailPetStorySegEl.hidden = true;
+      detailStoryEl.textContent = item.story || "";
+    }
+    const slots = ensureShelfSlots();
+    const placedIdx = slots.indexOf(item.id);
+    detailPlaceCabinetTextEl.textContent = placedIdx >= 0 ? `已摆在第 ${placedIdx + 1} 格` : "摆进多宝格";
   }
 
   async function openDetailView(kind, item) {
     detailViewEl.hidden = false;
     if (kind === "keepsake") {
       activeDetailPostcard = null;
-      detailNavTitleEl.textContent = "遇见";
-      detailHeroImgEl.src = item.img;
+      activeDetailKeepsake = item;
+      activeDetailStoryPet = state.petId === "koi" ? "koi" : "yutu";
+      detailNavTitleEl.textContent = "收藏品详情";
+      detailHeroImgEl.src = sharedUrl(item.img);
       detailTitleEl.textContent = item.name;
-      detailBadgeEl.textContent = "日常回忆";
-      detailStoryEl.textContent = item.story;
-      detailDateEl.textContent = "";
+      detailBadgeEl.textContent = item.categoryLabel || "日常回忆";
+      const meta = crossStore.curioCabinet.unlockedMeta && crossStore.curioCabinet.unlockedMeta[item.id];
+      const dateStr = meta && meta.unlockedAt ? String(meta.unlockedAt).slice(0, 10) : "";
+      detailDateEl.textContent = dateStr ? `留存日期 · ${dateStr}` : "";
+      detailKeepsakeActionsEl.hidden = false;
       detailDownloadWrapEl.hidden = true;
+      renderDetailKeepsakeStory();
     } else {
       activeDetailPostcard = item;
+      activeDetailKeepsake = null;
+      detailPetStorySegEl.hidden = true;
+      detailKeepsakeActionsEl.hidden = true;
       const scenes = getAllPostcardScenes();
       const sc = scenes.find((s) => s.id === item.sceneId) || scenes[0];
       const outfitName = getSetName(item.petId, item.setId) || "原生毛绒";
@@ -3019,7 +3334,72 @@
     }
   }
 
-  document.querySelectorAll("[data-album-tab]").forEach((b) => b.addEventListener("click", () => { sfx.tap(); currentAlbumTab = b.dataset.albumTab; renderAlbumGrid(); }));
+  document.querySelectorAll("[data-album-tab]").forEach((b) => b.addEventListener("click", () => {
+    sfx.tap();
+    currentAlbumTab = b.dataset.albumTab;
+    renderAlbumGrid();
+  }));
+  btnCurioArrangeEl.addEventListener("click", () => {
+    sfx.tap();
+    curioArrangeMode = !curioArrangeMode;
+    curioSelectedSlotIdx = -1;
+    renderCurioShelf();
+  });
+  document.querySelectorAll("[data-curio-cat]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      sfx.tap();
+      curioCategory = btn.dataset.curioCat || "all";
+      curioPage = 1;
+      renderCurioCatalog();
+    });
+  });
+  btnCurioPrevPageEl.addEventListener("click", () => {
+    if (curioPage > 1) { sfx.tap(); curioPage -= 1; renderCurioCatalog(); }
+  });
+  btnCurioNextPageEl.addEventListener("click", () => {
+    sfx.tap(); curioPage += 1; renderCurioCatalog();
+  });
+  $("btn-close-curio-picker").addEventListener("click", () => { sfx.tap(); curioPickerOverlayEl.hidden = true; });
+  curioPickerOverlayEl.addEventListener("click", (ev) => {
+    if (ev.target === curioPickerOverlayEl) { sfx.tap(); curioPickerOverlayEl.hidden = true; }
+  });
+  btnCurioClearSlotEl.addEventListener("click", () => {
+    if (curioPickerTargetSlot >= 0) {
+      sfx.tap();
+      const slots = ensureShelfSlots();
+      slots[curioPickerTargetSlot] = null;
+      persistState();
+      renderCurioShelf();
+      renderCurioCatalog();
+      showSceneFeedback("已从当前木格移下", "system");
+    }
+    curioPickerOverlayEl.hidden = true;
+  });
+  $("btn-close-clue").addEventListener("click", () => { sfx.tap(); keepsakeClueOverlayEl.hidden = true; });
+  keepsakeClueOverlayEl.addEventListener("click", (ev) => {
+    if (ev.target === keepsakeClueOverlayEl) { sfx.tap(); keepsakeClueOverlayEl.hidden = true; }
+  });
+  document.querySelectorAll("[data-story-pet]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      sfx.tap();
+      activeDetailStoryPet = btn.dataset.storyPet === "koi" ? "koi" : "yutu";
+      renderDetailKeepsakeStory();
+    });
+  });
+  $("btn-detail-place-cabinet").addEventListener("click", () => {
+    if (!activeDetailKeepsake) return;
+    sfx.tap();
+    const slots = ensureShelfSlots();
+    if (slots.includes(activeDetailKeepsake.id)) {
+      showSceneFeedback("这件小物件已经在多宝格中展示啦", "system");
+      return;
+    }
+    const emptyIdx = slots.indexOf(null);
+    const targetIdx = emptyIdx >= 0 ? emptyIdx : 11;
+    placeKeepsakeInSlot(activeDetailKeepsake.id, targetIdx);
+    renderDetailKeepsakeStory();
+  });
+
   $("btn-close-album").addEventListener("click", () => { sfx.tap(); albumViewEl.hidden = true; });
   $("btn-close-detail").addEventListener("click", () => { sfx.tap(); detailViewEl.hidden = true; });
   $("btn-detail-download").addEventListener("click", async () => {
@@ -3083,7 +3463,16 @@
     menuCare.innerHTML = "";
     [
       { label: "模拟变饿 + 变脏", fn: () => { ["koi", "yutu"].forEach((id) => { careAll[id].hunger = 18; careAll[id].hygiene = 18; }); saveCareAll(); renderMoodTab(); showSceneFeedback("已模拟 8 小时后变饿变脏提醒", "system"); } },
-      { label: "恢复满状态", fn: () => { ["koi", "yutu"].forEach((id) => { careAll[id].hunger = 95; careAll[id].hygiene = 98; }); saveCareAll(); renderMoodTab(); showSceneFeedback("已恢复饱满干净状态", "system"); } }
+      { label: "恢复满状态", fn: () => { ["koi", "yutu"].forEach((id) => { careAll[id].hunger = 95; careAll[id].hygiene = 98; }); saveCareAll(); renderMoodTab(); showSceneFeedback("已恢复饱满干净状态", "system"); } },
+      {
+        label: "模拟解锁 8 件藏品",
+        fn: () => {
+          ["k_a01_prayer_stick", "k_a02_copper_coin", "k_r01_yellow_rubber_duck", "jade_rabbit_helmet", "k_k01_lotus_leaf_bookmark", "k_k07_dried_paint_palette", "old_wooden_button", "dried_tea_tag"].forEach((id) => unlockKeepsake(id, "demo_tester"));
+          renderMoodTab();
+          if (!albumViewEl.hidden) renderAlbumGrid();
+          showSceneFeedback("已模拟解锁 8 件含 A/B/D 线藏品", "system");
+        }
+      }
     ].forEach((act) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -3107,6 +3496,7 @@
           persistState();
           renderMoodTab();
           if (!profileModalEl.hidden) renderProfileModal();
+          if (!albumViewEl.hidden) renderAlbumGrid();
           closeAllTesterMenus();
           buildDevTesterMenus();
           showSceneFeedback(`已切换 profileMode：${m}`, "system");

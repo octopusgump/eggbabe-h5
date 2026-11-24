@@ -187,21 +187,49 @@
     ginkgo_leaf: "ginkgo-leaf"
   });
 
-  // 41 件标准已渲染纪念物 ID 集合（含现存 6 件 + 小程序 41 件标准池；兼容 P2 全量入库）
+  // 41 件标准已渲染纪念物全集（与 assets/shared/catalog.json keepsakes 100% 对齐）
   const RENDERED_KEEPSAKE_IDS = new Set([
+    "k_a01_prayer_stick",
+    "k_a02_copper_coin",
+    "k_a03_peace_amulet",
+    "k_a04_sachet",
+    "k_a05_red_string_bracelet",
+    "k_a06_small_brass_bell",
+    "k_r01_yellow_rubber_duck",
+    "k_r02_bicycle_bell",
+    "k_r04_traditional_shuttlecock",
+    "k_r05_vintage_moon_rabbit_newspaper",
+    "k_r06_incense_and_holder",
+    "k_r07_rabbit_silhouette_badge",
+    "k_r08_blue_paw_print_card",
+    "jade_rabbit_mini_jade_pestle",
+    "jade_rabbit_osmanthus_branch",
+    "jade_rabbit_moon_phase_cards",
+    "jade_rabbit_herb_pouch",
+    "jade_rabbit_helmet",
+    "k_k01_lotus_leaf_bookmark",
+    "k_k02_polaroid_stone_bridge",
+    "boon_koi_paper_pinwheel",
+    "k_k04_origami_paper_boat",
+    "k_k05_coffee_cup_sleeve",
+    "k_k06_fish_shaped_bobber",
+    "k_k07_dried_paint_palette",
+    "k_k08_burnt_candle_stub",
+    "boon_koi_fish_wooden_plaque",
+    "boon_koi_fortune_bead",
+    "boon_koi_water_ripple_jade_pendant",
+    "boon_koi_lotus_lantern",
+    "retained_sugar_painting_ladle",
     "old_wooden_button",
     "short_pencil",
-    "dali_cloud_stone",
-    "cork_coaster",
     "small_wood_rattle",
+    "dali_cloud_stone",
     "ginkgo_leaf",
-    "retained_sugar_painting_ladle",
     "rainforest_seed_pod",
+    "cork_coaster",
     "red_order_clip",
     "rainbow_carwash_cloth",
-    "jade_rabbit_helmet",
-    "dried_tea_tag",
-    "k_r01_yellow_rubber_duck"
+    "dried_tea_tag"
   ]);
 
   // 暂未渲染的旧叙事 ID（无损暂存至 curioCabinet.deferredUnlockedIds）
