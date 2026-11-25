@@ -178,6 +178,13 @@ test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and
   assert.equal(html.includes('id="profile-star-hint"'), false, "star subtitle fluff must be removed");
   assert.equal(html.includes('id="profile-streak-days"'), false, "streak subtitle fluff must be removed");
   assert.equal(html.includes("profile-journal-card__spine"), false, "legacy notebook spine must be removed");
+
+  // 6. Zero intimacy / Lv. / +5 EXP strings in user-facing UI (index.html & app.js)
+  assert.equal(html.includes("亲密"), false, "index.html must not contain any 亲密 UI text");
+  assert.equal(html.includes("+5 EXP"), false, "index.html must not contain +5 EXP text");
+  assert.equal(appJs.includes("亲密"), false, "app.js must not contain any 亲密 UI text");
+  assert.equal(appJs.includes("升到 Lv."), false, "app.js must not contain any 升到 Lv. toast");
+  assert.equal(appJs.includes("+5 EXP"), false, "app.js must not contain +5 EXP text");
 });
 
 

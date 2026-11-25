@@ -116,7 +116,6 @@
     ]
   };
 
-  function expForNextLevel(lv) { return Store.expForNextLevel(lv); }
   const careAll = {
     koi: crossStore.pets.koi.care,
     yutu: crossStore.pets.yutu.care
@@ -128,18 +127,6 @@
     crossStore.pets.koi.care = careAll.koi;
     crossStore.pets.yutu.care = careAll.yutu;
     if (typeof persistState === "function") persistState();
-  }
-  function addCareExp(petId, amount) {
-    const ps = careAll[petId];
-    ps.exp += amount;
-    let leveledUp = false;
-    while (ps.exp >= expForNextLevel(ps.level)) {
-      ps.exp -= expForNextLevel(ps.level);
-      ps.level += 1;
-      leveledUp = true;
-    }
-    saveCareAll();
-    return leveledUp;
   }
 
   /* ---------- 2. 8 态柔和每日心情、10 态房间与遇见配置 ---------- */
@@ -1169,7 +1156,6 @@
     });
     profilePetThumbEl.src = getPetDisplayThumbUrl(petId, state.savedSet[petId]);
     profilePetNameEl.textContent = getPetName(petId);
-    if (profilePetLvEl) profilePetLvEl.textContent = `亲密度 Lv.${ps.level}`;
     profileMoodIconEl.textContent = mood.icon;
     profileMoodLabelEl.textContent = mood.label;
     profileMoodQuoteEl.textContent = `“${mood.text}”`;
@@ -2536,7 +2522,7 @@
     Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { snackId: snack.id });
     if (state.petId === "yutu" && snack.id === "osmanthus_cake") unlockKeepsake("jade_rabbit_osmanthus_branch", "feed:osmanthus_cake");
     if (state.petId === "koi" && snack.id === "star_candy") unlockKeepsake("boon_koi_fortune_bead", "feed:star_candy");
-    const leveled = addCareExp(state.petId, snack.exp);
+    saveCareAll();
 
     sfx.munch();
     startAnim("eat", performance.now());
@@ -2546,15 +2532,7 @@
       spawnBeatFx(rt, { fx: "heart", at: "R" }, 1, lastPose);
     }
 
-    if (leveled) {
-      setTimeout(() => {
-        sfx.levelUp();
-        animateStarsTo(state.stars + 5, 5);
-        showSceneFeedback(`升到 Lv.${careAll[state.petId].level} 啦，获得 +5 陪伴星`, "system");
-      }, 420);
-    } else {
-      grantCareStars(1);
-    }
+    grantCareStars(1);
     if (snack.crafted && Store.consumeCraftedSnack) {
       Store.consumeCraftedSnack(crossStore, snack.id);
       renderSnackTray();
@@ -2595,7 +2573,6 @@
             name: `${cs.name} ×${qty}`,
             icon: cs.img,
             hunger: cs.hungerGain,
-            exp: cs.expGain,
             crafted: true,
             reply: `刚出炉的${cs.name}真香呀！捧着脸颊开心得摇晃起来～`
           });
@@ -2611,7 +2588,7 @@
       card.innerHTML =
         `<img src="${sn.icon}" alt="${sn.name}" />` +
         `<span class="snack-3d-card__name">${sn.name}</span>` +
-        `<span class="snack-3d-card__meta">+${sn.hunger}饱食 · +${sn.exp}亲密</span>`;
+        `<span class="snack-3d-card__meta">+${sn.hunger} 饱食</span>`;
 
       card.addEventListener("pointerdown", (ev) => {
         ev.preventDefault();
@@ -2700,12 +2677,12 @@
     ps.hygiene = 100;
     Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { bathed: true });
     unlockKeepsake(state.petId === "yutu" ? "k_r01_yellow_rubber_duck" : "k_k04_origami_paper_boat", "bath:complete");
-    const leveled = addCareExp(state.petId, 24);
+    saveCareAll();
     sfx.splash();
     startAnim("rinse", performance.now());
     grantCareStars(3);
     renderMoodTab();
-    showSceneFeedback(leveled ? `洗得香喷喷的，升到 Lv.${ps.level} 啦～` : "哗啦啦，洗得香喷喷的，毛毛好蓬松～", "dialogue");
+    showSceneFeedback("哗啦啦，洗得香喷喷的，毛毛好蓬松～", "dialogue");
   }
 
   let petTouch = null;
@@ -2769,7 +2746,6 @@
         lastPetStarAt = now;
         sfx.star();
         Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { visitedState: "petted" });
-        addCareExp(state.petId, 10);
         grantCareStars(2);
         renderMoodTab();
         showSceneFeedback("呼噜呼噜～摸头最舒服啦♡", "dialogue");
@@ -5252,7 +5228,7 @@
     }
     const rewardText = res.starsAwarded > 0
       ? `获得 +${res.starsAwarded}✦ 星星（今日游艺 ${res.earnedToday}/${res.cap}✦）`
-      : `今日游艺星星已满 ${res.cap}✦，改获 +${res.expAwarded} 亲密经验 💛`;
+      : `今日游艺星星已满 ${res.cap}✦，感谢你的陪伴 ✨`;
     if (nativeMgSubEl) nativeMgSubEl.textContent = `今日游艺获星 ${res.earnedToday} / ${res.cap} ✦`;
     if (nativeMgBodyEl) {
       nativeMgBodyEl.innerHTML = `
@@ -5660,8 +5636,8 @@
     const earned = getTodayMiniGameStarsEarned();
     if (capBarEl) {
       capBarEl.textContent = earned >= Store.DAILY_MINIGAME_STAR_CAP
-        ? `今日游艺获星已满 ${Store.DAILY_MINIGAME_STAR_CAP}/${Store.DAILY_MINIGAME_STAR_CAP}✦（继续游玩仍得 +5 EXP 与自制点心）`
-        : `今日游艺获星：${earned} / ${Store.DAILY_MINIGAME_STAR_CAP} ✦（满额后仍得 +5 EXP）`;
+        ? `今日游艺获星已满 ${Store.DAILY_MINIGAME_STAR_CAP}/${Store.DAILY_MINIGAME_STAR_CAP}✦（继续游玩仍可得自制点心）`
+        : `今日游艺获星：${earned} / ${Store.DAILY_MINIGAME_STAR_CAP} ✦（满额后仍可随时畅玩）`;
     }
     activityListEl.innerHTML = ACTIVITIES.map((item) => `
       <button class="activity-card" type="button" data-activity-id="${item.id}">
