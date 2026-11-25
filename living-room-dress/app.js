@@ -442,6 +442,10 @@
   const petFxHostEl = $("pet-fx-host");
   const sleepZzEl = $("sleep-zz");
   const dirtyLayerEl = $("dirty-layer");
+  const btnDirtyHintEl = $("btn-dirty-hint");
+  const hungryLayerEl = $("hungry-layer");
+  const btnHungryThoughtEl = $("btn-hungry-thought");
+  const hungryThoughtIconEl = $("hungry-thought-icon");
   const soapBubbleLayerEl = $("soap-bubble-layer");
   const rinseFlashEl = $("rinse-flash");
   const hitLayerEl = $("scene-hit-layer");
@@ -1047,28 +1051,46 @@
     }
   }
 
-  function syncCareIndicators() {
+  function isPetHungryNow() {
     const ps = careAll[state.petId] || careAll.koi;
-    const hungerPct = Math.round(clamp(ps.hunger, 0, 100));
-    const hygienePct = Math.round(clamp(ps.hygiene, 0, 100));
-    const isHungry = hungerPct < 30;
-    const isDirty = hygienePct < 30;
+    return Math.round(clamp(ps.hunger, 0, 100)) < 30;
+  }
 
-    dockDotHungryEl.hidden = !isHungry;
-    dockDotDirtyEl.hidden = !isDirty;
+  function isPetDirtyNow() {
+    const ps = careAll[state.petId] || careAll.koi;
+    return Math.round(clamp(ps.hygiene, 0, 100)) < 30;
+  }
 
-    hudDaysNumEl.textContent = String(crossStore.companion.totalCompanionDays || 1);
-    hudHungerValEl.textContent = `${hungerPct}%`;
-    hudHungerBarEl.style.width = `${hungerPct}%`;
-    hudCareHungerEl.classList.toggle("is-warning", isHungry);
+  function syncCareIndicators() {
+    const isHungry = isPetHungryNow();
+    const isDirty = isPetDirtyNow();
 
-    hudHygieneValEl.textContent = `${hygienePct}%`;
-    hudHygieneBarEl.style.width = `${hygienePct}%`;
-    hudCareHygieneEl.classList.toggle("is-warning", isDirty);
+    if (dockDotHungryEl) dockDotHungryEl.hidden = !isHungry;
+    if (dockDotDirtyEl) dockDotDirtyEl.hidden = !isDirty;
+    if (hudDaysNumEl) hudDaysNumEl.textContent = String(crossStore.companion.totalCompanionDays || 1);
 
-    const showDirtyFx = isDirty && isWebGLActive() && careUiMode !== "bath";
-    dirtyLayerEl.hidden = !showDirtyFx;
-    if (showDirtyFx) positionDirtyFx();
+    const petVisibleAwake = isWebGLActive() && !isFittingOpen && !(typeof isNightSleepingNow === "function" && isNightSleepingNow());
+    const showDirtyFx = isDirty && petVisibleAwake && careUiMode !== "bath";
+    const showHungryFx = isHungry && petVisibleAwake && careUiMode !== "feed";
+
+    appEl.classList.toggle("is-pet-dirty", showDirtyFx);
+    appEl.classList.toggle("is-pet-hungry", showHungryFx);
+
+    if (dirtyLayerEl) {
+      dirtyLayerEl.hidden = !showDirtyFx;
+      if (showDirtyFx) positionDirtyFx();
+    }
+    if (hungryLayerEl) {
+      hungryLayerEl.hidden = !showHungryFx;
+      if (showHungryFx) {
+        if (hungryThoughtIconEl) {
+          hungryThoughtIconEl.src = state.petId === "yutu"
+            ? "./living-room-dress/ui/snack_carrot.png"
+            : "./living-room-dress/ui/snack_fish.png";
+        }
+        positionHungryFx();
+      }
+    }
   }
 
   function getActiveComputedMood() {
@@ -1163,17 +1185,6 @@
 
     profileStarValueEl.textContent = `${state.stars} ✦`;
     profileTotalDaysEl.textContent = `累计 ${crossStore.companion.totalCompanionDays || 1} 天`;
-
-    const hungerPct = Math.round(clamp(ps.hunger, 0, 100));
-    const hygienePct = Math.round(clamp(ps.hygiene, 0, 100));
-
-    profileBarHungerEl.style.width = `${hungerPct}%`;
-    profileValHungerEl.textContent = `${hungerPct}%`;
-    profileBarHungerRowEl.classList.toggle("is-warning", hungerPct < 30);
-
-    profileBarHygieneEl.style.width = `${hygienePct}%`;
-    profileValHygieneEl.textContent = `${hygienePct}%`;
-    profileBarHygieneRowEl.classList.toggle("is-warning", hygienePct < 30);
   }
 
   function openProfileModal() {
@@ -2260,18 +2271,21 @@
       else nextBlinkAt = now + 2200 + Math.random() * 2500;
     }
     const ps = careAll[rt.id] || careAll.koi;
-    const lowMood = ps.hunger < 30 || ps.hygiene < 30;
-    const b = Math.sin((now / (lowMood ? 3500 : 2600)) * Math.PI * 2);
+    const isHungry = ps.hunger < 30;
+    const isDirty = ps.hygiene < 30;
+    const lowMood = isHungry || isDirty;
+    const b = Math.sin((now / (lowMood ? 3600 : 2600)) * Math.PI * 2);
     const isKoi = rt.id === "koi";
+    const earDroop = lowMood ? (isKoi ? 8 : 22) : 0;
     return makePose({
-      sx: 1 - 0.006 * b,
-      sy: (lowMood ? 0.985 : 1) + 0.012 * b,
+      sx: 1 - 0.006 * b + (lowMood ? 0.014 : 0),
+      sy: (lowMood ? 0.972 : 1) + 0.012 * b,
       breath: (isKoi ? 0.014 : 0.018) * b,
-      headRot: (lowMood ? 3.5 : isKoi ? 5.5 : 1.0) * Math.sin((now / 3600) * Math.PI * 2),
-      headTy: lowMood ? 5 : 0,
-      earL: -0.9 + 1.8 * Math.sin((now / 2500) * Math.PI * 2 + 0.3),
-      earR: 0.9 + 1.8 * Math.sin((now / 2800) * Math.PI * 2 + 1.4),
-      wDoze: bl
+      headRot: (lowMood ? 4.2 : isKoi ? 5.5 : 1.0) * Math.sin((now / 3600) * Math.PI * 2) + (isHungry ? 3 : 0),
+      headTy: lowMood ? 9 : 0,
+      earL: -0.9 - earDroop + 1.8 * Math.sin((now / 2500) * Math.PI * 2 + 0.3),
+      earR: 0.9 + earDroop + 1.8 * Math.sin((now / 2800) * Math.PI * 2 + 1.4),
+      wDoze: Math.max(bl, lowMood ? 0.24 : 0)
     });
   }
 
@@ -2430,14 +2444,42 @@
   let lastBubbleSpawn = 0;
 
   function positionDirtyFx() {
+    if (!dirtyLayerEl) return;
     const wisp1 = dirtyLayerEl.querySelector(".stink-1");
     const wisp2 = dirtyLayerEl.querySelector(".stink-2");
+    const wisp3 = dirtyLayerEl.querySelector(".stink-3");
     const flyA = dirtyLayerEl.querySelector(".fly-a");
     const flyB = dirtyLayerEl.querySelector(".fly-b");
-    if (wisp1) panoToBoxStyle(wisp1, petPos.x - 130, petPos.y - 380);
-    if (wisp2) panoToBoxStyle(wisp2, petPos.x + 125, petPos.y - 410);
-    if (flyA) panoToBoxStyle(flyA, petPos.x - 155, petPos.y - 450);
-    if (flyB) panoToBoxStyle(flyB, petPos.x + 150, petPos.y - 430);
+    if (wisp1) panoToBoxStyle(wisp1, petPos.x - 135, petPos.y - 385);
+    if (wisp2) panoToBoxStyle(wisp2, petPos.x + 125, petPos.y - 405);
+    if (wisp3) panoToBoxStyle(wisp3, petPos.x - 10, petPos.y - 475);
+    if (flyA) panoToBoxStyle(flyA, petPos.x - 165, petPos.y - 455);
+    if (flyB) panoToBoxStyle(flyB, petPos.x + 158, petPos.y - 435);
+    if (btnDirtyHintEl) panoToBoxStyle(btnDirtyHintEl, petPos.x - 165, petPos.y - 525);
+  }
+
+  function positionHungryFx() {
+    if (!hungryLayerEl) return;
+    const rumble = hungryLayerEl.querySelector(".hungry-rumble");
+    if (rumble) panoToBoxStyle(rumble, petPos.x, petPos.y - 165);
+    if (btnHungryThoughtEl) panoToBoxStyle(btnHungryThoughtEl, petPos.x + 185, petPos.y - 515);
+  }
+
+  if (btnDirtyHintEl) {
+    btnDirtyHintEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      sfx.tap();
+      setToolboxOpen(false);
+      setCareUiMode("bath");
+    });
+  }
+  if (btnHungryThoughtEl) {
+    btnHungryThoughtEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      sfx.tap();
+      setToolboxOpen(false);
+      setCareUiMode("feed");
+    });
   }
 
   function setCareUiMode(nextMode) {
@@ -2587,8 +2629,7 @@
       card.className = "snack-3d-card";
       card.innerHTML =
         `<img src="${sn.icon}" alt="${sn.name}" />` +
-        `<span class="snack-3d-card__name">${sn.name}</span>` +
-        `<span class="snack-3d-card__meta">+${sn.hunger} 饱食</span>`;
+        `<span class="snack-3d-card__name">${sn.name}</span>`;
 
       card.addEventListener("pointerdown", (ev) => {
         ev.preventDefault();
@@ -3119,8 +3160,10 @@
       charHotspotEl.hidden = true;
       actionGlowEl.hidden = true;
     }
-    if (!dirtyLayerEl.hidden) positionDirtyFx();
     syncRoomModules();
+    syncCareIndicators();
+    if (dirtyLayerEl && !dirtyLayerEl.hidden) positionDirtyFx();
+    if (hungryLayerEl && !hungryLayerEl.hidden) positionHungryFx();
     updateClockDutyHintVisibility();
   }
 
@@ -4325,6 +4368,34 @@
       });
       menuState.appendChild(b);
     });
+    [
+      {
+        label: "模拟很饿（咕噜噜）",
+        active: isPetHungryNow(),
+        run: () => { careAll[state.petId].hunger = 15; saveCareAll(); renderMoodTab(); }
+      },
+      {
+        label: "模拟很臭（脏兮兮）",
+        active: isPetDirtyNow(),
+        run: () => { careAll[state.petId].hygiene = 15; saveCareAll(); renderMoodTab(); }
+      },
+      {
+        label: "恢复香香饱饱",
+        active: !isPetHungryNow() && !isPetDirtyNow(),
+        run: () => { careAll[state.petId].hunger = 92; careAll[state.petId].hygiene = 94; saveCareAll(); renderMoodTab(); }
+      }
+    ].forEach((demo) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "tester-option" + (demo.active ? " tester-option--active" : "");
+      b.innerHTML = `<span>${demo.label}</span><span>${demo.active ? "✓" : ""}</span>`;
+      b.addEventListener("click", () => {
+        demo.run();
+        closeAllTesterMenus();
+        buildDevTesterMenus();
+      });
+      menuState.appendChild(b);
+    });
 
     const menuPet = $("menu-pet");
     menuPet.innerHTML = "";
@@ -5411,7 +5482,7 @@
               "bakery_tap",
               10,
               `${craftedSnack.name} 出炉啦！`,
-              `<p class="mg-result-box__sub">已存入零食罐（+38 饱食度），打开「喂食」即可投喂给它～</p>`
+              `<p class="mg-result-box__sub">已存入零食罐，打开「喂食」即可投喂给它～</p>`
             );
           }
         } else {

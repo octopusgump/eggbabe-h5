@@ -100,18 +100,6 @@
               <span id="hud-mood-label" class="pet-mood-tab__mood-name">愉快</span>
               <span class="pet-mood-tab__chevron" aria-hidden="true">›</span>
             </div>
-
-            <div id="hud-care-mini" class="pet-mood-tab__care-row" aria-label="饱食度与清洁度">
-              <span id="hud-care-hunger" class="pet-mood-tab__care-item">
-                <span class="pet-mood-tab__care-text">🍙 饱食 <b id="hud-hunger-val">68%</b></span>
-                <span class="pet-mood-tab__care-track"><span id="hud-hunger-bar" class="pet-mood-tab__care-fill" style="width:68%"></span></span>
-              </span>
-              <span class="pet-mood-tab__care-sep" aria-hidden="true">·</span>
-              <span id="hud-care-hygiene" class="pet-mood-tab__care-item">
-                <span class="pet-mood-tab__care-text">🫧 清洁 <b id="hud-hygiene-val">72%</b></span>
-                <span class="pet-mood-tab__care-track"><span id="hud-hygiene-bar" class="pet-mood-tab__care-fill" style="width:72%"></span></span>
-              </span>
-            </div>
           </div>
         </div>
       </div>
@@ -206,10 +194,51 @@
               </div>
 
               <div id="dirty-layer" class="dirty-layer" hidden aria-hidden="true">
-                <span class="stink-wisp stink-1"></span>
-                <span class="stink-wisp stink-2"></span>
-                <span class="tiny-fly fly-a"></span>
-                <span class="tiny-fly fly-b"></span>
+                <span class="stink-wisp stink-1" aria-hidden="true">
+                  <svg viewBox="0 0 24 44" width="22" height="40"><path d="M12 42 C4 34, 20 26, 12 18 C4 10, 18 5, 13 2" fill="none" stroke="rgba(143,163,107,0.72)" stroke-width="3.2" stroke-linecap="round"/></svg>
+                </span>
+                <span class="stink-wisp stink-2" aria-hidden="true">
+                  <svg viewBox="0 0 24 44" width="20" height="36"><path d="M12 42 C20 34, 4 26, 12 18 C20 10, 6 5, 11 2" fill="none" stroke="rgba(155,172,118,0.68)" stroke-width="3" stroke-linecap="round"/></svg>
+                </span>
+                <span class="stink-wisp stink-3" aria-hidden="true">
+                  <svg viewBox="0 0 24 44" width="18" height="32"><path d="M12 42 C6 33, 18 24, 12 16 C6 9, 16 4, 12 2" fill="none" stroke="rgba(166,178,128,0.62)" stroke-width="2.8" stroke-linecap="round"/></svg>
+                </span>
+                <span class="tiny-fly fly-a" aria-hidden="true">
+                  <svg viewBox="0 0 24 18" width="18" height="14">
+                    <ellipse cx="8" cy="6" rx="5" ry="3.2" transform="rotate(-24 8 6)" fill="rgba(255,253,247,0.86)" stroke="rgba(120,132,102,0.45)" stroke-width="0.9"/>
+                    <ellipse cx="16" cy="6" rx="5" ry="3.2" transform="rotate(24 16 6)" fill="rgba(255,253,247,0.86)" stroke="rgba(120,132,102,0.45)" stroke-width="0.9"/>
+                    <ellipse cx="12" cy="11" rx="4.2" ry="3.4" fill="#4B4F42"/>
+                  </svg>
+                </span>
+                <span class="tiny-fly fly-b" aria-hidden="true">
+                  <svg viewBox="0 0 24 18" width="16" height="12">
+                    <ellipse cx="8" cy="6" rx="5" ry="3.2" transform="rotate(-24 8 6)" fill="rgba(255,253,247,0.86)" stroke="rgba(120,132,102,0.45)" stroke-width="0.9"/>
+                    <ellipse cx="16" cy="6" rx="5" ry="3.2" transform="rotate(24 16 6)" fill="rgba(255,253,247,0.86)" stroke="rgba(120,132,102,0.45)" stroke-width="0.9"/>
+                    <ellipse cx="12" cy="11" rx="4.2" ry="3.4" fill="#4B4F42"/>
+                  </svg>
+                </span>
+                <button id="btn-dirty-hint" class="care-cue-bubble care-cue-bubble--dirty" type="button" aria-label="毛毛脏了，点此去洗澡">
+                  <span>想洗香香 🫧</span>
+                </button>
+              </div>
+
+              <div id="hungry-layer" class="hungry-layer" hidden aria-hidden="true">
+                <div class="hungry-rumble" aria-hidden="true">
+                  <svg class="hungry-rumble__arc hungry-rumble__arc--l" viewBox="0 0 22 36" width="16" height="26">
+                    <path d="M16 4 C6 12, 6 24, 16 32" fill="none" stroke="#E09458" stroke-width="2.6" stroke-linecap="round"/>
+                    <path d="M10 9 C4 14, 4 22, 10 27" fill="none" stroke="#E8B07C" stroke-width="2.2" stroke-linecap="round"/>
+                  </svg>
+                  <span class="hungry-rumble__text">咕噜~</span>
+                  <svg class="hungry-rumble__arc hungry-rumble__arc--r" viewBox="0 0 22 36" width="16" height="26">
+                    <path d="M6 4 C16 12, 16 24, 6 32" fill="none" stroke="#E09458" stroke-width="2.6" stroke-linecap="round"/>
+                    <path d="M12 9 C18 14, 18 22, 12 27" fill="none" stroke="#E8B07C" stroke-width="2.2" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <button id="btn-hungry-thought" class="hungry-thought-bubble" type="button" aria-label="肚子饿了，点此去喂食">
+                  <img id="hungry-thought-icon" class="hungry-thought-bubble__img" src="./living-room-dress/ui/snack_fish.png" alt="想吃零食" />
+                  <span class="hungry-thought-bubble__dot hungry-thought-bubble__dot--1" aria-hidden="true"></span>
+                  <span class="hungry-thought-bubble__dot hungry-thought-bubble__dot--2" aria-hidden="true"></span>
+                </button>
               </div>
 
               <div id="soap-bubble-layer" class="soap-bubble-layer" aria-hidden="true"></div>
@@ -793,20 +822,6 @@
                 <div class="profile-stat-card">
                   <span class="profile-stat-card__label">📅 陪伴天数</span>
                   <span id="profile-total-days" class="profile-stat-card__val">累计 1 天</span>
-                </div>
-              </div>
-
-              <!-- 仅保留饱食度与清洁度两条纤细状态条 -->
-              <div class="profile-bars">
-                <div id="profile-bar-hunger-row" class="profile-bar-row">
-                  <span class="profile-bar-row__label">饱食度</span>
-                  <div class="profile-bar-row__track"><div id="profile-bar-hunger" class="profile-bar-row__fill" style="width:68%"></div></div>
-                  <span id="profile-val-hunger" class="profile-bar-row__val">68%</span>
-                </div>
-                <div id="profile-bar-hygiene-row" class="profile-bar-row">
-                  <span class="profile-bar-row__label">清洁度</span>
-                  <div class="profile-bar-row__track"><div id="profile-bar-hygiene" class="profile-bar-row__fill" style="width:72%"></div></div>
-                  <span id="profile-val-hygiene" class="profile-bar-row__val">72%</span>
                 </div>
               </div>
             </section>
