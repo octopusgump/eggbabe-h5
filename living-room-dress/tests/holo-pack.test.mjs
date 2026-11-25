@@ -134,6 +134,10 @@ test("index.html, app.js, and settings-panel.js wire Option C dual integration p
   assert.match(html, /holo-card-showcase\.js/);
   assert.match(html, /id="btn-curio-open-pack"/);
   assert.match(html, /id="btn-detail-holo-view"/);
+  assert.match(html, /data-album-tab="holocards"/);
+  assert.match(html, /id="holocards-album-view"/);
+  assert.match(html, /id="tb-btn-diary"/);
+  assert.match(html, /id="diary-modal-view"/);
 
   assert.match(appJs, /id:\s*"holo-pack"/);
   assert.match(appJs, /eggbabe:holo-pack-complete/);
@@ -141,6 +145,8 @@ test("index.html, app.js, and settings-panel.js wire Option C dual integration p
   assert.match(appJs, /onOpenHoloCard:/);
   assert.match(appJs, /btn-detail-holo-view/);
   assert.match(appJs, /btn-curio-open-pack/);
+  assert.match(appJs, /renderHolocardsAlbum/);
+  assert.match(appJs, /openDiaryModal/);
 
   assert.match(settingsJs, /onOpenHoloCard/);
 });

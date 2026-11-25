@@ -3436,6 +3436,11 @@
     tbAlbumDotEl.hidden = true;
     openKeepsakeAlbum("postcards");
   });
+  $("tb-btn-diary")?.addEventListener("click", () => {
+    sfx.tap();
+    setToolboxOpen(false);
+    openDiaryCover();
+  });
   $("tb-btn-wallpaper").addEventListener("click", async () => {
     setToolboxOpen(false);
     await exportLockscreenWallpaperJpg();
@@ -4215,13 +4220,79 @@
     });
   }
 
+  function openEntityEggHoloCard(petId, opts) {
+    const pid = petId === "yutu" ? "yutu" : "koi";
+    const options = opts || {};
+    if (!window.EggBabeHoloCardShowcase) return;
+    const setId = (crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].equippedSetId) || "";
+    const moodInfo = Store.computeDailyMood(Store.getUtc8DateKey(), pid, careAll[pid]);
+    window.EggBabeHoloCardShowcase.openEntityEggCard({
+      petId: pid,
+      store: crossStore,
+      catalog: catalog,
+      assetPrefix: "./",
+      outfitName: getSetName(pid, setId),
+      moodQuote: moodInfo && moodInfo.text ? `“${moodInfo.text}”` : "",
+      isOrdinary: crossStore.profileMode === "wx-mp-ordinary",
+      onTap: () => sfx.tap(),
+      onOpenCurio: options.showCurioBtn ? () => {
+        activeDetailStoryPet = pid;
+        openKeepsakeAlbum("keepsakes");
+      } : null
+    });
+  }
+
+  function renderHolocardsAlbum() {
+    const gridEl = $("holocards-album-grid");
+    if (!gridEl || !window.EggBabeHoloConfig) return;
+    const petIds = ["koi", "yutu"];
+    gridEl.innerHTML = "";
+    petIds.forEach((pid) => {
+      const setId = (crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].equippedSetId) || "";
+      const card = window.EggBabeHoloConfig.buildEntityEggCardData({
+        petId: pid,
+        store: crossStore,
+        catalog: catalog,
+        assetPrefix: "./",
+        outfitName: getSetName(pid, setId)
+      });
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "holocard-tile";
+      btn.dataset.holoPet = pid;
+      btn.style.setProperty("--hc-frame", card.frameBg);
+      btn.style.setProperty("--hc-win", card.windowBg);
+      btn.innerHTML = `
+        <span class="holocard-tile__win">
+          <img src="${card.image}" alt="${card.name}" />
+        </span>
+        <span class="holocard-tile__plaque">
+          <span class="holocard-tile__row">
+            <span class="holocard-tile__name">${card.name}</span>
+            <span class="holocard-tile__tag">${card.prototypeLabel}</span>
+          </span>
+          <span class="holocard-tile__outfit">${card.trait}</span>
+          <span class="holocard-tile__cta">
+            <span>✦ 3D 全息赏玩</span>
+            <span>›</span>
+          </span>
+        </span>
+      `;
+      btn.addEventListener("click", () => {
+        sfx.tap();
+        openEntityEggHoloCard(pid, { showCurioBtn: false });
+      });
+      gridEl.appendChild(btn);
+    });
+  }
+
   async function renderAlbumGrid() {
     document.querySelectorAll("[data-album-tab]").forEach((t) => t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab));
     const lookbookViewEl = $("lookbook-album-view");
-    const diaryViewEl = $("diary-book-view");
+    const holocardsViewEl = $("holocards-album-view");
     keepsakeGridEl.innerHTML = "";
     if (lookbookViewEl) lookbookViewEl.hidden = currentAlbumTab !== "album";
-    if (diaryViewEl) diaryViewEl.hidden = currentAlbumTab !== "diary";
+    if (holocardsViewEl) holocardsViewEl.hidden = currentAlbumTab !== "holocards";
     curioCabinetViewEl.hidden = currentAlbumTab !== "keepsakes";
 
     if (currentAlbumTab === "keepsakes") {
@@ -4233,10 +4304,10 @@
       keepsakeEmptyEl.hidden = true;
       keepsakeGridEl.hidden = true;
       if (typeof renderLookbookAlbum === "function") renderLookbookAlbum();
-    } else if (currentAlbumTab === "diary") {
+    } else if (currentAlbumTab === "holocards") {
       keepsakeEmptyEl.hidden = true;
       keepsakeGridEl.hidden = true;
-      if (typeof renderDiaryView === "function") await renderDiaryView();
+      renderHolocardsAlbum();
     } else {
       keepsakeGridEl.hidden = false;
       const list = state.postcards;
@@ -4686,9 +4757,28 @@
   const diaryCoverPetTagEl = $("diary-cover-pet-tag");
   const diaryCoverHintEl = $("diary-cover-hint");
 
+  const diaryModalViewEl = $("diary-modal-view");
+
+  async function openDiaryModal() {
+    if (!diaryModalViewEl) return;
+    diaryModalViewEl.hidden = false;
+    if (typeof renderDiaryView === "function") {
+      await renderDiaryView();
+    }
+  }
+
+  function closeDiaryModal() {
+    if (diaryModalViewEl) diaryModalViewEl.hidden = true;
+  }
+
+  $("btn-close-diary")?.addEventListener("click", () => {
+    sfx.tap();
+    closeDiaryModal();
+  });
+
   function openDiaryCover() {
     if (!diaryCoverOverlayEl || !diaryCoverBookEl) {
-      openKeepsakeAlbum("diary");
+      openDiaryModal();
       return;
     }
     const isYutu = state.petId === "yutu";
@@ -4718,7 +4808,7 @@
     setTimeout(() => {
       diaryCoverOverlayEl.hidden = true;
       diaryCoverBookEl.classList.remove("is-opening");
-      openKeepsakeAlbum("diary");
+      openDiaryModal();
     }, REDUCED_MOTION ? 40 : 340);
   }
 
@@ -5671,7 +5761,8 @@
 
     const openParam = qs.get("open");
     if (openParam === "curio") openKeepsakeAlbum("keepsakes");
-    else if (openParam === "diary") openKeepsakeAlbum("diary");
+    else if (openParam === "holocards") openKeepsakeAlbum("holocards");
+    else if (openParam === "diary") openDiaryModal();
     else if (openParam === "bookshelf") openBookshelfHub();
     else if (openParam === "house") openHouseGuide("rooms");
 

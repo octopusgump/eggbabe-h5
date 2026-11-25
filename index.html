@@ -450,6 +450,20 @@
                   </span>
                   <span>纪念册</span>
                 </button>
+                <button id="tb-btn-diary" class="companion-toolbox__item" type="button" aria-label="打开陪伴日记本">
+                  <span class="companion-toolbox__icon-wrap companion-toolbox__icon-wrap--diary" aria-hidden="true">
+                    <svg viewBox="0 0 44 44" width="44" height="44">
+                      <rect x="7" y="5" width="30" height="34" rx="6" fill="#C97B63" stroke="#7A4332" stroke-width="1.6"/>
+                      <rect x="7" y="5" width="7" height="34" rx="3" fill="#A85D47"/>
+                      <rect x="17" y="12" width="14" height="9" rx="2.5" fill="#FBF5E8" stroke="#8C5B46" stroke-width="1"/>
+                      <line x1="20" y1="15.5" x2="28" y2="15.5" stroke="#9C7A66" stroke-width="1.4" stroke-linecap="round"/>
+                      <line x1="20" y1="18.5" x2="26" y2="18.5" stroke="#B99C8A" stroke-width="1.2" stroke-linecap="round"/>
+                      <rect x="33" y="19" width="6" height="6" rx="2" fill="#E6C27A" stroke="#7A4332" stroke-width="1.2"/>
+                      <circle cx="36" cy="22" r="1.2" fill="#7A4332"/>
+                    </svg>
+                  </span>
+                  <span>日记本</span>
+                </button>
                 <button id="tb-btn-wallpaper" class="companion-toolbox__item" type="button">
                   <img src="./living-room-dress/ui/tb_card.png" alt="" />
                   <span>存壁纸</span>
@@ -554,16 +568,16 @@
       </div>
     </div>
 
-    <!-- 全屏 #FAFAF8 统一四页签书架收获画布页（PRD-0003 P2 + P3：相册 | 明信片 | 日记本 | 收藏柜） -->
-    <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="陪伴手帐与多宝收藏格" hidden>
+    <!-- 全屏 #FAFAF8 统一四页签书架收获画布页（相册 | 明信片 | 收藏卡 | 收藏柜） -->
+    <div id="keepsake-album-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="纪念册与多宝收藏格" hidden>
       <header class="eb-nav-bar eb-nav-bar--capsule-safe eb-nav-bar--four-tabs">
         <button id="btn-close-album" class="eb-nav-bar__back" type="button" aria-label="返回">
           <span class="eb-nav-bar__chevron"></span>
         </button>
-        <div class="keepsake-tabs keepsake-tabs--inline" role="tablist" aria-label="书架内容页签">
+        <div class="keepsake-tabs keepsake-tabs--inline" role="tablist" aria-label="纪念册内容页签">
           <button class="keepsake-tab" type="button" data-album-tab="album" role="tab">相册</button>
           <button class="keepsake-tab keepsake-tab--active" type="button" data-album-tab="postcards" role="tab">明信片</button>
-          <button class="keepsake-tab" type="button" data-album-tab="diary" role="tab">日记本</button>
+          <button class="keepsake-tab" type="button" data-album-tab="holocards" role="tab">收藏卡</button>
           <button class="keepsake-tab" type="button" data-album-tab="keepsakes" role="tab">收藏柜</button>
         </div>
       </header>
@@ -585,66 +599,16 @@
           <div id="lookbook-album-grid" class="keepsake-grid"></div>
         </div>
 
-        <!-- P3 缝线手帐日记本内页（在 diary 页签显示，800×920 零 Token 拍立得 + 32 组四类冷幽默手记） -->
-        <div id="diary-book-view" class="diary-book-view" hidden>
-          <div id="diary-welcome-note" class="diary-welcome-note" hidden></div>
-
-          <div id="diary-empty-state" class="diary-empty-state" hidden>
-            <div class="diary-empty-state__book" aria-hidden="true">📕</div>
-            <p id="diary-empty-text" class="diary-empty-state__text">还没有写下第一页手帐，先喂块小点心或陪它待一会儿吧</p>
-            <button id="btn-diary-write-empty" class="btn btn--primary btn--small" type="button">
-              <span class="btn-text">✍️ 写下今日手帐</span>
-            </button>
-          </div>
-
-          <article id="diary-spread" class="diary-spread" hidden>
-            <!-- 上页：今日定格（薄荷和纸胶带 + 800×920 零 Token 当日穿搭拍立得） -->
-            <section class="diary-page diary-page--top">
-              <div class="diary-page__meta-bar">
-                <span id="diary-date-label" class="diary-page__date">📅 2026.11.24 · ☀️ 晴</span>
-                <span id="diary-day-pill" class="diary-page__day-pill">陪伴第 1 天</span>
-              </div>
-              <div class="diary-polaroid-row">
-                <div class="diary-polaroid-frame">
-                  <span class="diary-washi-tape" aria-hidden="true"></span>
-                  <img id="diary-polaroid-img" class="diary-polaroid-frame__img" alt="当日穿搭拍立得" />
-                </div>
-                <div class="diary-fact-tags">
-                  <span class="diary-fact-tags__head">今日真实锚点</span>
-                  <div id="diary-tags-list" class="diary-tags-list"></div>
-                  <span id="diary-archetype-chip" class="diary-archetype-chip">冷幽默 · 位置的反讽</span>
-                </div>
-              </div>
-            </section>
-
-            <!-- 仿真棉线装订中缝 -->
-            <div class="diary-spine-divider" aria-hidden="true">
-              <span class="diary-spine-stitch"></span>
-              <span class="diary-spine-stitch"></span>
-              <span class="diary-spine-stitch"></span>
-              <span class="diary-spine-stitch"></span>
+        <!-- 实体蛋 3D 全息收藏卡展台（在 holocards 页签显示） -->
+        <div id="holocards-album-view" class="holocards-album-view" hidden>
+          <div class="holocards-album-head">
+            <div>
+              <span class="holocards-album-head__eyebrow">MY EGG · 实体蛋纪念档案</span>
+              <h3 class="holocards-album-head__title">✨ 我的 3D 全息收藏卡</h3>
+              <p class="holocards-album-head__sub">一蛋一份 · 点击卡片可 3D 倾斜赏玩全息折射并翻转查看破壳档案</p>
             </div>
-
-            <!-- 下页：伙伴冷幽默手记 -->
-            <section class="diary-page diary-page--bottom">
-              <h3 id="diary-entry-title" class="diary-entry__title">《不下雨的蛙帽声音》</h3>
-              <p id="diary-entry-salutation" class="diary-entry__salutation">蛋宝好友，</p>
-              <p id="diary-entry-body" class="diary-entry__body"></p>
-              <p id="diary-entry-ps" class="diary-entry__ps"></p>
-              <div class="diary-entry__footer">
-                <span id="diary-entry-signoff" class="diary-entry__signoff">耳朵贴贴，糯米团子 🐾</span>
-              </div>
-            </section>
-          </article>
-
-          <div class="diary-toolbar">
-            <button id="btn-diary-prev" class="diary-nav-btn" type="button">‹ 前一篇</button>
-            <button id="btn-diary-index" class="diary-nav-btn diary-nav-btn--mid" type="button">🗓️ 目录 (<span id="diary-count-num">0</span>篇)</button>
-            <button id="btn-diary-write-today" class="diary-nav-btn diary-nav-btn--accent" type="button">✍️ 记今日</button>
-            <button id="btn-diary-share" class="diary-nav-btn" type="button">晒手帐 ›</button>
           </div>
-
-          <div id="diary-index-drawer" class="diary-index-drawer" hidden></div>
+          <div id="holocards-album-grid" class="holocards-album-grid"></div>
         </div>
 
         <!-- P2 木质博古收藏格 + 41 件分页图鉴（在 keepsakes 页签显示） -->
@@ -738,6 +702,81 @@
           <p id="clue-text" class="curio-clue-card__text"></p>
           <span id="clue-source" class="curio-clue-card__source"></span>
           <button id="btn-clue-go-doodle" class="curio-clue-card__doodle-btn" type="button">🎨 去「一起画」临摹拾取</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 独立全屏缝线陪伴日记本页（从百宝箱「日记本」或书架直接翻开） -->
+    <div id="diary-modal-view" class="keepsake-page" role="dialog" aria-modal="true" aria-label="缝线陪伴日记本" hidden>
+      <header class="eb-nav-bar eb-nav-bar--capsule-safe">
+        <button id="btn-close-diary" class="eb-nav-bar__back" type="button" aria-label="返回房间">
+          <span class="eb-nav-bar__chevron"></span>
+        </button>
+        <h2 class="eb-nav-bar__title">📕 陪伴日记本</h2>
+        <span class="eb-nav-bar__spacer"></span>
+      </header>
+
+      <div class="keepsake-body">
+        <!-- P3 缝线手帐日记本内页（800×920 零 Token 拍立得 + 32 组四类冷幽默手记） -->
+        <div id="diary-book-view" class="diary-book-view">
+          <div id="diary-welcome-note" class="diary-welcome-note" hidden></div>
+
+          <div id="diary-empty-state" class="diary-empty-state" hidden>
+            <div class="diary-empty-state__book" aria-hidden="true">📕</div>
+            <p id="diary-empty-text" class="diary-empty-state__text">还没有写下第一页手帐，先喂块小点心或陪它待一会儿吧</p>
+            <button id="btn-diary-write-empty" class="btn btn--primary btn--small" type="button">
+              <span class="btn-text">✍️ 写下今日手帐</span>
+            </button>
+          </div>
+
+          <article id="diary-spread" class="diary-spread" hidden>
+            <!-- 上页：今日定格（薄荷和纸胶带 + 800×920 零 Token 当日穿搭拍立得） -->
+            <section class="diary-page diary-page--top">
+              <div class="diary-page__meta-bar">
+                <span id="diary-date-label" class="diary-page__date">📅 2026.11.24 · ☀️ 晴</span>
+                <span id="diary-day-pill" class="diary-page__day-pill">陪伴第 1 天</span>
+              </div>
+              <div class="diary-polaroid-row">
+                <div class="diary-polaroid-frame">
+                  <span class="diary-washi-tape" aria-hidden="true"></span>
+                  <img id="diary-polaroid-img" class="diary-polaroid-frame__img" alt="当日穿搭拍立得" />
+                </div>
+                <div class="diary-fact-tags">
+                  <span class="diary-fact-tags__head">今日真实锚点</span>
+                  <div id="diary-tags-list" class="diary-tags-list"></div>
+                  <span id="diary-archetype-chip" class="diary-archetype-chip">冷幽默 · 位置的反讽</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- 仿真棉线装订中缝 -->
+            <div class="diary-spine-divider" aria-hidden="true">
+              <span class="diary-spine-stitch"></span>
+              <span class="diary-spine-stitch"></span>
+              <span class="diary-spine-stitch"></span>
+              <span class="diary-spine-stitch"></span>
+            </div>
+
+            <!-- 下页：伙伴冷幽默手记 -->
+            <section class="diary-page diary-page--bottom">
+              <h3 id="diary-entry-title" class="diary-entry__title">《不下雨的蛙帽声音》</h3>
+              <p id="diary-entry-salutation" class="diary-entry__salutation">蛋宝好友，</p>
+              <p id="diary-entry-body" class="diary-entry__body"></p>
+              <p id="diary-entry-ps" class="diary-entry__ps"></p>
+              <div class="diary-entry__footer">
+                <span id="diary-entry-signoff" class="diary-entry__signoff">耳朵贴贴，糯米团子 🐾</span>
+              </div>
+            </section>
+          </article>
+
+          <div class="diary-toolbar">
+            <button id="btn-diary-prev" class="diary-nav-btn" type="button">‹ 前一篇</button>
+            <button id="btn-diary-index" class="diary-nav-btn diary-nav-btn--mid" type="button">🗓️ 目录 (<span id="diary-count-num">0</span>篇)</button>
+            <button id="btn-diary-write-today" class="diary-nav-btn diary-nav-btn--accent" type="button">✍️ 记今日</button>
+            <button id="btn-diary-share" class="diary-nav-btn" type="button">晒手帐 ›</button>
+          </div>
+
+          <div id="diary-index-drawer" class="diary-index-drawer" hidden></div>
         </div>
       </div>
     </div>
