@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { PEN_ARM, PEN_CORNERS } from './bounds'
 import {
   groundHeight,
   hitsWater,
@@ -9,7 +8,7 @@ import {
   type LevelId,
 } from './levels'
 import { blobShadow, clay, felt } from './materials'
-import { herdTarget, hitsFence, penIndexAt } from './pen'
+import { assignSinglePenSpot, herdTarget, hitsFence, penIndexAt } from './pen'
 import { bounceInArena } from './physics'
 
 export type SheepMode = 'wander' | 'graze' | 'flee' | 'penned'
@@ -255,28 +254,13 @@ export function resetSheep(s: SheepState, level: LevelId = 1) {
 const BOUND = 7.05
 export const SHEEP_FEAR = 4.6
 const FEAR = SHEEP_FEAR
-const CAPTURE = 1.25
+const CAPTURE = 1.1
 const COHESION = 2.7
 const ICE_GLIDE_DRAG = 1.55
 
-/** Pick a cozy non-overlapping straw spot inside the pen so penned sheep stay visible! */
-function assignPenSpot(penIndex: number, existingCountInPen: number): [number, number] {
-  const [cx, cz] = PEN_CORNERS[penIndex]
-  const sx = Math.sign(cx)
-  const sz = Math.sign(cz)
-  const centerX = cx - sx * PEN_ARM * 0.46
-  const centerZ = cz - sz * PEN_ARM * 0.46
-  const offsets: [number, number][] = [
-    [-0.36, -0.32],
-    [0.36, -0.26],
-    [-0.28, 0.36],
-    [0.32, 0.34],
-    [0.0, 0.04],
-    [-0.52, 0.04],
-    [0.04, -0.52],
-  ]
-  const [ox, oz] = offsets[existingCountInPen % offsets.length]
-  return [centerX + ox, centerZ + oz]
+/** Pick a cozy non-overlapping straw spot inside the single grand pen so penned sheep stay visible! */
+function assignPenSpot(_penIndex: number, existingCountInPen: number): [number, number] {
+  return assignSinglePenSpot(existingCountInPen)
 }
 
 /**

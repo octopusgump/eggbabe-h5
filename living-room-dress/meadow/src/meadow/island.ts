@@ -11,7 +11,7 @@ import {
   type LevelId,
 } from './levels'
 import { clay, felt, iceRink, oakWood, snowTrim } from './materials'
-import { PEN_ARM, PEN_CORNERS } from './bounds'
+import { GATE_HALF_W, GATE_MOUTH_Z } from './bounds'
 import { ribbonMesh } from './ribbon'
 
 const ICE_BASE = 0xc3e4ec
@@ -19,68 +19,62 @@ const ICE_TINT = 0xa6d2df
 const SOIL_WARM = 0xb18355
 const OAK_TRIM = 0xc39666
 
-/** Rounded bouncy snow-oak perimeter bumper walls along all 4 sides (leaving 4 corner pens open) */
+/** Full enclosed snow-oak perimeter bumper walls (North, West, East, and South flanks around the single South-Center gate) */
 function addPerimeterBumpers(island: THREE.Group, level: LevelId) {
   const half = ISLAND_HALF
   const snowMat = snowTrim(0xfbf9f3, 0xe9f0f2, 2)
   const woodCapMat = oakWood(0xc89e6f, 2)
-  const segSpan = (half - PEN_ARM - 0.52) * 2
+  const fullSpan = half * 2 - 0.5
+  const southFlankLen = half - GATE_HALF_W - 0.25
+  const southFlankCenter = GATE_HALF_W + southFlankLen / 2 + 0.08
   const rimY = 0.24
 
-  // Four straight middle snow-cushioned bumper segments (north, south, east, west)
-  const edges: { x: number; z: number; sx: number; sz: number }[] = [
-    { x: 0, z: half - 0.2, sx: segSpan, sz: 0.56 },
-    { x: 0, z: -half + 0.2, sx: segSpan, sz: 0.56 },
-    { x: half - 0.2, z: 0, sx: 0.56, sz: segSpan },
-    { x: -half + 0.2, z: 0, sx: 0.56, sz: segSpan },
-  ]
-
-  for (const e of edges) {
-    const y = level !== 1 ? groundHeight(level, e.x, e.z) : 0
-    // Skip blocking the river banks on east/west edges by lifting slightly or splitting cleanly
-    if (level !== 1 && Math.abs(e.x) > half - 1) {
-      // Two shorter snow banks north & south of the stream
-      for (const [zMid, zLen] of [[-3.3, 3.3], [3.7, 2.9]] as const) {
-        const py = groundHeight(level, e.x, zMid)
-        const bank = new THREE.Mesh(
-          new RoundedBoxGeometry(0.58, 0.44, zLen, 5, 0.2),
-          snowMat,
-        )
-        bank.position.set(e.x, py + 0.2, zMid)
-        bank.castShadow = true
-        bank.receiveShadow = true
-        island.add(bank)
-      }
-      continue
-    }
-
+  const addSeg = (x: number, z: number, sx: number, sz: number) => {
+    const y = level !== 1 ? groundHeight(level, x, z) : 0
     const bank = new THREE.Mesh(
-      new RoundedBoxGeometry(e.sx, 0.44, e.sz, 5, 0.2),
+      new RoundedBoxGeometry(sx, 0.46, sz, 5, 0.2),
       snowMat,
     )
-    bank.position.set(e.x, y + rimY, e.z)
+    bank.position.set(x, y + rimY, z)
     bank.castShadow = true
     bank.receiveShadow = true
     island.add(bank)
 
-    // Subtle warm oak top bumper rail echoing EggBabe woodwork
     const rail = new THREE.Mesh(
       new RoundedBoxGeometry(
-        e.sx > e.sz ? e.sx - 0.4 : 0.24,
+        sx > sz ? Math.max(0.3, sx - 0.36) : 0.24,
         0.11,
-        e.sz > e.sx ? e.sz - 0.4 : 0.24,
+        sz > sx ? Math.max(0.3, sz - 0.36) : 0.24,
         4,
         0.05,
       ),
       woodCapMat,
     )
-    rail.position.set(e.x, y + rimY + 0.22, e.z)
+    rail.position.set(x, y + rimY + 0.23, z)
     rail.castShadow = true
     island.add(rail)
   }
 
+  // Continuous North wall (complete enclosure!)
+  addSeg(0, -half + 0.22, fullSpan, 0.58)
+
+  // Two symmetrical South flank walls framing the single wide South-Center gate
+  addSeg(-southFlankCenter, half - 0.22, southFlankLen, 0.58)
+  addSeg(southFlankCenter, half - 0.22, southFlankLen, 0.58)
+
+  // East & West walls (split cleanly around the stream on Levels 2 & 3)
+  for (const sideX of [-half + 0.22, half - 0.22]) {
+    if (level !== 1) {
+      for (const [zMid, zLen] of [[-4.1, 6.2], [4.5, 5.4]] as const) {
+        addSeg(sideX, zMid, 0.58, zLen)
+      }
+    } else {
+      addSeg(sideX, 0, 0.58, fullSpan)
+    }
+  }
+
   // Cheerful miniature clay snowman perched on the east snowbank (loving Penguin Pushers nod!)
-  addSnowman(island, half - 0.24, -2.95, level)
+  addSnowman(island, half - 0.26, 2.2, level)
 }
 
 function addSnowman(island: THREE.Group, x: number, z: number, level: LevelId) {
@@ -123,35 +117,30 @@ function addSnowman(island: THREE.Group, x: number, z: number, level: LevelId) {
   island.add(g)
 }
 
-/** Subtle painted warm-cream guide chevrons pointing into the 4 open corner pens */
+/** Bold warm-gold double chevrons on the ice pointing straight into the single South-Center gate */
 function addPenChevrons(island: THREE.Group, level: LevelId) {
   const mat = new THREE.MeshBasicMaterial({
-    color: 0xf7d774,
+    color: 0xf6cf5c,
     transparent: true,
-    opacity: 0.82,
+    opacity: 0.86,
     depthWrite: false,
   })
 
-  for (const [cx, cz] of PEN_CORNERS) {
-    const sx = Math.sign(cx)
-    const sz = Math.sign(cz)
-    const mx = cx - sx * (PEN_ARM + 0.82)
-    const mz = cz - sz * (PEN_ARM + 0.82)
-    const y = (level !== 1 ? groundHeight(level, mx, mz) : 0) + 0.028
+  const armGeo = new THREE.PlaneGeometry(0.86, 0.18)
+  armGeo.rotateX(-Math.PI / 2)
 
+  for (const offsetZ of [1.25, 2.05]) {
+    const mz = GATE_MOUTH_Z - offsetZ
+    const y = (level !== 1 ? groundHeight(level, 0, mz) : 0) + 0.03
     const chev = new THREE.Group()
-    const armGeo = new THREE.PlaneGeometry(0.56, 0.14)
-    armGeo.rotateX(-Math.PI / 2)
     const left = new THREE.Mesh(armGeo, mat)
-    left.position.set(-0.14, 0, -0.14)
-    left.rotation.y = Math.PI / 4
+    left.position.set(-0.26, 0, 0)
+    left.rotation.y = -Math.PI / 4
     const right = new THREE.Mesh(armGeo, mat)
-    right.position.set(-0.14, 0, 0.14)
-    right.rotation.y = -Math.PI / 4
+    right.position.set(0.26, 0, 0)
+    right.rotation.y = Math.PI / 4
     chev.add(left, right)
-
-    chev.position.set(mx, y, mz)
-    chev.rotation.y = Math.atan2(-sz, sx)
+    chev.position.set(0, y, mz)
     island.add(chev)
   }
 }

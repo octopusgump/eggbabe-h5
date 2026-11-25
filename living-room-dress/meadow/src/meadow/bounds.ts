@@ -1,33 +1,30 @@
 import { ISLAND_HALF } from './constants'
 import { pushOutOfWater, type LevelId } from './levels'
 
-/** L-shaped rail in each corner. The open side faces the middle of the meadow. */
-export const PEN_ARM = 2.2
-export const PEN_CORNERS: readonly [number, number][] = [
-  [7.55, 7.55],
-  [-7.55, 7.55],
-  [7.55, -7.55],
-  [-7.55, -7.55],
-]
+/**
+ * Single wide South-Center gate pen (Super Mario Party — Penguin Pushers layout):
+ * - Centered at x = 0, mouth opens northward at z = GATE_MOUTH_Z
+ * - Back wall sits flush at the south edge z = GATE_BACK_Z
+ */
+export const GATE_HALF_W = 2.35
+export const GATE_MOUTH_Z = 5.45
+export const GATE_BACK_Z = 7.75
 
-/** Plan of the grass slab. The herder's center stays this far in from the rim. */
+/** Plan of the arena slab. */
 const SLAB_RADIUS = 0.62
 const BODY_MARGIN = 0.28
 export const GRASS_HALF = ISLAND_HALF - BODY_MARGIN
 export const GRASS_CORNER = Math.max(0.04, SLAB_RADIUS - BODY_MARGIN)
 
-/** Clearance from a rail centerline. Wood is thin, so the rest of the grass stays open. */
 export const FENCE_CLEAR = 0.28
 
+/** U-shaped wooden rails enclosing the single South-Center pen (left, right, back; north mouth is wide open). */
 export function fenceRails(): [number, number, number, number][] {
-  const segs: [number, number, number, number][] = []
-  for (const [cx, cz] of PEN_CORNERS) {
-    const sx = Math.sign(cx)
-    const sz = Math.sign(cz)
-    segs.push([cx - sx * PEN_ARM, cz, cx, cz])
-    segs.push([cx, cz - sz * PEN_ARM, cx, cz])
-  }
-  return segs
+  return [
+    [-GATE_HALF_W, GATE_MOUTH_Z, -GATE_HALF_W, GATE_BACK_Z],
+    [GATE_HALF_W, GATE_MOUTH_Z, GATE_HALF_W, GATE_BACK_Z],
+    [-GATE_HALF_W, GATE_BACK_Z, GATE_HALF_W, GATE_BACK_Z],
+  ]
 }
 
 function closestOnSegment(
@@ -68,7 +65,7 @@ export function pushOutOfFence(x: number, z: number, radius: number) {
       moved = true
       if (dist < 1e-5) {
         const nx = -Math.sign(qx) || 0
-        const nz = -Math.sign(qz) || 0
+        const nz = -Math.sign(qz) || -1
         const len = Math.hypot(nx, nz) || 1
         px += (nx / len) * radius
         pz += (nz / len) * radius
@@ -83,7 +80,6 @@ export function pushOutOfFence(x: number, z: number, radius: number) {
   return { x: px, z: pz }
 }
 
-/** True when the herder's center is still on the rounded grass slab. */
 export function insideGrass(x: number, z: number) {
   const half = GRASS_HALF
   const radius = GRASS_CORNER
@@ -117,7 +113,7 @@ export function clampToGrass(x: number, z: number) {
   return { x: cx + dx * k, z: cz + dz * k }
 }
 
-/** Fences and the stream still stop the herder. The grass rim does not. */
+/** Keeps the herder out of pen side walls and deep stream water. */
 export function moveHerder(x: number, z: number, level: LevelId = 1) {
   let px = x
   let pz = z
@@ -131,7 +127,6 @@ export function moveHerder(x: number, z: number, level: LevelId = 1) {
   return { x: px, z: pz }
 }
 
-/** Every grass point the herder can stand on, including inside the pens. */
 export function placeHerder(x: number, z: number, level: LevelId = 1) {
   let p = clampToGrass(x, z)
   for (let i = 0; i < 3; i++) {

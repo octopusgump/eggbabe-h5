@@ -7,12 +7,12 @@ export type LevelMeta = {
 }
 
 export const LEVEL_META: Record<LevelId, LevelMeta> = {
-  1: { id: 1, name: '晨霜滑冰场', hint: '方向键/摇杆滑行 · 反向急刹甩尾 · 空格滑冲' },
-  2: { id: 2, name: '暖阳冰溪坡', hint: '借北坡惯性俯冲滑行，过浅滩把羊群铲进木圈' },
-  3: { id: 3, name: '双冰暖丘谷', hint: '绕雪丘漂移连撞，抓紧金绒领头羊得 3 倍分' },
+  1: { id: 1, name: '晨霜滑冰场', hint: '方向键/摇杆滑行 · 反向急刹甩尾把小羊铲进下方大门' },
+  2: { id: 2, name: '暖阳冰溪坡', hint: '顺北坡惯性俯冲滑行，过浅滩把羊群推入南侧大门' },
+  3: { id: 3, name: '双冰暖丘谷', hint: '绕雪丘漂移连撞，抓紧金绒领头羊推进大门得 3 倍分' },
 }
 
-/** Level 1: classic flat meadow. */
+/** Level 1: classic flat ice rink. */
 const LEVEL1_SHEEP: readonly [number, number][] = [
   [-3.4, 2.2],
   [-1.6, 1.1],
@@ -33,7 +33,7 @@ const LEVEL2_SHEEP: readonly [number, number][] = [
   [-1.0, 3.0],
   [0.6, 1.6],
   [2.4, 2.6],
-  [1.4, 3.4],
+  [1.4, 3.2],
   [-3.2, -2.6],
   [-1.4, -3.5],
   [0.2, -2.4],
@@ -44,11 +44,11 @@ const LEVEL2_SHEEP: readonly [number, number][] = [
 
 /** Level 3: gentle central knoll + river + north bank, sheep scattered high and low. */
 const LEVEL3_SHEEP: readonly [number, number][] = [
-  [-3.6, 3.1],
-  [-1.2, 3.6],
-  [1.5, 3.2],
+  [-3.6, 3.0],
+  [-1.2, 3.4],
+  [1.5, 3.1],
   [3.5, 2.4],
-  [0.0, 2.2],
+  [0.0, 2.1],
   [-3.5, -2.2],
   [-1.8, -3.8],
   [0.1, -2.8],
@@ -58,9 +58,9 @@ const LEVEL3_SHEEP: readonly [number, number][] = [
 ]
 
 const HOMES: Record<LevelId, [number, number]> = {
-  1: [0, -4.4],
-  2: [0, 4.6],
-  3: [0, 4.9],
+  1: [0, -4.6],
+  2: [0, -5.6],
+  3: [0, -5.7],
 }
 
 /** Gentle east-west stream. North bank rises; the south side stays flat or knolled. */
@@ -84,12 +84,6 @@ export const FORDS = [
 export const SLOPE_RISE = 2.2
 /** Southward slide on the north bank, slower than a sheep's run. */
 export const SLOPE_DRIFT = 0.45
-
-const NORTH_PADS = [
-  [7.55, -7.55],
-  [-7.55, -7.55],
-] as const
-const PAD_ARM = 2.2
 
 export function hasRiver(level: LevelId) {
   return level === 2 || level === 3
@@ -142,24 +136,10 @@ export function bankHeight(z: number) {
   return smoothstep(-0.2, -5.2, z) * SLOPE_RISE
 }
 
-function northPad(x: number, z: number) {
-  let best = 0
-  for (const [cx, cz] of NORTH_PADS) {
-    const px = cx - Math.sign(cx) * PAD_ARM * 0.46
-    const pz = cz - Math.sign(cz) * PAD_ARM * 0.46
-    const half = 1.28
-    const dx = Math.max(Math.abs(x - px) - half, 0)
-    const dz = Math.max(Math.abs(z - pz) - half, 0)
-    const blend = 1 - smoothstep(0, 0.55, Math.hypot(dx, dz))
-    if (blend > best) best = blend
-  }
-  return best
-}
-
 /** Gentle south-central clay knoll for Level 3. */
 function southKnoll(x: number, z: number) {
-  const d = Math.hypot(x, z - 3.35)
-  return (1 - smoothstep(0.6, 2.75, d)) * 0.78
+  const d = Math.hypot(x, z - 3.15)
+  return (1 - smoothstep(0.6, 2.5, d)) * 0.72
 }
 
 export function groundHeight(level: LevelId, x: number, z: number) {
@@ -173,15 +153,12 @@ export function groundHeight(level: LevelId, x: number, z: number) {
     const t = 1 - hit.dist / reach
     groove = t * t * 0.22
   }
-  const carved = slope + knoll - groove
-  const pad = northPad(x, z)
-  return carved * (1 - pad) + SLOPE_RISE * pad
+  return slope + knoll - groove
 }
 
-/** How far to lift a corner pen so its floor sits on the ground. */
-export function penLift(level: LevelId, index: number) {
-  if (level === 1) return 0
-  return index === 2 || index === 3 ? SLOPE_RISE : 0
+/** Single South-Center gate pen always rests on the flat south floor (y = 0). */
+export function penLift(_level: LevelId, _index: number) {
+  return 0
 }
 
 export function hitsWater(level: LevelId, x: number, z: number, radius: number) {
@@ -219,11 +196,6 @@ export function slopeDrift(level: LevelId, x: number, z: number) {
   if (!hasRiver(level) || z > -1.05) return 0
   const hit = riverClosest(x, z)
   if (hit.dist < 1.25 && inFord(hit.x)) return 0
-  for (const [cx, cz] of NORTH_PADS) {
-    const mx = cx - Math.sign(cx) * PAD_ARM * 0.62
-    const mz = cz - Math.sign(cz) * PAD_ARM * 0.62
-    if ((x - mx) ** 2 + (z - mz) ** 2 < 2.8 * 2.8) return 0
-  }
   const factor = level === 3 ? SLOPE_DRIFT * 1.15 : SLOPE_DRIFT
   return factor * smoothstep(-1.05, -1.7, z)
 }

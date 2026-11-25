@@ -95,4 +95,10 @@ test("Keyboard-synced visual joystick, Dash button, skid audio, and visible in-p
   assert.ok(appTs.includes("ArrowUp") && appTs.includes("Space"), "desktop arrow keys and Space dash must be wired");
   assert.ok(feedbackTs.includes("updateSkidSound") && feedbackTs.includes("playSheepSlide"), "ice skid & sheep slide audio must exist");
   assert.ok(sheepTs.includes("isGolden") && !sheepTs.includes("s.group.visible = false"), "golden sheep exists and penned sheep remain visible");
+
+  const penTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/pen.ts"), "utf8");
+  const boundsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/bounds.ts"), "utf8");
+  assert.ok(/PEN_COUNT\s*=\s*1\b/.test(penTs), "must have exactly 1 single-entrance gate pen");
+  assert.ok(boundsTs.includes("GATE_MOUTH_Z") && boundsTs.includes("GATE_HALF_W"), "bounds must define single South-Center gate geometry");
+  assert.equal(boundsTs.includes("PEN_CORNERS"), false, "old 4-corner PEN_CORNERS must be removed");
 });
