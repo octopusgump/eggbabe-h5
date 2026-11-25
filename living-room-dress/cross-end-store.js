@@ -649,6 +649,7 @@
         koi: {
           prototype: "KOI",
           name: DEFAULT_PET_NAMES.koi,
+          personaId: "chill_daze",
           equippedSetId: DEFAULT_SET_BY_PET.koi,
           care: koiCare,
           dailyMood: {
@@ -660,6 +661,7 @@
         yutu: {
           prototype: "YT",
           name: DEFAULT_PET_NAMES.yutu,
+          personaId: "dry_wit",
           equippedSetId: DEFAULT_SET_BY_PET.yutu,
           care: yutuCare,
           dailyMood: {

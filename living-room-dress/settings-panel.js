@@ -332,6 +332,7 @@
 
   const VIEW_TITLES = Object.freeze({
     home: "设置",
+    persona: "伙伴人格类型",
     album: "我的收藏卡",
     "invite-codes": "我的激活码",
     "chat-records": "对话记录",
@@ -392,6 +393,8 @@
     const onOpenAlbum = typeof opts.onOpenAlbum === "function" ? opts.onOpenAlbum : () => {};
     const onPlayTap = typeof opts.onPlayTap === "function" ? opts.onPlayTap : () => {};
     const onShowSceneFeedback = typeof opts.onShowSceneFeedback === "function" ? opts.onShowSceneFeedback : () => {};
+    const onPersonaChange = typeof opts.onPersonaChange === "function" ? opts.onPersonaChange : () => {};
+    const Voice = opts.Voice || (typeof globalThis !== "undefined" && globalThis.EggBabeVoice) || null;
 
     let isOpen = false;
     let stack = ["home"];
@@ -404,6 +407,7 @@
     let ageReturnToken = 0;
 
     // 视图内部瞬态状态
+    let personaPetId = "yutu";
     let ageSelected = "";
     let ageSaving = false;
     let ageToastVisible = false;
@@ -465,7 +469,10 @@
     function pushView(viewName) {
       onPlayTap();
       clearPendingAsync();
-      if (viewName === "age-range") {
+      if (viewName === "persona") {
+        const store = getStore();
+        personaPetId = (store && store.activePetId === "koi") ? "koi" : "yutu";
+      } else if (viewName === "age-range") {
         const store = getStore();
         ageSelected = (store && store.settings && store.settings.ageRange) || "";
       } else if (viewName === "feedback") {
@@ -541,6 +548,10 @@
       const ageLabel = Store && Store.getAgeRangeLabel ? Store.getAgeRangeLabel(ageVal) : (ageVal || "未设置");
       const koiName = (store.pets && store.pets.koi && store.pets.koi.name) || "锦小鲤";
       const yutuName = (store.pets && store.pets.yutu && store.pets.yutu.name) || "糯米团子";
+      const yutuPersonaId = Voice ? Voice.resolvePersonaId("yutu", store.pets && store.pets.yutu && store.pets.yutu.personaId) : "dry_wit";
+      const koiPersonaId = Voice ? Voice.resolvePersonaId("koi", store.pets && store.pets.koi && store.pets.koi.personaId) : "chill_daze";
+      const yutuPersonaName = Voice ? Voice.getPersonaDef(yutuPersonaId).name : "体面冷幽默";
+      const koiPersonaName = Voice ? Voice.getPersonaDef(koiPersonaId).name : "钝感乐天派";
 
       return `
         <div class="settings-section-pad">
@@ -559,6 +570,13 @@
 
           <div class="settings-group-label">偏好设置</div>
           <div class="settings-panel">
+            <button class="settings-row" type="button" data-nav="persona">
+              <div class="settings-row__copy">
+                <span class="settings-row__title">伙伴人格类型</span>
+                <span class="settings-row__desc">玉兔：${escapeHtml(yutuPersonaName)} · 锦鲤：${escapeHtml(koiPersonaName)}</span>
+              </div>
+              <span class="settings-chevron" aria-hidden="true">›</span>
+            </button>
             <div class="settings-row settings-row--toggle">
               <div class="settings-row__copy">
                 <span class="settings-row__title">互动音效</span>
@@ -1102,6 +1120,52 @@
       `;
     }
 
+    function renderPersonaBody() {
+      const store = getStore() || {};
+      const petId = personaPetId === "koi" ? "koi" : "yutu";
+      const petName = (store.pets && store.pets[petId] && store.pets[petId].name) || (petId === "yutu" ? "糯米团子" : "锦小鲤");
+      const currentPersonaId = Voice
+        ? Voice.resolvePersonaId(petId, store.pets && store.pets[petId] && store.pets[petId].personaId)
+        : (petId === "yutu" ? "dry_wit" : "chill_daze");
+      const personas = Voice && Array.isArray(Voice.PERSONA_LIST) ? Voice.PERSONA_LIST : [];
+
+      return `
+        <div class="settings-section-pad">
+          <div class="settings-persona-head">
+            <div class="settings-persona-seg" role="tablist" aria-label="选择伙伴">
+              <button class="settings-persona-seg__btn ${petId === "yutu" ? "is-active" : ""}" type="button" role="tab" aria-selected="${petId === "yutu"}" data-action="switch-persona-pet" data-pet="yutu">玉兔</button>
+              <button class="settings-persona-seg__btn ${petId === "koi" ? "is-active" : ""}" type="button" role="tab" aria-selected="${petId === "koi"}" data-action="switch-persona-pet" data-pet="koi">锦鲤</button>
+            </div>
+            <p class="settings-persona-tip">当前正在为「${escapeHtml(petName)}」选择说话人格，房间内很饿、很臭与日常互动将即时切换。</p>
+          </div>
+
+          <div class="settings-persona-list">
+            ${personas.map((p) => {
+              const active = p.id === currentPersonaId;
+              const sampleHungry = Voice ? Voice.getSampleLine(petId, p.id, "hungry") : "";
+              const sampleDirty = Voice ? Voice.getSampleLine(petId, p.id, "dirty") : "";
+              return `
+                <button class="settings-persona-card ${active ? "is-active" : ""}" type="button" data-action="select-persona" data-persona="${escapeHtml(p.id)}" aria-pressed="${active}">
+                  <div class="settings-persona-card__top">
+                    <span class="settings-persona-card__name">${escapeHtml(p.name)}</span>
+                    <span class="settings-persona-card__check" aria-hidden="true">${active ? "✓" : ""}</span>
+                  </div>
+                  <div class="settings-persona-card__tags">
+                    ${(p.tags || []).map((t) => `<span class="settings-persona-tag">${escapeHtml(t)}</span>`).join("")}
+                  </div>
+                  <p class="settings-persona-card__desc">${escapeHtml(p.desc)}</p>
+                  <div class="settings-persona-card__samples">
+                    <div class="settings-persona-sample"><span>很饿</span>「${escapeHtml(sampleHungry)}」</div>
+                    <div class="settings-persona-sample"><span>很臭</span>「${escapeHtml(sampleDirty)}」</div>
+                  </div>
+                </button>
+              `;
+            }).join("")}
+          </div>
+        </div>
+      `;
+    }
+
     function render() {
       if (!overlayEl || !isOpen) return;
       const view = currentView();
@@ -1109,6 +1173,7 @@
       const canBack = stack.length > 1;
       let bodyHtml = "";
       if (view === "home") bodyHtml = renderHomeBody();
+      else if (view === "persona") bodyHtml = renderPersonaBody();
       else if (view === "album") bodyHtml = renderAlbumBody();
       else if (view === "invite-codes") bodyHtml = renderInviteCodesBody();
       else if (view === "chat-records") bodyHtml = renderChatRecordsBody();
@@ -1249,6 +1314,31 @@
       }
       if (action === "copy-email") {
         copyText(SUPPORT_EMAIL).then((ok) => showNotice(ok ? "邮箱已复制" : "客服邮箱：" + SUPPORT_EMAIL, "info"));
+        return;
+      }
+      if (action === "switch-persona-pet") {
+        const nextPet = target.getAttribute("data-pet") === "koi" ? "koi" : "yutu";
+        if (personaPetId !== nextPet) {
+          personaPetId = nextPet;
+          onPlayTap();
+          render();
+        }
+        return;
+      }
+      if (action === "select-persona") {
+        const nextPersonaId = target.getAttribute("data-persona") || "";
+        const store = getStore();
+        const pid = personaPetId === "koi" ? "koi" : "yutu";
+        if (!store || !store.pets || !store.pets[pid]) return;
+        const resolved = Voice ? Voice.resolvePersonaId(pid, nextPersonaId) : nextPersonaId;
+        store.pets[pid].personaId = resolved;
+        persist();
+        onPlayTap();
+        onPersonaChange(pid, resolved);
+        const petLabel = pid === "yutu" ? "玉兔" : "锦鲤";
+        const pName = Voice ? Voice.getPersonaDef(resolved).name : resolved;
+        render();
+        showNotice(`${petLabel}已切换为「${pName}」`, "info");
         return;
       }
       if (action === "select-age") {
