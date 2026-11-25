@@ -182,6 +182,7 @@ test("cross-end-store compliance helpers: age range, feedback 20-cap & UTC+8 rol
 test("settings-panel exports all miniprogram views, contacts, FAQs, terms (17), privacy (10), and honors release-scope exclusions", () => {
   assert.deepEqual(Object.keys(SettingsPanel.VIEW_TITLES), [
     "home",
+    "persona",
     "album",
     "invite-codes",
     "chat-records",

@@ -57,6 +57,7 @@
   const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const DiaryEngine = window.EggBabeDiaryEngine;
   const P5Data = window.EggBabeP5Data;
+  const Voice = window.EggBabeVoice;
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -1061,6 +1062,21 @@
     return Math.round(clamp(ps.hygiene, 0, 100)) < 30;
   }
 
+  function getPetPersonaId(petId) {
+    const pid = petId === "yutu" ? "yutu" : "koi";
+    const stored = crossStore && crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].personaId;
+    return Voice ? Voice.resolvePersonaId(pid, stored) : (stored || (pid === "yutu" ? "dry_wit" : "chill_daze"));
+  }
+
+  function sayAsPet(sceneKey, fallbackText, petIdOverride) {
+    const pid = petIdOverride || state.petId;
+    if (Voice) {
+      const line = Voice.pick(pid, getPetPersonaId(pid), sceneKey);
+      if (line) return line;
+    }
+    return fallbackText || "";
+  }
+
   function syncCareIndicators() {
     const isHungry = isPetHungryNow();
     const isDirty = isPetDirtyNow();
@@ -1078,7 +1094,13 @@
 
     if (dirtyLayerEl) {
       dirtyLayerEl.hidden = !showDirtyFx;
-      if (showDirtyFx) positionDirtyFx();
+      if (showDirtyFx) {
+        if (btnDirtyHintEl && Voice) {
+          const sp = btnDirtyHintEl.querySelector("span");
+          if (sp) sp.textContent = Voice.getDirtyCueText(getPetPersonaId(state.petId));
+        }
+        positionDirtyFx();
+      }
     }
     if (hungryLayerEl) {
       hungryLayerEl.hidden = !showHungryFx;
@@ -2560,6 +2582,7 @@
     setTimeout(() => { feedingLock = false; }, 620);
 
     const ps = careAll[state.petId];
+    const wasHungry = ps.hunger < 30;
     ps.hunger = clamp(ps.hunger + snack.hunger, 0, 100);
     Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { snackId: snack.id });
     if (state.petId === "yutu" && snack.id === "osmanthus_cake") unlockKeepsake("jade_rabbit_osmanthus_branch", "feed:osmanthus_cake");
@@ -2581,7 +2604,7 @@
       if (typeof syncAltRoomProps === "function") syncAltRoomProps();
     }
     renderMoodTab();
-    showSceneFeedback(snack.reply, "dialogue");
+    showSceneFeedback(wasHungry ? sayAsPet("feed_recover", snack.reply) : snack.reply, "dialogue");
   }
 
   function launchFlyingSnack(snack, startX, startY) {
@@ -2723,7 +2746,7 @@
     startAnim("rinse", performance.now());
     grantCareStars(3);
     renderMoodTab();
-    showSceneFeedback("哗啦啦，洗得香喷喷的，毛毛好蓬松～", "dialogue");
+    showSceneFeedback(sayAsPet("bath_recover", "洗完蓬松多了。"), "dialogue");
   }
 
   let petTouch = null;
@@ -2789,7 +2812,7 @@
         Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { visitedState: "petted" });
         grantCareStars(2);
         renderMoodTab();
-        showSceneFeedback("呼噜呼噜～摸头最舒服啦♡", "dialogue");
+        showSceneFeedback(sayAsPet("petted", "头顶暖暖的，刚刚好。"), "dialogue");
       }
     }
   });
@@ -2823,6 +2846,16 @@
     if (animMode === "doze") {
       sfx.hop();
       startAnim("minihop", performance.now());
+      return;
+    }
+    // 很饿 / 很臭优先级路由：按当前伙伴人格说出专属状态台词
+    const hungryNow = isPetHungryNow();
+    const dirtyNow = isPetDirtyNow();
+    if (hungryNow || dirtyNow) {
+      const sceneKey = hungryNow && dirtyNow ? "hungry_and_dirty" : hungryNow ? "hungry" : "dirty";
+      sfx.tap();
+      startAnim("minihop", performance.now());
+      showSceneFeedback(sayAsPet(sceneKey), "dialogue");
       return;
     }
     const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
@@ -2925,7 +2958,7 @@
 
     const bedX = (COZY_SCENE_CONFIG.anchors && COZY_SCENE_CONFIG.anchors.bedCenter && COZY_SCENE_CONFIG.anchors.bedCenter.x) || 580;
     scrollToPanoX(bedX, true);
-    showSceneFeedback(`${petName}正在被窝里香香睡觉呢～拍一拍它起床再${actText}吧 💤`, "dialogue");
+    showSceneFeedback(sayAsPet("sleep_blocked", `${petName}正在被窝里睡觉呢～拍一拍叫醒再${actText}吧 💤`), "dialogue");
 
     if (hitSleepPetEl) {
       hitSleepPetEl.hidden = false;
@@ -2956,7 +2989,7 @@
       petSleepSpriteEl.classList.remove("is-waking-fade");
       petSleepSpriteEl.classList.add("is-waking-pat");
     }
-    showSceneFeedback(`轻拍了拍${petName}…「唔，揉揉眼睛醒啦！」`, "dialogue");
+    showSceneFeedback(sayAsPet("wake_pat", `唔，揉揉眼睛醒啦。`), "dialogue");
 
     const step2Delay = REDUCED_MOTION ? 40 : 260;
     const step3Delay = REDUCED_MOTION ? 80 : 540;
@@ -3007,7 +3040,7 @@
       } else if (pending === "wardrobe") {
         enterFittingRoom();
       } else {
-        showSceneFeedback(`${petName}伸了个大懒腰，起床陪你啦 ✨`, "dialogue");
+        showSceneFeedback(sayAsPet("wake_done", `${petName}起床陪你啦。`), "dialogue");
       }
     }, doneDelay);
   }
@@ -3202,7 +3235,7 @@
     persistState();
     if (state.period === "night") {
       showSceneFeedback(
-        nextLit ? `咔哒～暖灯亮起，${petName}起床陪你聊聊天啦` : `咔哒～关掉小台灯，${petName}钻回被窝香香入睡`,
+        nextLit ? sayAsPet("lamp_on", `暖灯亮起，${petName}起床陪你聊聊天啦。`) : sayAsPet("lamp_off", `关灯了，${petName}钻回被窝睡觉。`),
         "dialogue"
       );
     } else {
@@ -3435,7 +3468,12 @@
           openKeepsakeAlbum("keepsakes");
         },
         onPlayTap: () => sfx.tap(),
-        onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type)
+        onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type),
+        Voice: Voice,
+        onPersonaChange: () => {
+          syncCareIndicators();
+          renderMoodTab();
+        }
       })
     : null;
 
@@ -3514,7 +3552,7 @@
     sfx.tap();
     exitFittingRoom();
     const eqName = getSetName(state.petId, state.savedSet[state.petId]);
-    showSceneFeedback(eqName ? `已换好「${eqName}」` : "已恢复原生毛绒造型", "system");
+    showSceneFeedback(eqName ? sayAsPet("outfit_done", `已换好「${eqName}」`) : "已恢复原生毛绒造型", eqName ? "dialogue" : "system");
   });
 
   document.querySelectorAll("[data-fit-pet]").forEach((btn) => {
