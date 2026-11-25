@@ -72,8 +72,15 @@ test("meadow UI strictly follows EggBabe Design System v1.0 tokens and 25s fast 
   assert.equal(/\.webp\b/i.test(builtHtml), false, "built meadow HTML must contain zero .webp references");
   assert.ok(builtHtml.includes("./assets/"), "Vite build must use relative ./assets/ paths");
   assert.ok(builtHtml.includes("../../cross-end-store.js"), "built HTML must load cross-end-store.js");
+  assert.ok(builtHtml.includes("../../catalog-snapshot.js"), "built HTML must load catalog-snapshot.js for equipped outfits");
   assert.ok(/ROUND_SECONDS\s*=\s*25\b/.test(constants), "ROUND_SECONDS must be 25s fast pace");
   assert.ok(/LevelId\s*=\s*1\s*\|\s*2\s*\|\s*3/.test(levels), "must support 3 levels");
+
+  const materialsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/materials.ts"), "utf8");
+  const appTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/MeadowApp.ts"), "utf8");
+  assert.ok(materialsTs.includes("MeshStandardMaterial"), "materials must use PBR MeshStandardMaterial");
+  assert.ok(appTs.includes("ACESFilmicToneMapping"), "MeadowApp must use ACESFilmicToneMapping");
+  assert.ok(appTs.includes("RoomEnvironment"), "MeadowApp must use RoomEnvironment soft lighting");
 });
 
 test("cross-end-store awardActivityStars integrates cleanly with danbaobao_meadow daily 45-star cap", () => {

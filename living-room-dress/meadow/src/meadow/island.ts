@@ -10,15 +10,18 @@ import {
   riverClosest,
   type LevelId,
 } from './levels'
-import { clay } from './materials'
+import { ceramic, clay, felt, oakWood } from './materials'
 import { isInsideCornerPen } from './pen'
 import { ribbonMesh } from './ribbon'
 
-const GRASS = 0xc9df9a
-const SIDE = 0xa9c56e
-/** Close pair. Both sit a step under the lawn, so the field stays calm EggBabe sage. */
-const TUFT_A = 0x86ab58
-const TUFT_B = 0x7aa04d
+const GRASS_BASE = 0xb5cf7a
+const GRASS_ACCENT = 0x9fba65
+const SOIL_WARM = 0xb18355
+const OAK_TRIM = 0xc39666
+const PEBBLE_COLORS = [0xe2d2b5, 0xd8c4a3, 0xe8dac0]
+const DAISY_PETAL = 0xfffcf2
+const DAISY_CENTER = 0xf0c558
+const BLUSH_BUD = 0xf0c6b5
 
 function mulberry32(seed: number) {
   let a = seed
@@ -32,13 +35,13 @@ function mulberry32(seed: number) {
 }
 
 const PATH: [number, number][] = [
-  [0.4, 7.2],
-  [2.2, 4.6],
-  [3.4, 2.0],
-  [3.1, -0.6],
-  [2.0, -3.2],
-  [0.6, -5.8],
-  [-0.6, -7.4],
+  [0.4, 6.8],
+  [2.1, 4.4],
+  [3.2, 1.9],
+  [2.9, -0.6],
+  [1.9, -3.1],
+  [0.6, -5.4],
+  [-0.5, -6.9],
 ]
 
 function onRibbon(x: number, z: number, pts: [number, number][], half: number) {
@@ -56,53 +59,158 @@ function onRibbon(x: number, z: number, pts: [number, number][], half: number) {
   return false
 }
 
-function addTufts(island: THREE.Group, rng: () => number, level: LevelId = 1) {
-  const count = 420
-  const gap = 0.58
-  const geo = new THREE.ConeGeometry(1, 1, 5)
-  const make = (color: number, n: number) => {
-    const mesh = new THREE.InstancedMesh(geo, clay(color), n)
-    mesh.castShadow = false
-    mesh.receiveShadow = false
-    return mesh
-  }
-  const a = make(TUFT_A, count)
-  const b = make(TUFT_B, Math.floor(count * 0.28))
-  const dummy = new THREE.Object3D()
-  const placed: [number, number][] = []
-  let ia = 0
-  let ib = 0
-  const limitB = b.count
+/** Smooth 3D pebble stepping stones nestled into the felt lawn */
+function addPebblePath(island: THREE.Group, rng: () => number) {
+  const curve = new THREE.CatmullRomCurve3(
+    PATH.map(([x, z]) => new THREE.Vector3(x, 0, z)),
+  )
+  const samples = 21
+  for (let i = 0; i < samples; i++) {
+    const t = i / (samples - 1)
+    const pt = curve.getPoint(t)
+    const tangent = curve.getTangent(t)
+    const perpX = -tangent.z
+    const perpZ = tangent.x
+    const side = (i % 2 === 0 ? 1 : -1) * (0.16 + rng() * 0.22)
+    const sx = pt.x + perpX * side
+    const sz = pt.z + perpZ * side
+    const rx = 0.42 + rng() * 0.24
+    const rz = 0.34 + rng() * 0.2
+    const stone = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1.08, 0.12, 14),
+      clay(PEBBLE_COLORS[i % PEBBLE_COLORS.length], 0.9),
+    )
+    stone.scale.set(rx, 1, rz)
+    stone.position.set(sx, 0.035, sz)
+    stone.rotation.y = Math.atan2(-tangent.z, tangent.x) + (rng() - 0.5) * 0.5
+    stone.castShadow = true
+    stone.receiveShadow = true
+    island.add(stone)
 
-  for (let i = 0; ia + ib < count && i < count * 12; i++) {
-    const x = (rng() - 0.5) * ISLAND_HALF * 1.92
-    const z = (rng() - 0.5) * ISLAND_HALF * 1.92
-    if (Math.abs(x) > ISLAND_HALF * 0.96 || Math.abs(z) > ISLAND_HALF * 0.96)
-      continue
-    if (isInsideCornerPen(x, z)) continue
-    if (level === 1 && onRibbon(x, z, PATH, 1.05)) continue
-    if (level !== 1 && riverClosest(x, z).dist < 1.05) continue
-    if (placed.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < gap * gap)) continue
-    placed.push([x, z])
-
-    const h = 0.09 + rng() * 0.09
-    const w = 0.028 + rng() * 0.016
-    const ground = level !== 1 ? groundHeight(level, x, z) : 0
-    dummy.position.set(x, ground + h * 0.5 + 0.02, z)
-    dummy.rotation.set(0, rng() * Math.PI, (rng() - 0.5) * 0.18)
-    dummy.scale.set(w, h, w)
-    dummy.updateMatrix()
-    if (rng() > 0.78 && ib < limitB) {
-      b.setMatrixAt(ib++, dummy.matrix)
-    } else {
-      a.setMatrixAt(ia++, dummy.matrix)
+    // Occasional tiny companion pebble beside the main stone
+    if (rng() > 0.42) {
+      const mini = new THREE.Mesh(
+        new THREE.CylinderGeometry(1, 1.06, 0.09, 10),
+        clay(PEBBLE_COLORS[(i + 1) % PEBBLE_COLORS.length], 0.92),
+      )
+      const mr = 0.14 + rng() * 0.08
+      mini.scale.set(mr * 1.15, 1, mr)
+      mini.position.set(
+        sx - perpX * side * 1.6 + (rng() - 0.5) * 0.25,
+        0.025,
+        sz - perpZ * side * 1.6 + (rng() - 0.5) * 0.25,
+      )
+      mini.receiveShadow = true
+      island.add(mini)
     }
   }
-  a.count = ia
-  b.count = ib
-  a.instanceMatrix.needsUpdate = true
-  b.instanceMatrix.needsUpdate = true
-  island.add(a, b)
+}
+
+/** Plump handmade felt grass sprouts & miniature cream daisies (replacing spiky dark cones) */
+function addMeadowFlora(island: THREE.Group, rng: () => number, level: LevelId = 1) {
+  const placed: [number, number][] = []
+  const sproutGeo = new THREE.SphereGeometry(1, 10, 8)
+  const sproutMatA = felt(0x9ec068, 0x8eb058, 1, 0.02)
+  const sproutMatB = felt(0xadc974, 0x9ab962, 1, 0.02)
+
+  // 72 soft plump felt grass tufts
+  const tuftCount = 72
+  for (let i = 0; placed.length < tuftCount && i < tuftCount * 14; i++) {
+    const x = (rng() - 0.5) * ISLAND_HALF * 1.84
+    const z = (rng() - 0.5) * ISLAND_HALF * 1.84
+    if (isInsideCornerPen(x, z)) continue
+    if (level === 1 && onRibbon(x, z, PATH, 1.05)) continue
+    if (level !== 1 && riverClosest(x, z).dist < 1.15) continue
+    if (placed.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < 1.15 * 1.15)) continue
+    placed.push([x, z])
+
+    const y = level !== 1 ? groundHeight(level, x, z) : 0.02
+    const tuft = new THREE.Group()
+    const mat = rng() > 0.45 ? sproutMatA : sproutMatB
+    const blades = 3
+    for (let b = 0; b < blades; b++) {
+      const ang = (b / blades) * Math.PI * 2 + rng() * 0.6
+      const blade = new THREE.Mesh(sproutGeo, mat)
+      const h = 0.09 + rng() * 0.06
+      const w = 0.045 + rng() * 0.02
+      blade.scale.set(w, h, w)
+      blade.position.set(Math.cos(ang) * 0.055, h * 0.72, Math.sin(ang) * 0.055)
+      blade.rotation.z = (rng() - 0.5) * 0.35
+      blade.rotation.x = (rng() - 0.5) * 0.35
+      tuft.add(blade)
+    }
+    tuft.position.set(x, y, z)
+    island.add(tuft)
+  }
+
+  // 26 tiny cream & butter-yellow daisies scattered near edges and meadows
+  const petalMat = clay(DAISY_PETAL, 0.85)
+  const peachMat = clay(BLUSH_BUD, 0.85)
+  const centerMat = clay(DAISY_CENTER, 0.82)
+  const petalGeo = new THREE.SphereGeometry(0.052, 8, 6)
+  const centerGeo = new THREE.SphereGeometry(0.046, 8, 6)
+  let flowers = 0
+  for (let i = 0; flowers < 26 && i < 360; i++) {
+    const x = (rng() - 0.5) * ISLAND_HALF * 1.82
+    const z = (rng() - 0.5) * ISLAND_HALF * 1.82
+    if (isInsideCornerPen(x, z)) continue
+    if (level === 1 && onRibbon(x, z, PATH, 0.95)) continue
+    if (level !== 1 && riverClosest(x, z).dist < 1.15) continue
+    // Prefer gentle perimeter & pockets so the middle feels open and calm
+    const edgeBias = Math.max(Math.abs(x), Math.abs(z))
+    if (edgeBias < 2.6 && rng() < 0.55) continue
+
+    const y = level !== 1 ? groundHeight(level, x, z) : 0.03
+    const f = new THREE.Group()
+    const pMat = rng() > 0.25 ? petalMat : peachMat
+    for (let p = 0; p < 5; p++) {
+      const a = (p / 5) * Math.PI * 2
+      const petal = new THREE.Mesh(petalGeo, pMat)
+      petal.scale.set(1.1, 0.52, 0.9)
+      petal.position.set(Math.cos(a) * 0.068, 0.05, Math.sin(a) * 0.068)
+      f.add(petal)
+    }
+    const core = new THREE.Mesh(centerGeo, centerMat)
+    core.scale.set(1, 0.65, 1)
+    core.position.y = 0.068
+    f.add(core)
+    const s = 0.85 + rng() * 0.5
+    f.scale.setScalar(s)
+    f.position.set(x, y, z)
+    island.add(f)
+    flowers++
+  }
+}
+
+/** Decorative warm clay pebbles tucked along the island base rim */
+function addRimAccents(island: THREE.Group, rng: () => number, level: LevelId) {
+  const half = ISLAND_HALF
+  const pebbleGeo = new THREE.SphereGeometry(1, 10, 8)
+  const stoneMats = [clay(0xd7cbb7, 0.9), clay(0xc7b59a, 0.92), clay(0xe3d8c6, 0.88)]
+  const mossMat = felt(0x95b762, 0x83a650, 1, 0.025)
+  for (let i = 0; i < 24; i++) {
+    const side = i % 4
+    const u = (rng() - 0.5) * half * 1.68
+    let x = half + 0.04
+    let z = u
+    if (side === 1) {
+      x = -half - 0.04
+      z = u
+    } else if (side === 2) {
+      x = u
+      z = half + 0.04
+    } else if (side === 3) {
+      x = u
+      z = -half - 0.04
+    }
+    const yTop = level !== 1 ? groundHeight(level, Math.max(-half, Math.min(half, x)), Math.max(-half, Math.min(half, z))) : 0
+    const isMoss = rng() > 0.58
+    const m = new THREE.Mesh(pebbleGeo, isMoss ? mossMat : stoneMats[i % stoneMats.length])
+    const r = 0.14 + rng() * 0.14
+    m.scale.set(r * 1.15, r * 0.72, r * 1.05)
+    m.position.set(x, yTop - 0.38 - rng() * 0.68, z)
+    island.add(m)
+  }
 }
 
 function addWater(island: THREE.Group) {
@@ -120,16 +228,25 @@ function addWater(island: THREE.Group) {
   const last = RIVER[RIVER.length - 1]
   samples.push([last[0], last[1]])
 
+  const waterMat = new THREE.MeshStandardMaterial({
+    color: 0x99cac6,
+    roughness: 0.24,
+    metalness: 0.04,
+    transparent: true,
+    opacity: 0.92,
+  })
+
   let run: [number, number][] = []
   const flush = () => {
     if (run.length < 2) {
       run = []
       return
     }
-    const mesh = ribbonMesh(run, 1.55, 0x9bc7c4, 0)
+    const mesh = ribbonMesh(run, 1.56, 0x99cac6, 0)
+    mesh.material = waterMat
     const pos = mesh.geometry.getAttribute('position')
     for (let i = 0; i < pos.count; i++) {
-      pos.setY(i, bankHeight(pos.getZ(i)) - 0.09)
+      pos.setY(i, bankHeight(pos.getZ(i)) - 0.08)
     }
     pos.needsUpdate = true
     mesh.geometry.computeVertexNormals()
@@ -143,13 +260,13 @@ function addWater(island: THREE.Group) {
   flush()
 
   for (const ford of FORDS) {
-    for (const ox of [-0.55, 0, 0.55]) {
+    for (const ox of [-0.58, 0, 0.58]) {
       const hit = riverClosest(ford.x + ox, 0.5)
       const stone = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.2, 0.24, 0.07, 8),
-        clay(0xdad2c4),
+        new THREE.CylinderGeometry(0.24, 0.28, 0.09, 12),
+        clay(0xebe2d0, 0.88),
       )
-      stone.position.set(hit.x, bankHeight(hit.z) + 0.04, hit.z)
+      stone.position.set(hit.x, bankHeight(hit.z) + 0.045, hit.z)
       stone.castShadow = true
       stone.receiveShadow = true
       island.add(stone)
@@ -162,8 +279,9 @@ function createSlopeIsland(level: LevelId) {
   const seg = 64
   const half = ISLAND_HALF
   const n = seg + 1
-  const baseY = -0.82
+  const baseY = -1.65
   const positions: number[] = []
+  const uvs: number[] = []
   const indices: number[] = []
   const point = (i: number, j: number) => {
     const x = -half + (i / seg) * half * 2
@@ -174,6 +292,7 @@ function createSlopeIsland(level: LevelId) {
     for (let i = 0; i < n; i++) {
       const p = point(i, j)
       positions.push(p.x, p.y, p.z)
+      uvs.push(i / seg, j / seg)
     }
   }
   const vert = (i: number, j: number) => j * n + i
@@ -188,21 +307,27 @@ function createSlopeIsland(level: LevelId) {
   }
   const topGeo = new THREE.BufferGeometry()
   topGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  topGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
   topGeo.setIndex(indices)
   topGeo.computeVertexNormals()
-  const top = new THREE.Mesh(topGeo, clay(GRASS))
+  const top = new THREE.Mesh(topGeo, felt(GRASS_BASE, GRASS_ACCENT, 5, 0.04))
   top.receiveShadow = true
   island.add(top)
 
+  // Warm oak / terracotta diorama skirt
   const edge: [number, number][] = []
   for (let i = 0; i < n; i++) edge.push([i, 0])
   for (let j = 1; j < n; j++) edge.push([seg, j])
   for (let i = seg - 1; i >= 0; i--) edge.push([i, seg])
   for (let j = seg - 1; j >= 1; j--) edge.push([0, j])
   const skirtPos: number[] = []
-  for (const [i, j] of edge) {
+  const skirtUv: number[] = []
+  for (let idx = 0; idx < edge.length; idx++) {
+    const [i, j] = edge[idx]
     const p = point(i, j)
     skirtPos.push(p.x, p.y, p.z, p.x, baseY, p.z)
+    const u = idx / edge.length
+    skirtUv.push(u * 4, 1, u * 4, 0)
   }
   const skirtIdx: number[] = []
   for (let e = 0; e < edge.length; e++) {
@@ -215,15 +340,27 @@ function createSlopeIsland(level: LevelId) {
   }
   const skirtGeo = new THREE.BufferGeometry()
   skirtGeo.setAttribute('position', new THREE.Float32BufferAttribute(skirtPos, 3))
+  skirtGeo.setAttribute('uv', new THREE.Float32BufferAttribute(skirtUv, 2))
   skirtGeo.setIndex(skirtIdx)
   skirtGeo.computeVertexNormals()
-  const skirt = new THREE.Mesh(skirtGeo, clay(SIDE))
+  const skirt = new THREE.Mesh(skirtGeo, oakWood(SOIL_WARM, 3))
   skirt.castShadow = true
   skirt.receiveShadow = true
   island.add(skirt)
 
+  // Warm oak bottom tray lip
+  const plinth = new THREE.Mesh(
+    new RoundedBoxGeometry(half * 2 + 0.14, 0.36, half * 2 + 0.14, 6, 0.22),
+    oakWood(OAK_TRIM, 3),
+  )
+  plinth.position.y = baseY - 0.12
+  plinth.castShadow = true
+  plinth.receiveShadow = true
+  island.add(plinth)
+
   addWater(island)
-  addTufts(island, mulberry32(level === 3 ? 37 : 23), level)
+  const rng = mulberry32(level === 3 ? 37 : 23)
+  addMeadowFlora(island, rng, level)
   return island
 }
 
@@ -233,25 +370,41 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   const w = ISLAND_HALF * 2
   const d = ISLAND_HALF * 2
 
-  const slab = new THREE.Mesh(
-    new RoundedBoxGeometry(w, 0.7, d, 8, 0.62),
-    clay(SIDE),
+  // Thick warm oak diorama base slab echoing EggBabe oak furniture
+  const baseSlab = new THREE.Mesh(
+    new RoundedBoxGeometry(w - 0.08, 1.38, d - 0.08, 8, 0.56),
+    oakWood(SOIL_WARM, 3),
   )
-  slab.position.y = -0.48
-  slab.castShadow = true
-  slab.receiveShadow = true
-  island.add(slab)
+  baseSlab.position.y = -0.82
+  baseSlab.castShadow = true
+  baseSlab.receiveShadow = true
+  island.add(baseSlab)
 
-  const top = new THREE.Mesh(
-    new RoundedBoxGeometry(w - 0.08, 0.14, d - 0.08, 6, 0.4),
-    clay(GRASS),
+  // Warm oak bottom tray lip
+  const trayLip = new THREE.Mesh(
+    new RoundedBoxGeometry(w + 0.12, 0.28, d + 0.12, 6, 0.2),
+    oakWood(OAK_TRIM, 3),
   )
-  top.position.y = -0.08
-  top.receiveShadow = true
-  island.add(top)
+  trayLip.position.y = -1.46
+  trayLip.castShadow = true
+  trayLip.receiveShadow = true
+  island.add(trayLip)
 
-  island.add(ribbonMesh(PATH, 1.9, 0xe7dcc3, 0.02))
+  // Plump overhanging wool-felt grass cushion top
+  const grassTop = new THREE.Mesh(
+    new RoundedBoxGeometry(w + 0.18, 0.38, d + 0.18, 8, 0.24),
+    felt(GRASS_BASE, GRASS_ACCENT, 5, 0.048),
+  )
+  grassTop.position.y = -0.17
+  grassTop.castShadow = true
+  grassTop.receiveShadow = true
+  island.add(grassTop)
 
-  addTufts(island, mulberry32(19), 1)
+  const rng = mulberry32(19)
+  addPebblePath(island, rng)
+  addMeadowFlora(island, rng, 1)
+
+  void ceramic
+  void addRimAccents
   return island
 }
