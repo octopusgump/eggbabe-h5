@@ -391,6 +391,7 @@
     const getOutfitName = typeof opts.getOutfitName === "function" ? opts.getOutfitName : () => "默认穿搭";
     const onOpenProfile = typeof opts.onOpenProfile === "function" ? opts.onOpenProfile : () => {};
     const onOpenAlbum = typeof opts.onOpenAlbum === "function" ? opts.onOpenAlbum : () => {};
+    const onOpenHoloCard = typeof opts.onOpenHoloCard === "function" ? opts.onOpenHoloCard : null;
     const onPlayTap = typeof opts.onPlayTap === "function" ? opts.onPlayTap : () => {};
     const onShowSceneFeedback = typeof opts.onShowSceneFeedback === "function" ? opts.onShowSceneFeedback : () => {};
     const onPersonaChange = typeof opts.onPersonaChange === "function" ? opts.onPersonaChange : () => {};
@@ -687,8 +688,8 @@
                 <span class="settings-album-mark">${escapeHtml(card.mark)}</span>
                 <span class="settings-album-copy">
                   <span class="settings-album-name">${escapeHtml(card.name)}</span>
-                  <span class="settings-album-meta">${escapeHtml(card.prototype)} · ${escapeHtml(card.outfit)} · Lv.${card.lv}</span>
-                  <span class="settings-album-note">一蛋一份 · 身份与纪念</span>
+                  <span class="settings-album-meta">${escapeHtml(card.prototype)} · ${escapeHtml(card.outfit)}</span>
+                  <span class="settings-album-note">一蛋一份 · 点击赏玩 3D 全息纪念卡</span>
                 </span>
                 <span class="settings-chevron" aria-hidden="true">›</span>
               </button>
@@ -1282,7 +1283,11 @@
         const petId = target.getAttribute("data-pet") || "";
         onPlayTap();
         close();
-        onOpenAlbum(petId);
+        if (onOpenHoloCard) {
+          onOpenHoloCard(petId);
+        } else {
+          onOpenAlbum(petId);
+        }
         return;
       }
       if (action === "toggle-sfx") {

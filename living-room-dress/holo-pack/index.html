@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-studio-light="day">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>拾物伴手礼袋 · 蛋宝宝</title>
+  <link rel="stylesheet" href="./holo-pack.css" />
+</head>
+<body>
+  <h1 class="sr-only">蛋宝宝拾物伴手礼袋</h1>
+
+  <header class="top-bar">
+    <div class="top-left-group">
+      <a class="standalone-back" href="../../">← 返回房间</a>
+      <span class="star-balance-pill" id="starBalancePill" aria-label="当前星星余额">
+        <span class="star-balance-pill__icon" aria-hidden="true">✦</span>
+        <span id="starBalanceVal">128</span>
+      </span>
+    </div>
+
+    <div class="brand-stage-crest" aria-hidden="true">
+      <span class="brand-crest-title">拾物伴手礼袋</span>
+      <span class="brand-crest-sub">EGGBABE · 3 张小物件全息卡</span>
+    </div>
+
+    <div class="utility-cluster">
+      <button class="util-btn mode-btn" id="themeModeBtn" type="button" aria-label="切换展台光效">
+        <svg class="icon-mode" viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
+          <g class="icon-darkroom" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M10 2.5v2.2M6 4.2l1.2 1.8M14 4.2l-1.2 1.8"/>
+            <path d="M5.2 15.5h9.6L12.6 8H7.4z" fill="currentColor" fill-opacity="0.18"/>
+          </g>
+          <g class="icon-daylight" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="10" cy="10" r="3.4"/>
+            <path d="M10 2.4v2M10 15.6v2M2.4 10h2M15.6 10h2M4.6 4.6l1.4 1.4M14 14l1.4 1.4M15.4 4.6 14 6M6 14l-1.4 1.4"/>
+          </g>
+        </svg>
+        <span id="themeModeLabel">暖光展台</span>
+      </button>
+
+      <button class="util-btn mute-btn" id="muteBtn" type="button" aria-label="音效开关" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M4 9.5v5h3.5l4.5 4v-13l-4.5 4z" fill="currentColor"/>
+          <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <g class="icon-sound-on">
+              <path d="M15.5 9.2a4 4 0 0 1 0 5.6"/>
+              <path d="M18.2 6.8a7.5 7.5 0 0 1 0 10.4"/>
+            </g>
+            <g class="icon-sound-off">
+              <path d="m15.5 9.5 5 5m0-5-5 5"/>
+            </g>
+          </g>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="pull-banner" id="pullBanner" aria-live="polite" hidden>
+    <span class="banner-kicker" id="bannerKicker">EGGBABE KEEPSAKE</span>
+    <strong class="banner-title" id="bannerTitle">发现祈愿典藏小物件</strong>
+  </div>
+
+  <main class="stage" id="stage">
+    <div class="stage-backdrop" aria-hidden="true">
+      <i class="stage-vignette"></i>
+    </div>
+    <i class="stage-spotlight" aria-hidden="true"></i>
+    <i class="stage-grain" aria-hidden="true"></i>
+    <i class="pack-aura" id="packAura" aria-hidden="true"></i>
+    <i class="ground-shadow" id="groundShadow" aria-hidden="true"></i>
+
+    <div class="scene" id="scene">
+      <div class="jet-anchor" id="jetAnchor" aria-hidden="true">
+        <svg class="light-jet" id="lightJet" viewBox="0 0 100 76"></svg>
+      </div>
+
+      <div class="pack" id="pack">
+        <div class="pouch-face front" aria-hidden="true">
+          <span class="tear-label" id="tearLabel">◀ 横向撕开封口 ⟶</span>
+          <i class="tear-guide"></i>
+          <span class="lip-shadow"><i class="foil-lip" id="bodyLip"></i></span>
+
+          <div class="pouch-foil-frame">
+            <div class="pouch-header">
+              <b class="brand-mark" id="brandLogo">EGGBABE</b>
+              <span class="edition-tag" id="editionTag">雾松抹茶</span>
+            </div>
+            <i class="pouch-halo-ring"></i>
+          </div>
+
+          <div class="mascot-slot" id="mascotSlot">
+            <img id="mascotImg" src="../../assets/shared/png/yutu_set_cozy_knit.png" alt="蛋宝宝伙伴" />
+          </div>
+
+          <div class="pouch-footer">
+            <div class="pouch-foot-row">
+              <span class="pack-foot left" id="footLeft">拾物伴手礼袋</span>
+              <span class="pack-foot right" id="footRight">3 张全息卡</span>
+            </div>
+            <span class="pack-micro-spec" id="microSpec">新物自动入柜 · 重复回赠 +5✦</span>
+          </div>
+        </div>
+
+        <div class="pouch-face back" aria-hidden="true">
+          <i class="back-fin"></i>
+          <div class="back-print-box">
+            <b class="brand-mark back-mark" id="backLogo">EGGBABE</b>
+            <p class="back-blurb" id="backBlurb">旅途与居家小物件<br/>每袋 3 张 · 轻触翻开入柜</p>
+            <span class="back-spec" id="backSpec">EGGBABE COMPANION EDITION</span>
+          </div>
+        </div>
+
+        <div class="tear-flap" id="tearFlap" aria-hidden="true"></div>
+
+        <button
+          class="grab-zone"
+          id="grabZone"
+          type="button"
+          aria-label="拾物伴手礼袋（内含 3 张小物件全息卡）。按住顶部封口横向拖动撕开，或轻点拆袋。"
+        ></button>
+      </div>
+    </div>
+
+    <canvas class="confetti-canvas" id="confettiCanvas" aria-hidden="true"></canvas>
+  </main>
+
+  <!-- 放大检视小物件时的底部故事卡片 -->
+  <aside class="zoom-story-pill" id="zoomStoryPill" hidden aria-live="polite">
+    <div class="zoom-story-pill__head">
+      <span class="zoom-story-pill__name" id="zoomStoryName">祈福签</span>
+      <span class="zoom-story-pill__tag" id="zoomStoryTag">祈愿共有</span>
+    </div>
+    <p class="zoom-story-pill__text" id="zoomStoryText"></p>
+  </aside>
+
+  <div class="pack-toast" id="packToast" hidden aria-live="polite"></div>
+
+  <div class="bottom-chrome">
+    <p class="gesture-hint" id="gestureHint">按住封口横向拖动撕开 · 每日首袋免费</p>
+
+    <footer class="console-dock" id="controlConsole" aria-label="拾物伴手礼袋控制台">
+      <button class="console-item" id="goCurioBtn" type="button">
+        <span aria-hidden="true">🪵</span>
+        <span class="console-meta">
+          <span class="console-kicker" id="curioKicker">多宝收藏格</span>
+          <strong class="console-val" id="curioCountVal">已收集 0 / 41</strong>
+        </span>
+      </button>
+
+      <i class="console-sep" aria-hidden="true"></i>
+
+      <div class="console-actions" id="actionDock">
+        <button class="dock-btn secondary" id="shakeBtn" type="button">摇袋感应</button>
+        <button class="dock-btn primary" id="flipAllBtn" type="button" hidden>一键翻开</button>
+        <button class="dock-btn primary" id="againBtn" type="button" hidden>再拆一袋</button>
+      </div>
+    </footer>
+  </div>
+
+  <p class="sr-only" id="liveStatus" aria-live="polite"></p>
+
+  <script src="../catalog-snapshot.js"></script>
+  <script src="../cross-end-store.js"></script>
+  <script src="./holo-pack-config.js"></script>
+  <script src="./holo-pack-sound.js"></script>
+  <script src="./holo-pack.js"></script>
+</body>
+</html>

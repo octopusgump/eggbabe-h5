@@ -27,6 +27,9 @@
   const TOTAL_KEEPSAKES_COUNT = 41;
   const DAILY_MINIGAME_STAR_CAP = 45;
   const DAILY_CARE_STAR_CAP = 15;
+  const HOLO_PACK_SIZE = 3;
+  const HOLO_PACK_STAR_COST = 20;
+  const HOLO_PACK_DUPLICATE_REFUND = 5;
 
   const PROFILE_MODES = Object.freeze([
     "h5",
@@ -679,6 +682,9 @@
         starBalance: 128,
         dailyLetterClaimedDate: null,
         dailyListenClaimedDate: null,
+        dailyFreePackDate: null,
+        holoPackOpenedCount: 0,
+        holoPackPityCount: 0,
         dailyMiniGameStars: {},
         dailyCareStars: {},
         actedSlotKeys: []
@@ -990,6 +996,15 @@
       if (store.companion.dailyListenClaimedDate === undefined) {
         store.companion.dailyListenClaimedDate = null;
       }
+      if (store.companion.dailyFreePackDate === undefined) {
+        store.companion.dailyFreePackDate = null;
+      }
+      if (typeof store.companion.holoPackOpenedCount !== "number" || !Number.isFinite(store.companion.holoPackOpenedCount)) {
+        store.companion.holoPackOpenedCount = 0;
+      }
+      if (typeof store.companion.holoPackPityCount !== "number" || !Number.isFinite(store.companion.holoPackPityCount)) {
+        store.companion.holoPackPityCount = 0;
+      }
     }
     if (!store.clockWidget || typeof store.clockWidget !== "object") {
       store.clockWidget = def.clockWidget;
@@ -1158,6 +1173,128 @@
     }
     store.companion.starBalance = bal - cost;
     return { ok: true, balance: store.companion.starBalance, missing: 0 };
+  }
+
+  function canOpenFreeHoloPack(store, dateKey) {
+    if (!store || !store.companion) return false;
+    const dk = dateKey || getUtc8DateKey();
+    return store.companion.dailyFreePackDate !== dk;
+  }
+
+  function chargeHoloPackOpen(store, opts) {
+    if (!store || !store.companion) {
+      return { ok: false, free: false, cost: HOLO_PACK_STAR_COST, balance: 0, missing: HOLO_PACK_STAR_COST };
+    }
+    ensureModularAndClockDefaults(store);
+    const options = opts || {};
+    const now = typeof options.now === "number" ? options.now : Date.now();
+    const dk = options.dateKey || getUtc8DateKey(now);
+    const pid = options.petId || store.activePetId || "koi";
+    const cost = typeof options.cost === "number" ? Math.max(0, Math.floor(options.cost)) : HOLO_PACK_STAR_COST;
+
+    if (canOpenFreeHoloPack(store, dk)) {
+      store.companion.dailyFreePackDate = dk;
+      store.companion.holoPackOpenedCount = Math.max(0, Number(store.companion.holoPackOpenedCount || 0)) + 1;
+      recordDailyEvent(store, dk, pid, { miniGame: "holo_pack", countsAsEffective: true });
+      return {
+        ok: true,
+        free: true,
+        cost: 0,
+        balance: Math.max(0, Math.floor(Number(store.companion.starBalance || 0))),
+        missing: 0,
+        openedCount: store.companion.holoPackOpenedCount
+      };
+    }
+
+    const spent = spendStars(store, cost);
+    if (!spent.ok) {
+      return {
+        ok: false,
+        free: false,
+        cost: cost,
+        balance: spent.balance,
+        missing: spent.missing,
+        openedCount: Math.max(0, Number(store.companion.holoPackOpenedCount || 0))
+      };
+    }
+
+    store.companion.holoPackOpenedCount = Math.max(0, Number(store.companion.holoPackOpenedCount || 0)) + 1;
+    recordDailyEvent(store, dk, pid, { miniGame: "holo_pack", countsAsEffective: true });
+    return {
+      ok: true,
+      free: false,
+      cost: cost,
+      balance: spent.balance,
+      missing: 0,
+      openedCount: store.companion.holoPackOpenedCount
+    };
+  }
+
+  function settleHoloPackCard(store, rawKeepsakeId, opts) {
+    if (!store || !rawKeepsakeId) {
+      return { ok: false, isNew: false, refundStars: 0, keepsakeId: "", placedSlot: -1 };
+    }
+    ensureModularAndClockDefaults(store);
+    const options = opts || {};
+    const now = typeof options.now === "number" ? options.now : Date.now();
+    const dk = options.dateKey || getUtc8DateKey(now);
+    const pid = options.petId || store.activePetId || "koi";
+    const refund = typeof options.duplicateRefund === "number"
+      ? Math.max(0, Math.floor(options.duplicateRefund))
+      : HOLO_PACK_DUPLICATE_REFUND;
+
+    if (!store.curioCabinet || typeof store.curioCabinet !== "object") {
+      store.curioCabinet = createDefaultState({ now }).curioCabinet;
+    }
+    if (!Array.isArray(store.curioCabinet.unlockedIds)) store.curioCabinet.unlockedIds = [];
+    if (!Array.isArray(store.curioCabinet.shelfSlots) || store.curioCabinet.shelfSlots.length !== 12) {
+      store.curioCabinet.shelfSlots = buildShelfSlots(store.curioCabinet.unlockedIds, store.curioCabinet.shelfSlots);
+    }
+    if (!store.curioCabinet.unlockedMeta || typeof store.curioCabinet.unlockedMeta !== "object") {
+      store.curioCabinet.unlockedMeta = {};
+    }
+
+    const norm = keepsakeAliasNormalizer([rawKeepsakeId]);
+    const cid = norm.unlockedIds[0] || norm.deferredUnlockedIds[0] || String(rawKeepsakeId);
+    const alreadyOwned = store.curioCabinet.unlockedIds.indexOf(cid) >= 0;
+
+    if (!alreadyOwned) {
+      store.curioCabinet.unlockedIds.unshift(cid);
+      let placedSlot = store.curioCabinet.shelfSlots.indexOf(cid);
+      if (placedSlot < 0) {
+        const emptyIdx = store.curioCabinet.shelfSlots.indexOf(null);
+        if (emptyIdx >= 0) {
+          store.curioCabinet.shelfSlots[emptyIdx] = cid;
+          placedSlot = emptyIdx;
+        }
+      }
+      store.curioCabinet.unlockedMeta[cid] = {
+        unlockedAt: getUtc8IsoString(now),
+        source: options.source || "holo_pack",
+        isNew: true
+      };
+      recordDailyEvent(store, dk, pid, { keepsakeId: cid, countsAsEffective: true });
+      return {
+        ok: true,
+        isNew: true,
+        refundStars: 0,
+        keepsakeId: cid,
+        placedSlot: placedSlot,
+        balance: Math.max(0, Math.floor(Number(store.companion.starBalance || 0)))
+      };
+    }
+
+    if (refund > 0 && store.companion) {
+      store.companion.starBalance = Math.max(0, Math.floor(Number(store.companion.starBalance || 0)) + refund);
+    }
+    return {
+      ok: true,
+      isNew: false,
+      refundStars: refund,
+      keepsakeId: cid,
+      placedSlot: store.curioCabinet.shelfSlots.indexOf(cid),
+      balance: Math.max(0, Math.floor(Number(store.companion && store.companion.starBalance || 0)))
+    };
   }
 
   function unlockDecorItem(store, decorDef) {
@@ -1524,6 +1661,9 @@
     TOTAL_KEEPSAKES_COUNT,
     DAILY_MINIGAME_STAR_CAP,
     DAILY_CARE_STAR_CAP,
+    HOLO_PACK_SIZE,
+    HOLO_PACK_STAR_COST,
+    HOLO_PACK_DUPLICATE_REFUND,
     PROFILE_MODES,
     DEFAULT_PET_NAMES,
     DEFAULT_SET_BY_PET,
@@ -1559,6 +1699,9 @@
     awardActivityStars,
     awardCareStars,
     spendStars,
+    canOpenFreeHoloPack,
+    chargeHoloPackOpen,
+    settleHoloPackCard,
     unlockDecorItem,
     equipDecorItem,
     canUnlockRoom,
