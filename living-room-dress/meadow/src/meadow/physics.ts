@@ -342,3 +342,62 @@ export function bounceInArena(
 
   return { x: px, z: pz, vx: nvx, vz: nvz, bounced, nx, nz }
 }
+
+/**
+ * Computes a perpendicular sidestep ("Juke") vector when the herder charges head-on
+ * toward a Golden Sheep within `triggerDist`. Returns null if no juke triggers.
+ */
+export function computeGoldenJuke(
+  sx: number,
+  sz: number,
+  hx: number,
+  hz: number,
+  hvx: number,
+  hvz: number,
+  triggerDist = 3.1,
+  jukeSpeed = 6.9,
+): { vx: number; vz: number } | null {
+  const hSpd = Math.hypot(hvx, hvz)
+  if (hSpd < 2.2) return null
+  const dx = sx - hx
+  const dz = sz - hz
+  const dist = Math.hypot(dx, dz)
+  if (dist < 0.1 || dist > triggerDist) return null
+
+  const toSheepX = dx / dist
+  const toSheepZ = dz / dist
+  const chargeX = hvx / hSpd
+  const chargeZ = hvz / hSpd
+  const align = toSheepX * chargeX + toSheepZ * chargeZ
+  if (align < 0.72) return null
+
+  // Perpendicular sidestep away from the nearer horizontal arena wall so it dodges into open ice
+  let px = -chargeZ
+  let pz = chargeX
+  const pickSign = sx * px > 0 ? -1 : 1
+  px *= pickSign
+  pz *= pickSign
+  // Mix slight retreat away from the South gate so it stays cheeky & elusive
+  let vx = px * 0.92 + toSheepX * 0.25
+  let vz = pz * 0.92 + Math.min(0, toSheepZ) * 0.2
+  const vlen = Math.hypot(vx, vz) || 1
+  return { vx: (vx / vlen) * jukeSpeed, vz: (vz / vlen) * jukeSpeed }
+}
+
+/** Computes live score gain for a white or golden sheep, accounting for Final 8s 2x Golden Rush & bowling chain bonus. */
+export function computeGateScoreDelta(
+  isGolden: boolean,
+  rushActive: boolean,
+  hasChainBonus: boolean,
+): { base: number; chainBonus: number; total: number } {
+  const raw = isGolden ? 3 : 1
+  const base = rushActive ? raw * 2 : raw
+  const chainBonus = hasChainBonus ? 1 : 0
+  return { base, chainBonus, total: base + chainBonus }
+}
+
+/** Applies troublemaker black-sheep gate penalty (-2✦), clamped cleanly at 0. */
+export function applyScorePenalty(currentScore: number, penalty = 2): number {
+  return Math.max(0, currentScore - penalty)
+}
+

@@ -241,7 +241,39 @@ export function playPenned(combo = 1, isGolden = false, isLast = false) {
   }
 }
 
-/** Gentle cozy marimba pulse BGM (speeds up slightly in final 5 seconds) */
+/** Crisp golden herder bell chime on picking up Golden Bell Fever */
+export function playBellPickup() {
+  play([.42, , 1046.5, .005, .04, .22, 0, 1.35])
+  window.setTimeout(() => play([.36, , 1318.5, .005, .04, .2, 0, 1.3]), 65)
+  window.setTimeout(() => play([.4, , 1568.0, .005, .06, .28, 0, 1.35]), 130)
+}
+
+/** Playful high squeak-whoosh when a Golden Sheep jukes sideways */
+export function playGoldenJuke() {
+  play([.3, , 680, .004, .03, .11, 0, 1.2, 12, , 240, .02])
+}
+
+/** Billiard chain strike crisp sparkle pop */
+export function playStrikeBonus() {
+  play([.38, , 880, .004, .04, .14, 0, 1.25])
+  window.setTimeout(() => play([.36, , 1174.66, .004, .05, .18, 0, 1.3]), 55)
+}
+
+/** Cheeky low warning buzz when a Troublemaker Black Sheep slips into the gate (-2✦) */
+export function playTroublemakerPenalty() {
+  play([.48, , 210, .008, .08, .22, 2, 1.4, -3.5, , -70, .06])
+  window.setTimeout(() => play([.42, , 160, .008, .09, .26, 2, 1.3, -2.5]), 95)
+}
+
+/** Exciting Final 8s 2x Golden Rush fanfare */
+export function playRushFanfare() {
+  const notes = [659.25, 783.99, 987.77, 1318.51]
+  notes.forEach((f, i) => {
+    window.setTimeout(() => play([.36, , f, .005, .045, .18, 0, 1.2]), i * 65)
+  })
+}
+
+/** Gentle cozy marimba pulse BGM (accelerates cleanly during Final 8s Golden Rush) */
 export function stepBgm(dt: number, active: boolean, urgent: boolean) {
   if (!enabled || !active) return
   bgmTimer -= dt
@@ -257,7 +289,7 @@ export function stepBgm(dt: number, active: boolean, urgent: boolean) {
     const g = ctx.createGain()
     osc.type = 'triangle'
     osc.frequency.setValueAtTime(freq, now)
-    g.gain.setValueAtTime(0.022, now)
+    g.gain.setValueAtTime(urgent ? 0.028 : 0.022, now)
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16)
     osc.connect(g)
     g.connect(ctx.destination)
@@ -313,12 +345,12 @@ export function buzz(pattern: number | number[]) {
   }
 }
 
-/** Floating score sticker right above the gate in screen space */
+/** Floating score / event sticker right in screen space */
 export function popAtScreen(
   x: number,
   y: number,
   label = '+1 ✦',
-  variant: 'normal' | 'combo' | 'gold' | 'rank' = 'normal',
+  variant: 'normal' | 'combo' | 'gold' | 'rank' | 'penalty' | 'rush' | 'bell' | 'strike' = 'normal',
 ) {
   const host = document.getElementById('pops')
   if (!host) return

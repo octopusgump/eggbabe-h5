@@ -6,7 +6,7 @@ import { pushOutOfWater, type LevelId } from './levels'
  * - Centered at x = 0, mouth opens northward at z = GATE_MOUTH_Z
  * - Back wall sits flush at the south edge z = GATE_BACK_Z
  */
-export const GATE_HALF_W = 2.35
+export const GATE_HALF_W = 1.95
 export const GATE_MOUTH_Z = 5.45
 export const GATE_BACK_Z = 7.75
 

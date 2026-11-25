@@ -340,9 +340,10 @@ body.is-embedded .pop-star {
   transform: translateX(-50%);
   z-index: 8;
   min-height: 30px;
-  max-width: calc(100% - 120px);
+  max-width: calc(100% - 132px);
+  width: max-content;
   padding: 5px 14px;
-  border-radius: var(--eb-radius-pill);
+  border-radius: 16px;
   background: rgba(252, 248, 239, 0.92);
   border: 1px solid rgba(164, 134, 98, 0.28);
   color: #4A3A28;
@@ -350,7 +351,7 @@ body.is-embedded .pop-star {
   font-weight: 500;
   line-height: 1.4;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
   box-shadow: var(--eb-shadow-notice);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -720,6 +721,45 @@ body.is-embedded .eb-inline-notice {
   border: 1.5px solid #F4CF67;
   color: #FFE792;
   font-size: 15px;
+}
+
+.pop-gate--penalty {
+  background: var(--eb-error-surface);
+  border: 1.5px solid rgba(217, 70, 60, 0.72);
+  color: #A62B22;
+  font-size: 15px;
+}
+
+.pop-gate--rush {
+  background: linear-gradient(180deg, #FFF7CC 0%, #FAD666 100%);
+  border: 1.5px solid #C98A12;
+  color: #5C3A06;
+  font-size: 16px;
+}
+
+.pop-gate--bell {
+  background: linear-gradient(180deg, #FFFDF0 0%, #FCE69C 100%);
+  border: 1.5px solid #D99B20;
+  color: #6B4708;
+  font-size: 15px;
+}
+
+.pop-gate--strike {
+  background: #F0F7E6;
+  border: 1.5px solid #7E9D44;
+  color: var(--eb-ink);
+  font-size: 15px;
+}
+
+.hud-pill.is-rush {
+  background: linear-gradient(180deg, #FFF8D6 0%, #FCE394 100%);
+  border-color: rgba(209, 150, 28, 0.72);
+  box-shadow: 0 0 0 3px rgba(246, 200, 74, 0.34), var(--eb-shadow-floating);
+}
+
+.hud-pill.is-fever {
+  background: linear-gradient(180deg, #FFFDF0 0%, #F7EDC2 100%);
+  border-color: rgba(218, 165, 36, 0.65);
 }
 
 @keyframes gate-pop {

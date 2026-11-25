@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
+  applyScorePenalty,
   bounceInArena,
+  computeGateScoreDelta,
+  computeGoldenJuke,
   createSkaterState,
   DEFAULT_SKATER_PARAMS,
   resolveElasticBump,
@@ -89,17 +92,19 @@ test("Soft bouncy snow-oak perimeter keeps skaters inside arena with rebound", (
   assert.ok(hit.vx < 0, "outward velocity must reflect inward");
 });
 
-test("6 progressive levels escalate sheep count 6->16 and Level 1 is pure zero-tree ice rink", () => {
+test("6 progressive levels escalate sheep count 6->16, troublemakers 0->2, and Level 1 is pure zero-tree ice rink", () => {
   const levels = [1, 2, 3, 4, 5, 6];
   const counts = levels.map((lvl) => LEVEL_CONFIGS[lvl].sheep.length);
   const goldenCounts = levels.map((lvl) => LEVEL_CONFIGS[lvl].sheep.filter((s) => s.isGolden).length);
+  const troublemakerCounts = levels.map((lvl) => LEVEL_CONFIGS[lvl].troublemakers.length);
   const maxScores = levels.map((lvl) => maxLevelScore(lvl));
 
   assert.deepEqual(counts, [6, 8, 10, 12, 14, 16], "sheep counts must escalate 6, 8, 10, 12, 14, 16");
   assert.deepEqual(goldenCounts, [1, 1, 2, 2, 3, 4], "golden sheep count must escalate across levels");
-  assert.deepEqual(maxScores, [8, 10, 14, 16, 20, 24], "max score must account for +3 golden sheep");
+  assert.deepEqual(troublemakerCounts, [0, 1, 1, 1, 2, 2], "troublemaker black sheep must escalate from L2 onwards");
+  assert.deepEqual(maxScores, [8, 10, 14, 16, 20, 24], "max base score must account for +3 golden sheep");
 
-  // Level 1: zero trees, zero bumpers, pure fenced rink
+  // Level 1: zero trees, zero bumpers, zero troublemakers
   assert.equal(LEVEL_CONFIGS[1].trees.length, 0, "Level 1 must have 0 trees");
   assert.equal(LEVEL_CONFIGS[1].bumpers.length, 0, "Level 1 must have 0 bumpers");
   assert.equal(LEVEL_CONFIGS[1].hasRiver, false, "Level 1 must be flat ice");
@@ -145,26 +150,57 @@ test("Obstacle physics: Level 2 snow bumper high-elastic rebound, Level 3 pine c
   assert.equal(boostOff.active, false);
 });
 
-test("Instant star-tier computation triggers 1★/2★/3★ upgrades immediately on score gain", () => {
-  // Level 1 thresholds: [3, 5, 6]
-  assert.equal(computeStarTier(1, 0), 0);
-  assert.equal(computeStarTier(1, 2), 0);
-  assert.equal(computeStarTier(1, 3), 1, "golden sheep (+3) on Level 1 immediately grants 1★");
-  assert.equal(computeStarTier(1, 5), 2);
-  assert.equal(computeStarTier(1, 6), 3);
+test("Difficulty & fun mechanics: Golden Sheep Juke, 2x Final Rush, Billiard Strike bonus, and -2✦ Troublemaker penalty", () => {
+  // Golden sheep at (1.0, 0), herder at (1.0, -2.2) charging straight south (+Z) at 5.5
+  const juke = computeGoldenJuke(1.0, 0, 1.0, -2.2, 0, 5.5);
+  assert.ok(juke !== null, "head-on fast charge must trigger Golden Sheep perpendicular juke");
+  assert.ok(Math.abs(juke.vx) > 5.0, `juke must dart sharply sideways, got vx=${juke.vx}`);
+  assert.ok(juke.vx < 0, "sheep on right side (x=+1) should juke inward toward open center (-X)");
 
-  // Level 6 thresholds: [8, 13, 18]
-  assert.equal(computeStarTier(6, 7), 0);
-  assert.equal(computeStarTier(6, 8), 1);
-  assert.equal(computeStarTier(6, 13), 2);
-  assert.equal(computeStarTier(6, 18), 3);
+  // Slow or far approach does not trigger juke
+  assert.equal(computeGoldenJuke(1.0, 0, 1.0, -2.2, 0, 1.2), null);
+  assert.equal(computeGoldenJuke(1.0, 0, 1.0, -5.0, 0, 6.0), null);
+
+  // Scoring rules: normal, Final 8s 2x Rush, and Billiard Chain Strike bonus (+1✦)
+  assert.deepEqual(computeGateScoreDelta(false, false, false), { base: 1, chainBonus: 0, total: 1 });
+  assert.deepEqual(computeGateScoreDelta(true, false, false), { base: 3, chainBonus: 0, total: 3 });
+  assert.deepEqual(computeGateScoreDelta(false, true, false), { base: 2, chainBonus: 0, total: 2 });
+  assert.deepEqual(computeGateScoreDelta(true, true, false), { base: 6, chainBonus: 0, total: 6 });
+  assert.deepEqual(computeGateScoreDelta(false, true, true), { base: 2, chainBonus: 1, total: 3 });
+
+  // Troublemaker Black Sheep -2✦ penalty never drops below 0
+  assert.equal(applyScorePenalty(5, 2), 3);
+  assert.equal(applyScorePenalty(1, 2), 0);
+  assert.equal(applyScorePenalty(0, 2), 0);
 });
 
-test("Keyboard-synced visual joystick, Dash button, skid audio, instant star HUD, and 4-way belly-sliding sheep are wired", () => {
+test("Instant star-tier computation triggers 1★/2★/3★ upgrades immediately on score gain", () => {
+  // Level 1 thresholds: [4, 7, 10]
+  assert.equal(computeStarTier(1, 0), 0);
+  assert.equal(computeStarTier(1, 3), 0);
+  assert.equal(computeStarTier(1, 4), 1);
+  assert.equal(computeStarTier(1, 7), 2);
+  assert.equal(computeStarTier(1, 10), 3);
+
+  // Level 6 thresholds: [12, 19, 26]
+  assert.equal(computeStarTier(6, 11), 0);
+  assert.equal(computeStarTier(6, 12), 1);
+  assert.equal(computeStarTier(6, 19), 2);
+  assert.equal(computeStarTier(6, 26), 3);
+});
+
+test("Tighter influence circle (2.35), narrower gate (1.95), reduced gate magnetism, Golden Bell Fever, and 4-way sliding are wired", () => {
   const html = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/index.html"), "utf8");
   const appTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/MeadowApp.ts"), "utf8");
   const sheepTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/sheep.ts"), "utf8");
   const feedbackTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/feedback.ts"), "utf8");
+  const penTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/pen.ts"), "utf8");
+  const boundsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/bounds.ts"), "utf8");
+  const powerupsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/powerups.ts"), "utf8");
+
+  assert.ok(/SHEEP_FEAR\s*=\s*2\.35\b/.test(sheepTs), "SHEEP_FEAR must be tightened to 2.35");
+  assert.ok(/GATE_HALF_W\s*=\s*1\.95\b/.test(boundsTs), "GATE_HALF_W must be tightened to 1.95");
+  assert.ok(/Math\.min\(0\.26/.test(penTs), "herdTarget hidden gate magnetism must be capped at 0.26");
 
   assert.ok(html.includes('id="stick-knob"'), "visual joystick knob must exist");
   assert.ok(html.includes('data-dir="up"') && html.includes('data-dir="left"'), "directional pips must exist");
@@ -174,17 +210,18 @@ test("Keyboard-synced visual joystick, Dash button, skid audio, instant star HUD
   assert.ok(appTs.includes("updateVisualStick"), "MeadowApp must sync keyboard input to visible joystick knob");
   assert.ok(appTs.includes("ArrowUp") && appTs.includes("Space"), "desktop arrow keys and Space dash must be wired");
   assert.ok(appTs.includes("flyStarsToHud") && appTs.includes("popAtScreen"), "instant gate star popups & flying orbs must be wired");
-  assert.ok(feedbackTs.includes("updateSkidSound") && feedbackTs.includes("playStarRankUp"), "ice skid & star rank-up audio must exist");
+  assert.ok(appTs.includes("hitstopTimer") && appTs.includes("feverTimer") && appTs.includes("rushTriggered"), "hitstop, bell fever, and final 8s rush must be wired");
+  assert.ok(powerupsTs.includes("createBellPowerup") && powerupsTs.includes("checkBellPickup"), "Golden Bell power-up module must exist");
+  assert.ok(feedbackTs.includes("updateSkidSound") && feedbackTs.includes("playStarRankUp") && feedbackTs.includes("playTroublemakerPenalty"), "full audio suite must exist");
   assert.ok(
     sheepTs.includes("isGolden") &&
+      sheepTs.includes("isTroublemaker") &&
       !sheepTs.includes("s.group.visible = false") &&
       sheepTs.includes("'waddle' | 'slide' | 'penned'") &&
       !sheepTs.includes("'graze'"),
-    "golden sheep, visible penned sheep, and autonomous waddle/slide AI (no graze) must exist"
+    "golden sheep, troublemaker black sheep, visible penned sheep, and autonomous waddle/slide AI must exist"
   );
 
-  const penTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/pen.ts"), "utf8");
-  const boundsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/bounds.ts"), "utf8");
   assert.ok(/PEN_COUNT\s*=\s*1\b/.test(penTs), "must have exactly 1 single-entrance gate pen");
   assert.ok(boundsTs.includes("GATE_MOUTH_Z") && boundsTs.includes("GATE_HALF_W"), "bounds must define single South-Center gate geometry");
   assert.equal(boundsTs.includes("PEN_CORNERS"), false, "old 4-corner PEN_CORNERS must be removed");
