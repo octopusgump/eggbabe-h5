@@ -620,15 +620,17 @@ button:active {
   to { opacity: 0; }
 }
 
-/* 墙面微缩拍立得（z: 9，置于壁画热区之上确保明信片点击不被拦截） */
+/* 墙面微缩拍立得（哑光暖相纸 + 昼/黄昏/开灯夜/关灯夜光影自适应，自然融入墙面） */
 .wall-polaroid {
   position: absolute;
   z-index: 9;
   padding: 3px 3px 9px;
-  background: #FFFDF8;
+  background: linear-gradient(155deg, #F3EBDC 0%, #E7DCC8 100%);
   border-radius: 3px;
-  box-shadow: 0 3px 8px rgba(34, 26, 18, 0.22);
+  box-shadow: 0 2px 6px rgba(48, 36, 22, 0.18), 0 1px 1px rgba(48, 36, 22, 0.12);
   transform: translate(-50%, -50%) rotate(-3.5deg);
+  transition: filter 0.4s ease, opacity 0.35s ease, box-shadow 0.4s ease;
+  filter: brightness(0.95) saturate(0.86) sepia(0.08);
 }
 .wall-polaroid__pin {
   position: absolute;
@@ -638,8 +640,8 @@ button:active {
   height: 7px;
   margin-left: -3.5px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #D99B5E, #8B572A);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: radial-gradient(circle at 35% 35%, #D29A63, #7D4F28);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
 }
 .wall-polaroid img {
   display: block;
@@ -647,6 +649,18 @@ button:active {
   height: 100%;
   object-fit: cover;
   border-radius: 1.5px;
+  filter: contrast(0.94) saturate(0.90);
+}
+.page[data-period="sunset"] .wall-polaroid {
+  filter: brightness(0.88) sepia(0.18) saturate(0.86);
+}
+.page[data-period="night"][data-lamp-lit="true"] .wall-polaroid {
+  filter: brightness(0.74) sepia(0.24) saturate(0.82) contrast(0.95);
+  box-shadow: 0 2px 7px rgba(24, 16, 8, 0.34);
+}
+.page[data-period="night"][data-lamp-lit="false"] .wall-polaroid {
+  filter: brightness(0.45) saturate(0.58) contrast(0.92) hue-rotate(-6deg);
+  box-shadow: 0 2px 8px rgba(10, 14, 24, 0.45);
 }
 
 /* 微距实拍道具贴片（z: 4：黑猫警长发条钟 + 原木小立镜 + 叠放针织衣包） */
@@ -3696,12 +3710,13 @@ button:active {
   opacity: 0;
 }
 
-/* 书架上方未读来信轻气泡（《动物去哪儿》式圆润奶油胶囊） */
+/* 左下角信封按钮正上方未读来信轻气泡（圆润奶油胶囊，箭头直指信封） */
 .scene-mail-bubble {
   position: absolute;
-  z-index: 8;
-  transform: translate(-50%, -100%);
-  padding: 5px 12px;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 30;
+  padding: 6px 13px;
   border: 1.5px solid rgba(164, 134, 98, 0.34);
   border-radius: 999px;
   background: rgba(253, 249, 240, 0.96);
@@ -3710,25 +3725,25 @@ button:active {
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(74, 52, 30, 0.14);
+  box-shadow: 0 4px 12px rgba(74, 52, 30, 0.16);
   cursor: pointer;
   animation: mail-bubble-float 2.8s ease-in-out infinite;
 }
 .scene-mail-bubble::after {
   content: "";
   position: absolute;
-  left: 50%;
+  left: 24px;
   bottom: -5px;
   width: 8px;
   height: 8px;
   background: rgba(253, 249, 240, 0.96);
   border-right: 1.5px solid rgba(164, 134, 98, 0.34);
   border-bottom: 1.5px solid rgba(164, 134, 98, 0.34);
-  transform: translateX(-50%) rotate(45deg);
+  transform: rotate(45deg);
 }
 @keyframes mail-bubble-float {
-  0%, 100% { transform: translate(-50%, -100%); }
-  50% { transform: translate(-50%, calc(-100% - 5px)); }
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -4px, 0); }
 }
 
 /* 窗台天气/时段小摆件（方案 B，带 multiply 贴合底影与昼夜明度自适应） */
@@ -3868,6 +3883,50 @@ button:active {
   0%, 82%, 100% { left: -90%; opacity: 0; }
   86% { opacity: 0.9; }
   94% { left: 130%; opacity: 0; }
+}
+.module-hotspot--mirror.is-tapped .mirror-glint {
+  box-shadow: inset 0 0 22px rgba(255, 250, 236, 0.78), 0 0 14px rgba(255, 244, 214, 0.45);
+  background: radial-gradient(circle at 44% 38%, rgba(255, 253, 246, 0.36) 0%, rgba(255, 250, 236, 0.08) 64%, transparent 100%);
+  animation: mirror-rim-flash 0.38s ease-out both;
+}
+.module-hotspot--mirror.is-tapped .mirror-glint::after {
+  animation: mirror-tap-sweep 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.mirror-tap-sparkle {
+  position: absolute;
+  top: 16%;
+  right: 18%;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.2) rotate(-25deg);
+}
+.mirror-tap-sparkle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, #FFFDF5 0%, #FFE49E 52%, transparent 72%);
+  clip-path: polygon(50% 0%, 60% 40%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0% 50%, 40% 40%);
+  filter: drop-shadow(0 0 6px rgba(255, 238, 178, 0.9));
+}
+.module-hotspot--mirror.is-tapped .mirror-tap-sparkle {
+  animation: mirror-sparkle-pop 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes mirror-rim-flash {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes mirror-tap-sweep {
+  0% { left: -90%; opacity: 0; }
+  25% { opacity: 1; }
+  100% { left: 135%; opacity: 0; }
+}
+@keyframes mirror-sparkle-pop {
+  0% { opacity: 0; transform: scale(0.2) rotate(-25deg); }
+  38% { opacity: 1; transform: scale(1.18) rotate(12deg); }
+  100% { opacity: 0; transform: scale(0.7) rotate(45deg); }
 }
 
 /* 昼 / 柔粉黄昏 / 暖灯夜晚 三时段轻度自适应（与新一体化底图亮度和色温对齐） */

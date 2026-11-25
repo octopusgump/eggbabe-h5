@@ -3083,11 +3083,6 @@
     }
     panoToBoxStyle(roomLampGlowEl, cfg.slots.lampGlow[0], cfg.slots.lampGlow[1], cfg.slots.lampGlow[2], cfg.slots.lampGlow[3], "center");
 
-    // 书架上方未读来信轻气泡
-    if (booksMailBubbleEl) {
-      panoToBoxStyle(booksMailBubbleEl, cfg.slots.mailBubble[0], cfg.slots.mailBubble[1]);
-    }
-
     // 床头顶板左侧留白槽《奶肚黑猫警长发条钟》
     bedsideCatClockEl.hidden = !inLivingRoom;
     if (inLivingRoom) {
@@ -3222,16 +3217,27 @@
     awayNoteBubbleEl.addEventListener("click", handleMailOrAwayBubbleClick);
   }
 
-  // 核心热点 5：桌面原木小立镜透明热区 → 进入试衣间（睡觉时先引导拍醒）
+  // 核心热点 5：桌面原木小立镜透明热区 → 镜面闪光+星芒微反馈 → 进入试衣间（睡觉时先引导拍醒）
+  let mirrorTapTimer = 0;
   hitDeskMirrorEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
     sfx.tap();
+    hitDeskMirrorEl.classList.remove("is-tapped");
+    void hitDeskMirrorEl.offsetWidth;
+    hitDeskMirrorEl.classList.add("is-tapped");
+    if (mirrorTapTimer) clearTimeout(mirrorTapTimer);
+    mirrorTapTimer = setTimeout(() => {
+      hitDeskMirrorEl.classList.remove("is-tapped");
+      mirrorTapTimer = 0;
+    }, 420);
     if (isPetSleepingNow()) {
       promptPatToWake("wardrobe");
       return;
     }
-    enterFittingRoom();
+    setTimeout(() => {
+      if (!isFittingOpen && !isPetSleepingNow()) enterFittingRoom();
+    }, REDUCED_MOTION ? 0 : 210);
   });
   foldedOutfitPropEl.addEventListener("click", (ev) => {
     ev.stopPropagation(); sfx.tap();
