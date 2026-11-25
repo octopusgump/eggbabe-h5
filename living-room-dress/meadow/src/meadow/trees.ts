@@ -5,16 +5,16 @@ import { blobShadow, clay, felt, oakWood, snowTrim } from './materials'
 type TreeSpec = { x: number; z: number; scale?: number }
 
 const BASE_SPECS: TreeSpec[] = [
-  { x: -6.45, z: 3.1, scale: 0.96 },
-  { x: -2.9, z: 6.45, scale: 0.88 },
-  { x: 6.45, z: 2.6, scale: 0.92 },
-  { x: 6.45, z: -3.9, scale: 0.98 },
-  { x: 3.1, z: -6.45, scale: 0.94 },
-  { x: -3.2, z: -6.45, scale: 0.9 },
+  { x: -6.35, z: -6.2, scale: 1.02 },
+  { x: 6.35, z: -6.2, scale: 1.0 },
+  { x: -6.45, z: 1.9, scale: 0.92 },
+  { x: 6.45, z: -2.0, scale: 0.94 },
+  { x: -6.25, z: 6.25, scale: 0.95 },
+  { x: 6.25, z: 6.25, scale: 0.95 },
 ]
 
 const LEVEL3_EXTRA: TreeSpec[] = [
-  { x: -0.2, z: 3.35, scale: 0.92 },
+  { x: -0.2, z: 2.95, scale: 0.88 },
 ]
 
 function canopy(parent: THREE.Group, s: number) {
