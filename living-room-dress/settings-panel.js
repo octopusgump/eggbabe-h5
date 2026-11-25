@@ -550,8 +550,10 @@
       const yutuName = (store.pets && store.pets.yutu && store.pets.yutu.name) || "糯米团子";
       const yutuPersonaId = Voice ? Voice.resolvePersonaId("yutu", store.pets && store.pets.yutu && store.pets.yutu.personaId) : "dry_wit";
       const koiPersonaId = Voice ? Voice.resolvePersonaId("koi", store.pets && store.pets.koi && store.pets.koi.personaId) : "chill_daze";
-      const yutuPersonaName = Voice ? Voice.getPersonaDef(yutuPersonaId).name : "体面冷幽默";
-      const koiPersonaName = Voice ? Voice.getPersonaDef(koiPersonaId).name : "钝感乐天派";
+      const yutuPersonaDef = Voice ? Voice.getPersonaDef(yutuPersonaId) : { emoji: "🧐", name: "体面冷幽默" };
+      const koiPersonaDef = Voice ? Voice.getPersonaDef(koiPersonaId) : { emoji: "🫧", name: "钝感乐天派" };
+      const yutuPersonaLabel = `${yutuPersonaDef.emoji ? `${yutuPersonaDef.emoji} ` : ""}${yutuPersonaDef.name}`;
+      const koiPersonaLabel = `${koiPersonaDef.emoji ? `${koiPersonaDef.emoji} ` : ""}${koiPersonaDef.name}`;
 
       return `
         <div class="settings-section-pad">
@@ -573,7 +575,7 @@
             <button class="settings-row" type="button" data-nav="persona">
               <div class="settings-row__copy">
                 <span class="settings-row__title">伙伴人格类型</span>
-                <span class="settings-row__desc">玉兔：${escapeHtml(yutuPersonaName)} · 锦鲤：${escapeHtml(koiPersonaName)}</span>
+                <span class="settings-row__desc">玉兔：${escapeHtml(yutuPersonaLabel)} · 锦鲤：${escapeHtml(koiPersonaLabel)}</span>
               </div>
               <span class="settings-chevron" aria-hidden="true">›</span>
             </button>
@@ -1144,10 +1146,14 @@
               const active = p.id === currentPersonaId;
               const sampleHungry = Voice ? Voice.getSampleLine(petId, p.id, "hungry") : "";
               const sampleDirty = Voice ? Voice.getSampleLine(petId, p.id, "dirty") : "";
+              const iconSvg = Voice && typeof Voice.getPersonaIconSvg === "function" ? Voice.getPersonaIconSvg(p.id) : "";
               return `
                 <button class="settings-persona-card ${active ? "is-active" : ""}" type="button" data-action="select-persona" data-persona="${escapeHtml(p.id)}" aria-pressed="${active}">
                   <div class="settings-persona-card__top">
-                    <span class="settings-persona-card__name">${escapeHtml(p.name)}</span>
+                    <div class="settings-persona-card__title-wrap">
+                      ${iconSvg ? `<span class="settings-persona-card__icon" aria-hidden="true">${iconSvg}</span>` : ""}
+                      <span class="settings-persona-card__name">${escapeHtml(p.name)}</span>
+                    </div>
                     <span class="settings-persona-card__check" aria-hidden="true">${active ? "✓" : ""}</span>
                   </div>
                   <div class="settings-persona-card__tags">

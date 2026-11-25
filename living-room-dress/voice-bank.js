@@ -42,6 +42,8 @@
     {
       id: "dry_wit",
       name: "体面冷幽默",
+      emoji: "🧐",
+      iconBg: "#ECEEE7",
       tags: ["慢半拍", "嘴硬", "爱面子"],
       desc: "认真的软糯小室友，饿了绝不承认，脏了强装淡定。",
       dirtyCue: "不太体面 🫧"
@@ -49,6 +51,8 @@
     {
       id: "chill_daze",
       name: "钝感乐天派",
+      emoji: "🫧",
+      iconBg: "#E6F1F4",
       tags: ["松弛", "少根筋", "随遇而安"],
       desc: "大脑常年少根筋，直球又自洽，天塌下来先吐个泡泡。",
       dirtyCue: "有点灰扑扑 🫧"
@@ -56,6 +60,8 @@
     {
       id: "soft_clingy",
       name: "软糯轻粘人",
+      emoji: "🩷",
+      iconBg: "#FCEEE9",
       tags: ["温柔", "爱贴贴", "不卖惨"],
       desc: "软绵绵喜欢凑近，轻声细语表达小需求，绝不催促。",
       dirtyCue: "想洗香香 🫧"
@@ -63,6 +69,8 @@
     {
       id: "philosopher",
       name: "桌面哲学家",
+      emoji: "🌙",
+      iconBg: "#F3EFE4",
       tags: ["安静", "观察派", "诗意碎碎念"],
       desc: "把桌边小事说成微散文，自带淡淡的距离美感。",
       dirtyCue: "落了点灰 🫧"
@@ -70,6 +78,8 @@
     {
       id: "tsundere_boss",
       name: "小管家傲娇",
+      emoji: "😤",
+      iconBg: "#FBEFE2",
       tags: ["嘴硬心软", "操心", "反差萌"],
       desc: "总觉得自己在替你管屋子，嫌弃里藏着一点点在意。",
       dirtyCue: "快拿泡泡来 🫧"
@@ -77,6 +87,8 @@
     {
       id: "chaotic_gremlin",
       name: "戏精乐子人",
+      emoji: "✨",
+      iconBg: "#F1ECFA",
       tags: ["脑洞跳脱", "爱加戏", "抽象萌"],
       desc: "内心戏极多，能把饿肚子和沾灰演成求生纪录片。",
       dirtyCue: "急需抢救 🫧"
@@ -437,6 +449,74 @@
     return interpolate(pool[idx], pid);
   }
 
+  const PERSONA_ICON_SVGS = Object.freeze({
+    dry_wit:
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="14" cy="14" r="14" fill="#ECEEE7"/>' +
+      '<ellipse cx="10" cy="6.8" rx="4.6" ry="2.2" fill="#FFFFFF" opacity="0.58"/>' +
+      '<line x1="7.5" y1="12.8" x2="11.5" y2="12.8" stroke="#3E3125" stroke-width="1.8" stroke-linecap="round"/>' +
+      '<circle cx="18.2" cy="12.9" r="1.45" fill="#3E3125"/>' +
+      '<circle cx="18.2" cy="12.9" r="3.4" stroke="#7E9178" stroke-width="1.25" fill="#FFFFFF" fill-opacity="0.28"/>' +
+      '<path d="M15.8 8.7Q18.2 7.5 20.5 8.9" stroke="#3E3125" stroke-width="1.35" stroke-linecap="round"/>' +
+      '<line x1="11.2" y1="18.6" x2="16.8" y2="18.6" stroke="#3E3125" stroke-width="1.7" stroke-linecap="round"/>' +
+      '</svg>',
+    chill_daze:
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="14" cy="14" r="14" fill="#E6F1F4"/>' +
+      '<ellipse cx="10" cy="6.8" rx="4.6" ry="2.2" fill="#FFFFFF" opacity="0.62"/>' +
+      '<circle cx="9.6" cy="12.8" r="1.5" fill="#3E3125"/>' +
+      '<circle cx="17.8" cy="12.8" r="1.5" fill="#3E3125"/>' +
+      '<circle cx="13.7" cy="17.6" r="1.7" stroke="#3E3125" stroke-width="1.5" fill="#FFFDF9"/>' +
+      '<circle cx="20.8" cy="19.6" r="2.9" fill="#FFFFFF" fill-opacity="0.72" stroke="#7EB3C6" stroke-width="1.15"/>' +
+      '<circle cx="19.9" cy="18.6" r="0.85" fill="#FFFFFF"/>' +
+      '</svg>',
+    soft_clingy:
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="14" cy="14" r="14" fill="#FCEEE9"/>' +
+      '<ellipse cx="10" cy="6.8" rx="4.6" ry="2.2" fill="#FFFFFF" opacity="0.58"/>' +
+      '<path d="M7.6 13.5Q9.8 10.9 12 13.5" stroke="#3E3125" stroke-width="1.7" stroke-linecap="round" fill="none"/>' +
+      '<path d="M16 13.5Q18.2 10.9 20.4 13.5" stroke="#3E3125" stroke-width="1.7" stroke-linecap="round" fill="none"/>' +
+      '<path d="M11.6 17.5Q14 19.8 16.4 17.5" stroke="#3E3125" stroke-width="1.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M21.2 9.4C21.2 8.2 22.7 7.9 23.2 8.9C23.7 7.9 25.2 8.2 25.2 9.4C25.2 10.9 23.2 12.1 23.2 12.1C23.2 12.1 21.2 10.9 21.2 9.4Z" fill="#E4847F"/>' +
+      '</svg>',
+    philosopher:
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="14" cy="14" r="14" fill="#F3EFE4"/>' +
+      '<ellipse cx="10" cy="6.8" rx="4.6" ry="2.2" fill="#FFFFFF" opacity="0.56"/>' +
+      '<circle cx="9.8" cy="13.4" r="3.1" stroke="#7E674E" stroke-width="1.35" fill="#FFFDF8" fill-opacity="0.35"/>' +
+      '<circle cx="18.2" cy="13.4" r="3.1" stroke="#7E674E" stroke-width="1.35" fill="#FFFDF8" fill-opacity="0.35"/>' +
+      '<line x1="12.9" y1="13.4" x2="15.1" y2="13.4" stroke="#7E674E" stroke-width="1.3"/>' +
+      '<path d="M8.5 13.7Q9.8 12.6 11.1 13.7" stroke="#3E3125" stroke-width="1.35" stroke-linecap="round"/>' +
+      '<path d="M16.9 13.7Q18.2 12.6 19.5 13.7" stroke="#3E3125" stroke-width="1.35" stroke-linecap="round"/>' +
+      '<path d="M12.4 19Q14 19.8 15.6 18.8" stroke="#3E3125" stroke-width="1.5" stroke-linecap="round"/>' +
+      '<path d="M22.2 6.2L22.8 7.8L24.4 8.4L22.8 9L22.2 10.6L21.6 9L20 8.4L21.6 7.8Z" fill="#C99A49"/>' +
+      '</svg>',
+    tsundere_boss:
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="14" cy="14" r="14" fill="#FBEFE2"/>' +
+      '<ellipse cx="10" cy="6.8" rx="4.6" ry="2.2" fill="#FFFFFF" opacity="0.58"/>' +
+      '<line x1="7.8" y1="10.4" x2="11.5" y2="11.7" stroke="#3E3125" stroke-width="1.55" stroke-linecap="round"/>' +
+      '<line x1="20.2" y1="10.4" x2="16.5" y2="11.7" stroke="#3E3125" stroke-width="1.55" stroke-linecap="round"/>' +
+      '<circle cx="10" cy="14" r="1.45" fill="#3E3125"/>' +
+      '<circle cx="18" cy="14" r="1.45" fill="#3E3125"/>' +
+      '<path d="M12 19.2Q14 17.5 16 19.2" stroke="#3E3125" stroke-width="1.6" stroke-linecap="round" fill="none"/>' +
+      '<path d="M21 7.2L22.3 8.5L21 9.8M24.2 7.2L22.9 8.5L24.2 9.8" stroke="#D87A56" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>',
+    chaotic_gremlin:
+      '<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="14" cy="14" r="14" fill="#F1ECFA"/>' +
+      '<ellipse cx="10" cy="6.8" rx="4.6" ry="2.2" fill="#FFFFFF" opacity="0.6"/>' +
+      '<path d="M9.8 10.6L10.6 12.6L12.6 13.4L10.6 14.2L9.8 16.2L9 14.2L7 13.4L9 12.6Z" fill="#5D449B"/>' +
+      '<path d="M18.2 10.6L19 12.6L21 13.4L19 14.2L18.2 16.2L17.4 14.2L15.4 13.4L17.4 12.6Z" fill="#5D449B"/>' +
+      '<path d="M10.4 18.2Q12.2 20.3 14 18.4Q15.8 20.3 17.6 18.2" stroke="#3E3125" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+      '<circle cx="22.4" cy="7.8" r="1.35" fill="#E3A638"/>' +
+      '</svg>'
+  });
+
+  function getPersonaIconSvg(personaId) {
+    return PERSONA_ICON_SVGS[personaId] || PERSONA_ICON_SVGS.dry_wit;
+  }
+
   function getPersonaDef(personaId) {
     return PERSONA_MAP[personaId] || PERSONA_LIST[0];
   }
@@ -486,8 +566,10 @@
     PERSONA_LIST,
     PERSONA_MAP,
     PERSONA_LINES,
+    PERSONA_ICON_SVGS,
     resolvePersonaId,
     getPersonaDef,
+    getPersonaIconSvg,
     getDirtyCueText,
     getSampleLine,
     pick,
