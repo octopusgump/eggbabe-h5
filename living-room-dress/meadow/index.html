@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
     />
-    <title>蛋宝宝牧场 · 3D 粘土赶小羊</title>
+    <title>蛋宝宝牧场 · 晨霜滑冰赶小羊</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <script src="../../cross-end-store.js"></script>
     <script src="../../catalog-snapshot.js"></script>
@@ -22,13 +22,13 @@
         <span id="standalone-star-pill" class="eb-topbar__stars">✦ 0</span>
       </header>
 
-      <!-- 顶部极简双胶囊 HUD + 静音/暂停悬浮钮 -->
+      <!-- 顶部极简双胶囊 HUD -->
       <div id="hud">
         <div class="hud-left">
           <div id="time-pill" class="hud-pill">
             <span id="time">0:25</span>
             <span class="hud-dot" aria-hidden="true"></span>
-            <span id="level">第1关 · 晴日草场</span>
+            <span id="level">第1关 · 晨霜滑冰场</span>
           </div>
         </div>
         <div class="hud-right">
@@ -62,13 +62,32 @@
 
       <div id="pops"></div>
 
-      <!-- 开局轻引导（Design System inline-notice，移动摇杆即开始倒计时） -->
+      <!-- 开局轻引导（置于顶部 HUD 下方，不遮挡浮岛） -->
       <div id="ready-notice" class="eb-inline-notice" role="status" aria-live="polite">
-        拖动摇杆，把小羊赶进四角木羊圈
+        方向键/摇杆滑行 · 反向急刹甩尾 · 空格滑冲
       </div>
 
-      <!-- 右下虚拟摇杆 -->
-      <div id="stick"></div>
+      <!-- 右下统一操控簇：滑冲按钮 + 键鼠/触控联动可视滑杆 -->
+      <div class="controls-dock" aria-label="滑行操控">
+        <button type="button" id="btn-dash" class="eb-dash-btn" aria-label="冲刺滑行（空格键）">
+          <svg class="eb-dash-ring" viewBox="0 0 56 56" aria-hidden="true">
+            <circle class="eb-dash-ring__track" cx="28" cy="28" r="24" />
+            <circle id="dash-ring-progress" class="eb-dash-ring__fill" cx="28" cy="28" r="24" />
+          </svg>
+          <span class="eb-dash-btn__label">滑冲</span>
+        </button>
+
+        <div class="stick-wrap">
+          <div id="stick" class="eb-stick" role="application" aria-label="虚拟滑杆（支持键盘方向键与 WASD 同步）">
+            <span class="stick-dir stick-dir--up" data-dir="up" aria-hidden="true">▲</span>
+            <span class="stick-dir stick-dir--down" data-dir="down" aria-hidden="true">▼</span>
+            <span class="stick-dir stick-dir--left" data-dir="left" aria-hidden="true">◀</span>
+            <span class="stick-dir stick-dir--right" data-dir="right" aria-hidden="true">▶</span>
+            <div id="stick-knob" class="eb-stick__knob"></div>
+          </div>
+          <span class="stick-kbd-hint" aria-hidden="true">↑↓←→ / WASD · 空格滑冲</span>
+        </div>
+      </div>
 
       <!-- 暂停与选关卡片 -->
       <div id="pause-modal" class="eb-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="牧场暂停">
@@ -76,24 +95,24 @@
         <div class="eb-card">
           <p class="eb-card__eyebrow">蛋宝宝牧场</p>
           <h2 class="eb-card__title">先歇一小会儿</h2>
-          <div class="eb-level-picker" role="group" aria-label="选择草场关卡">
-            <button type="button" class="eb-level-chip is-active" data-level-pick="1">1 · 晴日草场</button>
-            <button type="button" class="eb-level-chip" data-level-pick="2">2 · 溪流北坡</button>
-            <button type="button" class="eb-level-chip" data-level-pick="3">3 · 暖丘溪谷</button>
+          <div class="eb-level-picker" role="group" aria-label="选择滑冰草场关卡">
+            <button type="button" class="eb-level-chip is-active" data-level-pick="1">1 · 晨霜滑冰场</button>
+            <button type="button" class="eb-level-chip" data-level-pick="2">2 · 暖阳冰溪坡</button>
+            <button type="button" class="eb-level-chip" data-level-pick="3">3 · 双冰暖丘谷</button>
           </div>
           <div class="eb-card__actions">
-            <button type="button" id="btn-resume" class="eb-btn eb-btn--primary">继续赶羊</button>
+            <button type="button" id="btn-resume" class="eb-btn eb-btn--primary">继续滑行</button>
             <button type="button" id="btn-pause-restart" class="eb-btn eb-btn--secondary-soft">重新本关</button>
             <button type="button" id="btn-pause-room" class="eb-btn eb-btn--ghost">返回房间</button>
           </div>
         </div>
       </div>
 
-      <!-- 回合结算卡片（Design System v1.0 16px 圆角卡片） -->
+      <!-- 回合结算卡片 -->
       <div id="result-modal" class="eb-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="本局结算">
         <div class="eb-modal__backdrop"></div>
         <div class="eb-card">
-          <p id="result-tag" class="eb-card__eyebrow">第 1 关 · 晴日草场</p>
+          <p id="result-tag" class="eb-card__eyebrow">第 1 关 · 晨霜滑冰场</p>
           <h2 id="score" class="eb-card__score">0 / 11 只进圈</h2>
           <p id="stars" class="eb-card__stars" aria-label="本局星级">✦✦✦</p>
           <div id="reward-pill" class="eb-reward-pill">获得 +10 ✦</div>

@@ -3,22 +3,23 @@ import { blobShadow } from './materials'
 import type { PetId } from './storeBridge'
 
 /**
- * 2.5D Real Equipped Plush Partner Standee (Option A):
- * Renders the player's actual Yutu / Koi high-res plush PNG outfit from EggBabe
- * with auto-cropped feet alignment, camera-facing billboarding, smooth L/R flip,
- * elastic squash-and-stretch running hop, and warm ground contact shadow.
+ * 2.5D Real Equipped Plush Partner Standee (Option A) with Mario Ice-Skating Feel:
+ * - Renders the player's actual Yutu / Koi high-res plush PNG outfit
+ * - Includes soft inverted ice reflection right below the boots
+ * - Expressive Mario high-friction braking lean-back, jitter, & dash lean-forward
  */
 export type HerderState = {
   group: THREE.Group
   billboard: THREE.Group
   card: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
+  reflection: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>
   shadow: THREE.Mesh
   petId: PetId
   facing: number
   facingCurrent: number
   phase: number
   baseHeight: number
-  fallRoll: number
+  leanCurrent: number
 }
 
 const TARGET_HEIGHT_BY_PET: Record<PetId, number> = {
@@ -126,7 +127,6 @@ export function createHerder(
 
   const baseHeight = TARGET_HEIGHT_BY_PET[petId]
   const geo = new THREE.PlaneGeometry(baseHeight * 0.72, baseHeight)
-  // Shift pivot to bottom center (feet touch y = 0)
   geo.translate(0, baseHeight * 0.5, 0)
 
   const mat = new THREE.MeshBasicMaterial({
@@ -138,11 +138,30 @@ export function createHerder(
   })
 
   const card = new THREE.Mesh(geo, mat)
-  card.renderOrder = 2
+  card.renderOrder = 3
+  card.visible = false
   billboard.add(card)
 
-  const shadow = blobShadow(0.76, 0.54, 0.96)
-  shadow.position.set(0.06, 0.03, 0.08)
+  // Soft inverted ice reflection underneath the boots (Penguin Pushers icy sheen cue)
+  const reflGeo = new THREE.PlaneGeometry(baseHeight * 0.72, baseHeight)
+  reflGeo.translate(0, baseHeight * 0.5, 0)
+  const reflMat = new THREE.MeshBasicMaterial({
+    color: 0xbfe2ec,
+    transparent: true,
+    opacity: 0.28,
+    alphaTest: 0.04,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  })
+  const reflection = new THREE.Mesh(reflGeo, reflMat)
+  reflection.scale.set(1, -0.52, 1)
+  reflection.position.set(0, 0.04, -0.04)
+  reflection.renderOrder = 1
+  reflection.visible = false
+  billboard.add(reflection)
+
+  const shadow = blobShadow(0.76, 0.54, 0.75)
+  shadow.position.set(0.06, 0.032, 0.08)
   group.add(shadow)
 
   if (outfitUrl || fallbackUrl) {
@@ -150,10 +169,22 @@ export function createHerder(
       mat.map?.dispose()
       mat.map = tex
       mat.needsUpdate = true
+
+      reflMat.map = tex
+      reflMat.needsUpdate = true
+
       const nextGeo = new THREE.PlaneGeometry(baseHeight * aspect, baseHeight)
       nextGeo.translate(0, baseHeight * 0.5, 0)
       card.geometry.dispose()
       card.geometry = nextGeo
+
+      const nextRefl = new THREE.PlaneGeometry(baseHeight * aspect, baseHeight)
+      nextRefl.translate(0, baseHeight * 0.5, 0)
+      reflection.geometry.dispose()
+      reflection.geometry = nextRefl
+
+      card.visible = true
+      reflection.visible = true
     })
   }
 
@@ -161,74 +192,108 @@ export function createHerder(
     group,
     billboard,
     card,
+    reflection,
     shadow,
     petId,
     facing: 1,
     facingCurrent: 1,
     phase: 0,
     baseHeight,
-    fallRoll: 0,
+    leanCurrent: 0,
   }
 }
 
 export function orientHerderToCamera(state: HerderState, camera: THREE.Camera) {
-  // Align billboard cleanly toward camera so the plush partner always looks crisp & sculptural
   state.billboard.quaternion.copy(camera.quaternion)
+}
+
+export type HerderMotionVisual = {
+  speedRatio: number
+  screenVelX: number
+  skidIntensity: number
+  dashing: boolean
+  time: number
 }
 
 export function stepHerder(
   state: HerderState,
   dt: number,
-  power: number,
-  screenDirX = 0,
+  motion: HerderMotionVisual,
 ) {
-  if (Math.abs(screenDirX) > 0.14) {
-    state.facing = screenDirX >= 0 ? 1 : -1
+  const { speedRatio, screenVelX, skidIntensity, dashing, time } = motion
+  if (Math.abs(screenVelX) > 0.16 && skidIntensity < 0.25) {
+    state.facing = screenVelX >= 0 ? 1 : -1
   }
-  state.facingCurrent += (state.facing - state.facingCurrent) * Math.min(1, dt * 14)
-  const flipX = Math.abs(state.facingCurrent) < 0.08 ? (state.facing >= 0 ? 0.08 : -0.08) : state.facingCurrent
+  state.facingCurrent += (state.facing - state.facingCurrent) * Math.min(1, dt * 15)
+  const flipX =
+    Math.abs(state.facingCurrent) < 0.08
+      ? state.facing >= 0
+        ? 0.08
+        : -0.08
+      : state.facingCurrent
 
-  if (power > 0.08) {
-    state.phase += dt * (8.5 + power * 4.5)
+  // Target body lean:
+  // - Skidding: dramatic Mario backward brace opposite to slide direction!
+  // - Dashing: eager forward dive tilt!
+  // - Normal skating: gentle speed lean + waddle
+  const slideSign = screenVelX >= 0 ? 1 : -1
+  let targetLean = 0
+  if (skidIntensity > 0.08) {
+    targetLean = slideSign * (0.28 + skidIntensity * 0.14)
+  } else if (dashing) {
+    targetLean = -slideSign * 0.24
+  } else if (speedRatio > 0.12) {
+    targetLean = -slideSign * 0.08 * speedRatio + Math.cos(state.phase) * 0.065 * speedRatio
+  }
+  state.leanCurrent += (targetLean - state.leanCurrent) * Math.min(1, dt * 16)
+
+  if (skidIntensity > 0.08) {
+    // Digging heels into the ice: compressed squash + crisp friction tremble
+    const jitter = Math.sin(time * 58) * 0.028 * skidIntensity
+    const crouch = 0.09 * skidIntensity
+    state.card.position.set(jitter, 0, 0)
+    state.card.scale.set(flipX * (1 + crouch * 1.1), 1 - crouch, 1)
+    state.card.rotation.z = state.leanCurrent
+    state.shadow.scale.set(0.88, 0.62, 1)
+  } else if (dashing) {
+    state.card.position.set(0, 0.14, 0)
+    state.card.scale.set(flipX * 1.12, 0.9, 1)
+    state.card.rotation.z = state.leanCurrent
+    state.shadow.scale.set(0.84, 0.5, 1)
+  } else if (speedRatio > 0.08) {
+    state.phase += dt * (8.5 + speedRatio * 5.2)
     const hop = Math.abs(Math.sin(state.phase))
-    const squash = Math.sin(state.phase * 2) * 0.055 * power
-    state.card.position.y = hop * 0.24 * power
-    state.card.scale.set(
-      flipX * (1 - squash),
-      1 + squash * 1.15,
-      1,
-    )
-    state.card.rotation.z = Math.cos(state.phase) * 0.075 * power
-    const sScale = 1 - hop * 0.16 * power
+    const squash = Math.sin(state.phase * 2) * 0.055 * speedRatio
+    state.card.position.set(0, hop * 0.2 * speedRatio, 0)
+    state.card.scale.set(flipX * (1 - squash), 1 + squash * 1.15, 1)
+    state.card.rotation.z = state.leanCurrent
+    const sScale = 1 - hop * 0.14 * speedRatio
     state.shadow.scale.set(0.76 * sScale, 0.54 * sScale, 1)
   } else {
     state.phase += dt * 2.6
     const breathe = Math.sin(state.phase) * 0.018
-    state.card.position.y += (0 - state.card.position.y) * Math.min(1, dt * 10)
-    state.card.scale.set(
-      flipX * (1 - breathe * 0.5),
-      1 + breathe,
-      1,
-    )
-    state.card.rotation.z += (0 - state.card.rotation.z) * Math.min(1, dt * 10)
+    state.card.position.set(0, 0, 0)
+    state.card.scale.set(flipX * (1 - breathe * 0.5), 1 + breathe, 1)
+    state.card.rotation.z = state.leanCurrent
     state.shadow.scale.set(0.76, 0.54, 1)
   }
-}
 
-export function stepHerderFall(state: HerderState, u: number) {
-  state.card.position.y = 0
-  state.card.rotation.z = u * Math.PI * 1.45 * (state.facing >= 0 ? -1 : 1)
-  state.card.scale.set(state.facing * (1 - u * 0.18), 1 - u * 0.18, 1)
-  state.shadow.visible = false
+  // Mirror horizontal flip & subtle lean onto the ice reflection
+  state.reflection.scale.set(state.card.scale.x, -0.52 * state.card.scale.y, 1)
+  state.reflection.rotation.z = -state.card.rotation.z * 0.6
+  state.reflection.position.y = 0.04 - state.card.position.y * 0.45
 }
 
 export function resetHerder(state: HerderState) {
   state.phase = 0
   state.facing = 1
   state.facingCurrent = 1
+  state.leanCurrent = 0
   state.card.position.set(0, 0, 0)
   state.card.rotation.set(0, 0, 0)
   state.card.scale.set(1, 1, 1)
+  state.reflection.scale.set(1, -0.52, 1)
+  state.reflection.rotation.set(0, 0, 0)
   state.shadow.visible = true
   state.shadow.scale.set(0.76, 0.54, 1)
 }

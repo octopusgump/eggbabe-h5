@@ -7,9 +7,9 @@ export type LevelMeta = {
 }
 
 export const LEVEL_META: Record<LevelId, LevelMeta> = {
-  1: { id: 1, name: '晴日草场', hint: '拖动摇杆，把小羊赶进四角木羊圈' },
-  2: { id: 2, name: '溪流北坡', hint: '走浅滩石块过溪，小心别跌出草坡' },
-  3: { id: 3, name: '暖丘溪谷', hint: '绕过中央小丘，把高低坡小羊聚拢进圈' },
+  1: { id: 1, name: '晨霜滑冰场', hint: '方向键/摇杆滑行 · 反向急刹甩尾 · 空格滑冲' },
+  2: { id: 2, name: '暖阳冰溪坡', hint: '借北坡惯性俯冲滑行，过浅滩把羊群铲进木圈' },
+  3: { id: 3, name: '双冰暖丘谷', hint: '绕雪丘漂移连撞，抓紧金绒领头羊得 3 倍分' },
 }
 
 /** Level 1: classic flat meadow. */

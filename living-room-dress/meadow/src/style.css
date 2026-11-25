@@ -288,15 +288,29 @@ body.is-embedded .fab-rail {
   position: absolute;
   right: 18px;
   top: calc(108px + env(safe-area-inset-top, 0px));
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: var(--eb-radius-pill);
   background: var(--eb-yellow-surface);
-  border: 1px solid rgba(164, 134, 98, 0.3);
+  border: 1px solid rgba(164, 134, 98, 0.32);
   color: var(--eb-yellow-on-tint);
   font-size: 13px;
   font-weight: 600;
   box-shadow: var(--eb-shadow-raised);
-  animation: star-pop 760ms ease-out forwards;
+  animation: star-pop 820ms ease-out forwards;
+}
+
+.pop-star--combo {
+  background: var(--eb-green-surface);
+  border-color: rgba(157, 182, 91, 0.55);
+  color: var(--eb-ink);
+  font-size: 14px;
+}
+
+.pop-star--gold {
+  background: #FFF6D6;
+  border-color: rgba(218, 165, 52, 0.6);
+  color: #7A5410;
+  font-size: 14px;
 }
 
 body.is-embedded .pop-star {
@@ -306,15 +320,15 @@ body.is-embedded .pop-star {
 @keyframes star-pop {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.88);
+    transform: translateY(10px) scale(0.84);
   }
   24% {
     opacity: 1;
-    transform: translateY(0) scale(1.04);
+    transform: translateY(0) scale(1.08);
   }
   100% {
     opacity: 0;
-    transform: translateY(-28px) scale(0.98);
+    transform: translateY(-32px) scale(0.98);
   }
 }
 
@@ -353,27 +367,175 @@ body.is-embedded .eb-inline-notice {
   transform: translate(-50%, -6px);
 }
 
-/* 右下精巧暖奶油磨砂摇杆 */
-#stick {
+/* 右下操控簇：滑冲按钮 + 键鼠/触控联动可视滑杆 */
+.controls-dock {
   position: absolute;
-  right: max(22px, env(safe-area-inset-right, 22px));
-  bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+  right: max(18px, env(safe-area-inset-right, 18px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   z-index: 9;
-  width: 124px;
-  height: 124px;
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
 }
 
-#stick .back {
-  border: 1.5px solid rgba(164, 134, 98, 0.34) !important;
-  box-shadow: 0 8px 22px rgba(74, 52, 30, 0.14), inset 0 1px 0 rgba(255, 253, 248, 0.9) !important;
+.eb-dash-btn {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 24px;
+  padding: 0;
+  border: 1.5px solid var(--eb-oak-border);
+  border-radius: 50%;
+  background: var(--eb-cream-glass);
+  color: var(--eb-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--eb-shadow-floating);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: transform 140ms ease-out, opacity 160ms ease-out, background-color 160ms ease-out;
 }
 
-#stick .front {
-  opacity: 0.94 !important;
-  border: 2px solid rgba(255, 252, 244, 0.85) !important;
-  box-shadow: 0 4px 12px rgba(64, 78, 36, 0.28) !important;
+.eb-dash-btn:active,
+.eb-dash-btn.is-triggered {
+  transform: scale(0.92);
+  background: var(--eb-green-surface);
+}
+
+.eb-dash-btn.is-cooling {
+  opacity: 0.72;
+}
+
+.eb-dash-ring {
+  position: absolute;
+  inset: 2px;
+  width: calc(100% - 4px);
+  height: calc(100% - 4px);
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.eb-dash-ring__track {
+  fill: none;
+  stroke: rgba(164, 134, 98, 0.18);
+  stroke-width: 3;
+}
+
+.eb-dash-ring__fill {
+  fill: none;
+  stroke: var(--eb-egg-green);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 150.8;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 60ms linear;
+}
+
+.eb-dash-btn__label {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--eb-ink);
+}
+
+.stick-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.eb-stick {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background: rgba(252, 248, 239, 0.84);
+  border: 1.5px solid rgba(164, 134, 98, 0.34);
+  box-shadow: 0 8px 22px rgba(74, 52, 30, 0.14), inset 0 1px 0 rgba(255, 253, 248, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  cursor: pointer;
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.eb-stick.is-active {
+  border-color: rgba(110, 133, 68, 0.52);
+}
+
+/* Mario 高摩擦急刹时滑杆外环泛起霜白暖光摩擦反馈 */
+.eb-stick.is-skidding {
+  border-color: rgba(94, 168, 184, 0.85);
+  box-shadow:
+    0 0 0 5px rgba(176, 224, 234, 0.42),
+    0 8px 22px rgba(74, 52, 30, 0.16),
+    inset 0 0 14px rgba(255, 255, 255, 0.85);
+}
+
+.stick-dir {
+  position: absolute;
+  font-size: 9px;
+  line-height: 1;
+  color: rgba(122, 103, 80, 0.45);
+  pointer-events: none;
+  transition: color 100ms ease-out, transform 100ms ease-out;
+}
+
+.stick-dir--up { top: 9px; left: 50%; transform: translateX(-50%); }
+.stick-dir--down { bottom: 9px; left: 50%; transform: translateX(-50%); }
+.stick-dir--left { left: 9px; top: 50%; transform: translateY(-50%); }
+.stick-dir--right { right: 9px; top: 50%; transform: translateY(-50%); }
+
+.stick-dir.is-lit {
+  color: var(--eb-ink);
+  transform: translateX(-50%) scale(1.28);
+}
+
+.stick-dir--left.is-lit,
+.stick-dir--right.is-lit {
+  transform: translateY(-50%) scale(1.28);
+}
+
+.eb-stick__knob {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #86A352 0%, #647C3D 100%);
+  border: 2.5px solid rgba(255, 252, 244, 0.92);
+  box-shadow: 0 4px 12px rgba(52, 68, 28, 0.3);
+  pointer-events: none;
+  will-change: transform;
+  transition: background 140ms ease-out;
+}
+
+.eb-stick.is-skidding .eb-stick__knob {
+  background: radial-gradient(circle at 35% 30%, #8BC8D6 0%, #4E93A6 100%);
+  box-shadow: 0 4px 14px rgba(58, 122, 140, 0.38);
+}
+
+.stick-kbd-hint {
+  display: none;
+  padding: 2px 8px;
+  border-radius: var(--eb-radius-pill);
+  background: rgba(252, 248, 239, 0.8);
+  border: 0.5px solid rgba(164, 134, 98, 0.24);
+  color: #6B5741;
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 720px) {
+  .stick-kbd-hint {
+    display: inline-block;
+  }
 }
 
 /* 弹窗与卡片（Design System v1.0 暖奶油手帐风） */

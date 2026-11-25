@@ -1,18 +1,22 @@
 import * as THREE from 'three'
+import { PEN_ARM, PEN_CORNERS } from './bounds'
 import {
   groundHeight,
   hitsWater,
+  penLift,
   pushOutOfWater,
   slopeDrift,
   type LevelId,
 } from './levels'
 import { blobShadow, clay, felt } from './materials'
 import { herdTarget, hitsFence, penIndexAt } from './pen'
+import { bounceInArena } from './physics'
 
 export type SheepMode = 'wander' | 'graze' | 'flee' | 'penned'
 
 export type SheepState = {
   group: THREE.Group
+  bodyPivot: THREE.Group
   headPivot: THREE.Group
   mode: SheepMode
   velocity: THREE.Vector2
@@ -23,21 +27,35 @@ export type SheepState = {
   homeZ: number
   bumpCooldown: number
   fleeCarry: number
+  slideCarry: number
+  sliding: boolean
+  isGolden: boolean
+  penHopT: number
+  penStartX: number
+  penStartZ: number
+  penTargetX: number
+  penTargetZ: number
 }
 
 export type SheepEvent = {
-  kind: 'fence' | 'penned'
+  kind: 'fence' | 'penned' | 'slideStart'
   x: number
   z: number
   nx: number
   nz: number
   penIndex: number
+  isGolden: boolean
 }
 
 const WOOL_PAIRS: [number, number][] = [
   [0xfdfaf3, 0xf2eadc],
   [0xfffdf8, 0xf5efe3],
   [0xf6f0e4, 0xeae1cf],
+]
+const GOLD_WOOL_PAIRS: [number, number][] = [
+  [0xfae29c, 0xe8c468],
+  [0xfff0b8, 0xf0cf76],
+  [0xf3d47f, 0xe2ba58],
 ]
 const COCOA_FACE = 0x735846
 const COCOA_EAR = 0x866854
@@ -49,8 +67,10 @@ function puff(
   z: number,
   r: number,
   pairIndex: number,
+  isGolden: boolean,
 ) {
-  const [base, accent] = WOOL_PAIRS[pairIndex % WOOL_PAIRS.length]
+  const table = isGolden ? GOLD_WOOL_PAIRS : WOOL_PAIRS
+  const [base, accent] = table[pairIndex % table.length]
   const m = new THREE.Mesh(
     new THREE.SphereGeometry(r, 16, 12),
     felt(base, accent, 1, 0.036),
@@ -61,9 +81,12 @@ function puff(
   parent.add(m)
 }
 
-export function createSheep(): SheepState {
+export function createSheep(isGolden = false): SheepState {
   const group = new THREE.Group()
-  group.name = 'sheep'
+  group.name = isGolden ? 'sheep_golden' : 'sheep'
+
+  const bodyPivot = new THREE.Group()
+  group.add(bodyPivot)
 
   const blobs: [number, number, number, number][] = [
     [0, 0.35, 0, 0.27],
@@ -76,14 +99,13 @@ export function createSheep(): SheepState {
     [0.17, 0.35, 0.08, 0.14],
     [-0.02, 0.54, 0, 0.14],
     [0.06, 0.37, -0.14, 0.13],
-    // Fluffy little puff tail
     [-0.28, 0.38, 0, 0.09],
   ]
-  blobs.forEach(([x, y, z, r], i) => puff(group, x, y, z, r, i))
+  blobs.forEach(([x, y, z, r], i) => puff(bodyPivot, x, y, z, r, i, isGolden))
 
   const headPivot = new THREE.Group()
   headPivot.position.set(0.22, 0.36, 0)
-  group.add(headPivot)
+  bodyPivot.add(headPivot)
 
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(0.115, 16, 14),
@@ -94,16 +116,32 @@ export function createSheep(): SheepState {
   head.castShadow = true
   headPivot.add(head)
 
-  // Cream wool bang tuft on top of head
   const bang = new THREE.Mesh(
     new THREE.SphereGeometry(0.085, 12, 10),
-    felt(0xfffdf8, 0xf3ecde, 1, 0.03),
+    isGolden ? felt(0xfff1bf, 0xedd07c, 1, 0.03) : felt(0xfffdf8, 0xf3ecde, 1, 0.03),
   )
   bang.scale.set(1.05, 0.72, 1.08)
   bang.position.set(0.075, 0.09, 0)
   headPivot.add(bang)
 
-  // Soft drooping cocoa ears
+  // Golden Crown Lead Sheep wears a miniature warm-gold crown (+3 bonus!)
+  if (isGolden) {
+    const crownMat = new THREE.MeshStandardMaterial({
+      color: 0xffd75e,
+      roughness: 0.32,
+      metalness: 0.22,
+    })
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.062, 0.06, 10), crownMat)
+    band.position.set(0.075, 0.155, 0)
+    headPivot.add(band)
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.065, 6), crownMat)
+      tip.position.set(0.075 + Math.cos(a) * 0.052, 0.2, Math.sin(a) * 0.052)
+      headPivot.add(tip)
+    }
+  }
+
   const earMat = clay(COCOA_EAR, 0.88)
   for (const side of [-1, 1]) {
     const ear = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), earMat)
@@ -113,7 +151,6 @@ export function createSheep(): SheepState {
     headPivot.add(ear)
   }
 
-  // Expressive glossy dark eyes with soft white sclera
   const scleraMat = clay(0xfffdf8, 0.45)
   const pupilMat = clay(0x231b16, 0.25)
   for (const z of [-0.042, 0.042]) {
@@ -125,7 +162,6 @@ export function createSheep(): SheepState {
     headPivot.add(pupil)
   }
 
-  // Stubby warm cocoa plush legs
   const legMat = clay(COCOA_FACE, 0.88)
   for (const [x, z] of [
     [-0.1, -0.09],
@@ -136,18 +172,33 @@ export function createSheep(): SheepState {
     const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.036, 0.12, 4, 8), legMat)
     leg.position.set(x, 0.1, z)
     leg.castShadow = true
-    group.add(leg)
+    bodyPivot.add(leg)
   }
 
-  const shade = blobShadow(0.45, 0.31, 0.88)
-  shade.position.set(0.05, 0.024, 0.06)
+  // Subtle ice-mirror reflection disc + warm contact shadow
+  const iceRefl = new THREE.Mesh(
+    new THREE.CircleGeometry(0.32, 16),
+    new THREE.MeshBasicMaterial({
+      color: isGolden ? 0xf6de97 : 0xeef5f7,
+      transparent: true,
+      opacity: 0.26,
+      depthWrite: false,
+    }),
+  )
+  iceRefl.rotation.x = -Math.PI / 2
+  iceRefl.scale.set(1.2, 0.9, 1)
+  iceRefl.position.set(0, 0.02, 0)
+  group.add(iceRefl)
+
+  const shade = blobShadow(0.45, 0.31, 0.72)
+  shade.position.set(0.05, 0.026, 0.06)
   group.add(shade)
 
   const mode: SheepMode = Math.random() > 0.4 ? 'wander' : 'graze'
   const velocity = new THREE.Vector2()
   if (mode === 'wander') {
     const a = Math.random() * Math.PI * 2
-    const speed = 0.4 + Math.random() * 0.35
+    const speed = 0.42 + Math.random() * 0.35
     velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
   } else {
     headPivot.rotation.x = -0.62
@@ -155,6 +206,7 @@ export function createSheep(): SheepState {
 
   return {
     group,
+    bodyPivot,
     headPivot,
     mode,
     velocity,
@@ -165,6 +217,14 @@ export function createSheep(): SheepState {
     homeZ: 0,
     bumpCooldown: 0,
     fleeCarry: 0,
+    slideCarry: 0,
+    sliding: false,
+    isGolden,
+    penHopT: 1,
+    penStartX: 0,
+    penStartZ: 0,
+    penTargetX: 0,
+    penTargetZ: 0,
   }
 }
 
@@ -174,26 +234,57 @@ export function resetSheep(s: SheepState, level: LevelId = 1) {
   s.velocity.set(0, 0)
   if (s.mode === 'wander') {
     const a = Math.random() * Math.PI * 2
-    const speed = 0.4 + Math.random() * 0.35
+    const speed = 0.42 + Math.random() * 0.35
     s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
     s.group.rotation.y = Math.atan2(-s.velocity.y, s.velocity.x)
   }
   s.timer = 0.6 + Math.random() * 2
   s.bumpCooldown = 0
   s.fleeCarry = 0
+  s.slideCarry = 0
+  s.sliding = false
+  s.penHopT = 1
+  s.bodyPivot.rotation.set(0, 0, 0)
+  s.bodyPivot.position.set(0, 0, 0)
+  s.bodyPivot.scale.set(1, 1, 1)
   s.group.visible = true
   s.group.position.set(s.homeX, groundHeight(level, s.homeX, s.homeZ), s.homeZ)
   s.headPivot.rotation.x = s.mode === 'graze' ? -0.62 : -0.08
 }
 
-const BOUND = 6.9
-/** How close the herder must be before a sheep starts to run. The ground ring uses this. */
+const BOUND = 7.05
 export const SHEEP_FEAR = 4.6
 const FEAR = SHEEP_FEAR
-const CAPTURE = 1.2
+const CAPTURE = 1.25
 const COHESION = 2.7
+const ICE_GLIDE_DRAG = 1.55
 
-/** Wander, graze, flee from the herder, or stay locked in a corner pen. */
+/** Pick a cozy non-overlapping straw spot inside the pen so penned sheep stay visible! */
+function assignPenSpot(penIndex: number, existingCountInPen: number): [number, number] {
+  const [cx, cz] = PEN_CORNERS[penIndex]
+  const sx = Math.sign(cx)
+  const sz = Math.sign(cz)
+  const centerX = cx - sx * PEN_ARM * 0.46
+  const centerZ = cz - sz * PEN_ARM * 0.46
+  const offsets: [number, number][] = [
+    [-0.36, -0.32],
+    [0.36, -0.26],
+    [-0.28, 0.36],
+    [0.32, 0.34],
+    [0.0, 0.04],
+    [-0.52, 0.04],
+    [0.04, -0.52],
+  ]
+  const [ox, oz] = offsets[existingCountInPen % offsets.length]
+  return [centerX + ox, centerZ + oz]
+}
+
+/**
+ * Penguin-Pushers-style icy sliding sheep physics:
+ * - Preserves momentum & external bump impulses with low ice friction
+ * - Enters visible belly-sliding posture when pushed or fleeing fast
+ * - Jumps joyfully into the corner pen and stays visible bobbing on the straw!
+ */
 export function stepSheep(
   s: SheepState,
   dt: number,
@@ -202,12 +293,34 @@ export function stepSheep(
   herderZ: number,
   flock: { x: number; z: number }[] = [],
   level: LevelId = 1,
+  penSlotCounter?: (penIndex: number) => number,
 ): SheepEvent | null {
   s.bumpCooldown = Math.max(0, s.bumpCooldown - dt)
   s.fleeCarry = Math.max(0, s.fleeCarry - dt)
+  s.slideCarry = Math.max(0, s.slideCarry - dt)
+
+  // Penned sheep stay visible & cheerfully hop into their cozy straw spot!
   if (s.mode === 'penned' && s.penIndex >= 0) {
-    s.group.visible = false
-    s.velocity.set(0, 0)
+    s.group.visible = true
+    s.sliding = false
+    const baseY = penLift(level, s.penIndex) + 0.04
+    if (s.penHopT < 1) {
+      s.penHopT = Math.min(1, s.penHopT + dt / 0.38)
+      const u = s.penHopT
+      const ease = 1 - (1 - u) * (1 - u)
+      s.group.position.x = s.penStartX + (s.penTargetX - s.penStartX) * ease
+      s.group.position.z = s.penStartZ + (s.penTargetZ - s.penStartZ) * ease
+      const arc = Math.sin(u * Math.PI) * 0.95
+      s.group.position.y = baseY + arc
+      s.bodyPivot.rotation.z = Math.sin(u * Math.PI) * 0.25
+      s.bodyPivot.scale.set(1.06, 0.94, 1.06)
+    } else {
+      const happyBob = Math.abs(Math.sin(t * 3.8 + s.phaseOffset)) * 0.055
+      s.group.position.set(s.penTargetX, baseY + happyBob, s.penTargetZ)
+      s.bodyPivot.rotation.z += (0 - s.bodyPivot.rotation.z) * Math.min(1, dt * 10)
+      s.bodyPivot.scale.set(1, 1, 1)
+      s.headPivot.rotation.x = -0.18 + Math.sin(t * 2.4 + s.phaseOffset) * 0.14
+    }
     return null
   }
 
@@ -215,103 +328,160 @@ export function stepSheep(
   const dz = s.group.position.z - herderZ
   const dist = Math.hypot(dx, dz)
   const afraid = dist < FEAR && dist > 0.001
+  const wasSliding = s.sliding
 
   if (afraid) {
+    if (s.mode !== 'flee') {
+      // Initial startle burst triggers penguin belly-slide!
+      s.slideCarry = Math.max(s.slideCarry, 0.65)
+    }
     s.mode = 'flee'
-    s.fleeCarry = 1.05
-    s.velocity.copy(fleeVelocity(s, dx / dist, dz / dist, dist, flock, true))
+    s.fleeCarry = 1.15
+    const desired = fleeVelocity(s, dx / dist, dz / dist, dist, flock, true, s.isGolden)
+    // Smooth momentum blending on ice (preserves high-speed bump slides!)
+    const steer = Math.min(1, dt * 3.6)
+    s.velocity.x += (desired.x - s.velocity.x) * steer
+    s.velocity.y += (desired.y - s.velocity.y) * steer
   } else if (s.mode === 'flee' && s.fleeCarry > 0 && dist > 0.001) {
-    s.velocity.copy(fleeVelocity(s, dx / dist, dz / dist, dist, flock, false))
+    const desired = fleeVelocity(s, dx / dist, dz / dist, dist, flock, false, s.isGolden)
+    const steer = Math.min(1, dt * 2.4)
+    s.velocity.x += (desired.x - s.velocity.x) * steer
+    s.velocity.y += (desired.y - s.velocity.y) * steer
   } else if (s.mode === 'flee') {
     s.mode = 'wander'
     s.timer = 0.7 + Math.random() * 1.1
   }
 
   if (s.mode !== 'flee') {
-    s.timer -= dt
-    if (s.timer <= 0) {
-      if (s.mode === 'wander') {
-        s.mode = 'graze'
-        s.velocity.set(0, 0)
-        s.timer = 1.2 + Math.random() * 2.4
-      } else {
-        s.mode = 'wander'
-        const a = Math.random() * Math.PI * 2
-        const speed = 0.38 + Math.random() * 0.4
-        s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
-        s.timer = 1.8 + Math.random() * 2.6
+    // Low-friction ice glide decay so bumped sheep slide a generous distance!
+    const drag = Math.exp(-ICE_GLIDE_DRAG * dt)
+    s.velocity.multiplyScalar(drag)
+
+    const curSpeed = s.velocity.length()
+    if (curSpeed < 0.75) {
+      s.timer -= dt
+      if (s.timer <= 0) {
+        if (s.mode === 'wander') {
+          s.mode = 'graze'
+          s.timer = 1.1 + Math.random() * 2.0
+        } else {
+          s.mode = 'wander'
+          const a = Math.random() * Math.PI * 2
+          const speed = (s.isGolden ? 0.65 : 0.45) + Math.random() * 0.4
+          s.velocity.set(Math.cos(a) * speed, Math.sin(a) * speed)
+          s.timer = 1.6 + Math.random() * 2.2
+        }
       }
     }
-  }
 
-  if (s.mode !== 'flee') {
     const pull = mouthPull(s)
-    if (pull) s.velocity.copy(pull)
+    if (pull) {
+      s.velocity.x += (pull.x - s.velocity.x) * Math.min(1, dt * 4.5)
+      s.velocity.y += (pull.y - s.velocity.y) * Math.min(1, dt * 4.5)
+    }
   }
 
   const px0 = s.group.position.x
   const pz0 = s.group.position.z
-  let drift = slopeDrift(level, px0, pz0)
+  let drift = slopeDrift(level, px0, pz0) * 1.55
   if (drift > 0 && hitsWater(level, px0, pz0 + 0.08, 0.26)) drift = 0
-  if (s.mode === 'graze' && s.velocity.lengthSq() < 0.0001 && drift === 0) {
+
+  const speedNow = Math.hypot(s.velocity.x, s.velocity.y + drift)
+  s.sliding = speedNow > 1.85 || (s.slideCarry > 0 && speedNow > 1.15)
+  let slideEvent: SheepEvent | null = null
+  if (!wasSliding && s.sliding && speedNow > 2.2) {
+    slideEvent = { kind: 'slideStart', x: px0, z: pz0, nx: 0, nz: 0, penIndex: -1, isGolden: s.isGolden }
+  }
+
+  if (s.mode === 'graze' && speedNow < 0.05 && drift === 0) {
     s.group.position.y = groundHeight(level, px0, pz0)
+    s.bodyPivot.rotation.z += (0 - s.bodyPivot.rotation.z) * Math.min(1, dt * 8)
+    s.bodyPivot.scale.set(1, 1, 1)
     s.headPivot.rotation.x = -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
     return null
   }
 
   const prevX = px0
   const prevZ = pz0
-  let nx = clamp(prevX + s.velocity.x * dt, -BOUND, BOUND)
-  let nz = clamp(prevZ + (s.velocity.y + drift) * dt, -BOUND, BOUND)
+  let nx = prevX + s.velocity.x * dt
+  let nz = prevZ + (s.velocity.y + drift) * dt
+
+  // Soft elastic rebound off the arena's snow-oak perimeter bumpers
+  const arenaBounce = bounceInArena(nx, nz, s.velocity.x, s.velocity.y, BOUND, 0.68)
+  nx = arenaBounce.x
+  nz = arenaBounce.z
+  s.velocity.set(arenaBounce.vx, arenaBounce.vz)
+
   if (hitsWater(level, nx, nz, 0.26)) {
     const dry = pushOutOfWater(level, nx, nz, 0.26)
     nx = clamp(dry.x, -BOUND, BOUND)
     nz = clamp(dry.z, -BOUND, BOUND)
   }
+
   const enteredEarly = penIndexAt(nx, nz, CAPTURE)
   if (enteredEarly >= 0) {
-    return penned(s, nx, nz, enteredEarly)
+    return enterPen(s, nx, nz, enteredEarly, penSlotCounter)
   }
+
   let fence: SheepEvent | null = null
   if (hitsFence(nx, nz, 0.26)) {
     const goal = herdTarget(prevX, prevZ, s.velocity.x, s.velocity.y)
-    const slideX = prevX + (goal.x - prevX) * 0.18
-    const slideZ = prevZ + (goal.z - prevZ) * 0.18
+    const slideX = prevX + (goal.x - prevX) * 0.22
+    const slideZ = prevZ + (goal.z - prevZ) * 0.22
     const slipped = penIndexAt(slideX, slideZ, CAPTURE + 0.35)
-    if (slipped >= 0) return penned(s, slideX, slideZ, slipped)
+    if (slipped >= 0) return enterPen(s, slideX, slideZ, slipped, penSlotCounter)
     if (!hitsFence(slideX, slideZ, 0.22)) {
       nx = slideX
       nz = slideZ
     } else {
       const vx = s.velocity.x
       const vz = s.velocity.y
-      s.velocity.multiplyScalar(-1)
+      s.velocity.multiplyScalar(-0.78)
       nx = prevX
       nz = prevZ
-      fence = { kind: 'fence', x: prevX, z: prevZ, nx: -vx, nz: -vz, penIndex: -1 }
+      fence = { kind: 'fence', x: prevX, z: prevZ, nx: -vx, nz: -vz, penIndex: -1, isGolden: s.isGolden }
     }
   }
+
   if (hitsWater(level, nx, nz, 0.26)) {
     const dry = pushOutOfWater(level, nx, nz, 0.26)
     nx = clamp(dry.x, -BOUND, BOUND)
     nz = clamp(dry.z, -BOUND, BOUND)
   }
+
   s.group.position.x = nx
   s.group.position.z = nz
 
   const entered = penIndexAt(nx, nz, CAPTURE)
-  if (entered >= 0) return penned(s, nx, nz, entered)
+  if (entered >= 0) return enterPen(s, nx, nz, entered, penSlotCounter)
 
-  if (s.velocity.lengthSq() > 0.0001) {
+  if (s.velocity.lengthSq() > 0.01) {
     const facing = Math.atan2(-s.velocity.y, s.velocity.x)
     s.group.rotation.y = dampAngle(s.group.rotation.y, facing, dt)
   }
-  const bob = s.mode === 'graze' ? 0 : Math.abs(Math.sin(t * 7 + s.phaseOffset)) * 0.035
-  s.group.position.y = groundHeight(level, nx, nz) + bob
-  s.headPivot.rotation.x = s.mode === 'graze'
-    ? -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
-    : -0.08
-  return fence
+
+  // Expressive Penguin-style belly-slide posture vs cute trotting bob!
+  if (s.sliding) {
+    const wobble = Math.sin(t * 16 + s.phaseOffset) * 0.1
+    s.bodyPivot.rotation.z += (-0.34 - s.bodyPivot.rotation.z) * Math.min(1, dt * 14)
+    s.bodyPivot.rotation.x += (wobble - s.bodyPivot.rotation.x) * Math.min(1, dt * 14)
+    s.bodyPivot.position.y = -0.04
+    s.bodyPivot.scale.set(1.16, 0.84, 1.08)
+    s.group.position.y = groundHeight(level, nx, nz)
+    s.headPivot.rotation.x = 0.22
+  } else {
+    s.bodyPivot.rotation.z += (0 - s.bodyPivot.rotation.z) * Math.min(1, dt * 10)
+    s.bodyPivot.rotation.x += (0 - s.bodyPivot.rotation.x) * Math.min(1, dt * 10)
+    s.bodyPivot.position.y = 0
+    s.bodyPivot.scale.set(1, 1, 1)
+    const bob = s.mode === 'graze' ? 0 : Math.abs(Math.sin(t * 8 + s.phaseOffset)) * 0.045
+    s.group.position.y = groundHeight(level, nx, nz) + bob
+    s.headPivot.rotation.x = s.mode === 'graze'
+      ? -0.62 + Math.sin(t * 1.15 + s.phaseOffset) * 0.045
+      : -0.08
+  }
+
+  return fence || slideEvent
 }
 
 function fleeVelocity(
@@ -321,6 +491,7 @@ function fleeVelocity(
   dist: number,
   flock: { x: number; z: number }[],
   afraid: boolean,
+  isGolden: boolean,
 ) {
   let vx = awayX
   let vz = awayZ
@@ -343,8 +514,8 @@ function fleeVelocity(
     const tx = cx / n - sx
     const tz = cz / n - sz
     const td = Math.hypot(tx, tz) || 1
-    vx += (tx / td) * 0.34
-    vz += (tz / td) * 0.34
+    vx += (tx / td) * 0.3
+    vz += (tz / td) * 0.3
   }
   const goal = herdTarget(sx, sz, vx, vz)
   const gx = goal.x - sx
@@ -353,12 +524,12 @@ function fleeVelocity(
   vx = vx * (1 - goal.weight) + (gx / gd) * goal.weight
   vz = vz * (1 - goal.weight) + (gz / gd) * goal.weight
   const len = Math.hypot(vx, vz) || 1
-  const closeness = afraid ? Math.max(0, 1 - dist / FEAR) : 0.4
-  const speed = afraid ? 1.15 + closeness * 0.4 : 1.12
+  const closeness = afraid ? Math.max(0, 1 - dist / FEAR) : 0.45
+  const goldMul = isGolden ? 1.2 : 1
+  const speed = (afraid ? 1.95 + closeness * 1.15 : 1.7) * goldMul
   return new THREE.Vector2((vx / len) * speed, (vz / len) * speed)
 }
 
-/** Finish the last steps into a pen once a shove has already brought the sheep close. */
 function mouthPull(s: SheepState) {
   const sx = s.group.position.x
   const sz = s.group.position.z
@@ -367,15 +538,28 @@ function mouthPull(s: SheepState) {
   const gz = goal.z - sz
   const gd = Math.hypot(gx, gz)
   if (gd > 3.2 || gd < 0.05) return null
-  return new THREE.Vector2((gx / gd) * 0.95, (gz / gd) * 0.95)
+  return new THREE.Vector2((gx / gd) * 1.35, (gz / gd) * 1.35)
 }
 
-function penned(s: SheepState, x: number, z: number, index: number): SheepEvent {
+function enterPen(
+  s: SheepState,
+  x: number,
+  z: number,
+  index: number,
+  penSlotCounter?: (penIndex: number) => number,
+): SheepEvent {
   s.mode = 'penned'
   s.penIndex = index
-  s.group.visible = false
+  s.sliding = false
   s.velocity.set(0, 0)
-  s.group.position.set(x, 0, z)
+  s.penStartX = x
+  s.penStartZ = z
+  const slotIdx = penSlotCounter ? penSlotCounter(index) : 0
+  const [tx, tz] = assignPenSpot(index, slotIdx)
+  s.penTargetX = tx
+  s.penTargetZ = tz
+  s.penHopT = 0
+  s.group.visible = true
   return {
     kind: 'penned',
     x,
@@ -383,6 +567,7 @@ function penned(s: SheepState, x: number, z: number, index: number): SheepEvent 
     nx: -Math.sign(x),
     nz: -Math.sign(z),
     penIndex: index,
+    isGolden: s.isGolden,
   }
 }
 
@@ -394,5 +579,5 @@ function dampAngle(current: number, target: number, dt: number) {
   let d = target - current
   while (d > Math.PI) d -= Math.PI * 2
   while (d < -Math.PI) d += Math.PI * 2
-  return current + d * Math.min(1, dt * 6)
+  return current + d * Math.min(1, dt * 8)
 }

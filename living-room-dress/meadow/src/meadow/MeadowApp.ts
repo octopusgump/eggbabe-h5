@@ -1,44 +1,66 @@
 import * as THREE from 'three'
-import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
-import { insideGrass, moveHerder } from './bounds'
+import { moveHerder } from './bounds'
 import { LEVEL_COUNT, ROUND_SECONDS, SHEEP_COUNT } from './constants'
-import { buzz, playBaa, playPenned, playScream, playTick, popStar, stopScream, unlockSound } from './feedback'
+import {
+  buzz,
+  playBaa,
+  playBump,
+  playDash,
+  playPenned,
+  playSheepSlide,
+  playSkateStep,
+  playStartWhistle,
+  playTick,
+  playWallBoing,
+  popStar,
+  stepBgm,
+  stopScream,
+  unlockSound,
+  updateSkidSound,
+} from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { groundHeight, herderHome, LEVEL_META, pushOutOfWater, sheepLayout, type LevelId } from './levels'
 import { felt } from './materials'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
 import {
+  bounceInArena,
+  createSkaterState,
+  DEFAULT_SKATER_PARAMS,
+  resolveElasticBump,
+  stepSkaterVelocity,
+  triggerSkaterDash,
+  type SkaterState,
+} from './physics'
+import {
   createHerder,
   orientHerderToCamera,
   resetHerder,
   stepHerder as playHerder,
-  stepHerderFall,
   type HerderState,
 } from './herder'
 import { createSheep, resetSheep, SHEEP_FEAR, stepSheep, type SheepState } from './sheep'
 import { readHostContext, settleMeadowRound, type HostContext } from './storeBridge'
+import {
+  clearTrails,
+  spawnIceSpray,
+  spawnPenBurst,
+  spawnSkidMark,
+  spawnTwinSkidMarks,
+  stepTrails,
+} from './trails'
 import { createTrees, stepTrees } from './trees'
 
 const CAM_POS = new THREE.Vector3(3.6, 15.2, 16.4)
 const LOOK = new THREE.Vector3(0, -0.1, 0.25)
-const HERDER_SPEED = 3.9
-const FALL_SECONDS = 0.85
-const FALL_DROP = -2.4
-const FALL_SLIDE = 1.35
-const TOUCH = 1.25
-const BUMP_COOLDOWN = 0.42
-
-type DustPuff = {
-  mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>
-  age: number
-  life: number
-  vx: number
-  vy: number
-  vz: number
-}
+const ARENA_HERDER_LIMIT = 7.12
+const TOUCH = 1.28
+const SHEEP_PAIR_DIST = 0.86
+const BUMP_COOLDOWN = 0.24
+const COMBO_WINDOW = 2.3
+const STICK_MAX_OFFSET = 36
 
 export class MeadowApp {
   private renderer: THREE.WebGLRenderer
@@ -47,14 +69,13 @@ export class MeadowApp {
   private controls: OrbitControls
   private sheep: SheepState[] = []
   private herder: HerderState
+  private skater: SkaterState = createSkaterState()
   private herdRange: {
     group: THREE.Group
     fillMat: THREE.MeshBasicMaterial
     ringMat: THREE.MeshBasicMaterial
   }
   private clouds: THREE.Group
-  private dust: DustPuff[] = []
-  private dustTimer = 0
   private pens: PenRig
   private island: THREE.Group | null = null
   private trees: THREE.Group | null = null
@@ -70,19 +91,28 @@ export class MeadowApp {
   private over = false
   private shownSecond = ROUND_SECONDS
   private hostCtx: HostContext
-  private fall: {
-    t: number
-    dirX: number
-    dirZ: number
-    x0: number
-    z0: number
-    y0: number
-  } | null = null
-  private stickX = 0
-  private stickY = 0
-  private keys = new Set<string>()
-  private stick: ReturnType<typeof createStick> | null = null
 
+  // Scoring, combo & juice
+  private penOccupancy = [0, 0, 0, 0]
+  private bonusPoints = 0
+  private comboCount = 0
+  private comboTimer = 0
+  private cameraShake = 0
+  private skidMarkTimer = 0
+  private skidSprayTimer = 0
+  private sheepTrailTimer = 0
+
+  // Unified pointer + keyboard visual joystick state
+  private pointerStickX = 0
+  private pointerStickY = 0
+  private pointerActiveId: number | null = null
+  private visualStickX = 0
+  private visualStickY = 0
+  private keys = new Set<string>()
+  private lastInputWorldX = 0
+  private lastInputWorldZ = 1
+
+  // DOM refs
   private timeEl: HTMLElement | null
   private countEl: HTMLElement | null
   private levelEl: HTMLElement | null
@@ -90,6 +120,11 @@ export class MeadowApp {
   private timePill: HTMLElement | null
   private countPill: HTMLElement | null
   private noticeEl: HTMLElement | null
+  private stickEl: HTMLElement | null
+  private stickKnobEl: HTMLElement | null
+  private stickDirs: NodeListOf<HTMLElement>
+  private dashBtnEl: HTMLButtonElement | null
+  private dashRingEl: SVGCircleElement | null
   private resultModalEl: HTMLElement | null
   private resultTagEl: HTMLElement | null
   private scoreEl: HTMLElement | null
@@ -114,6 +149,11 @@ export class MeadowApp {
     this.timePill = document.getElementById('time-pill')
     this.countPill = document.getElementById('count-pill')
     this.noticeEl = document.getElementById('ready-notice')
+    this.stickEl = document.getElementById('stick')
+    this.stickKnobEl = document.getElementById('stick-knob')
+    this.stickDirs = document.querySelectorAll<HTMLElement>('.stick-dir')
+    this.dashBtnEl = document.getElementById('btn-dash') as HTMLButtonElement | null
+    this.dashRingEl = document.getElementById('dash-ring-progress') as SVGCircleElement | null
     this.resultModalEl = document.getElementById('result-modal')
     this.resultTagEl = document.getElementById('result-tag')
     this.scoreEl = document.getElementById('score')
@@ -137,14 +177,14 @@ export class MeadowApp {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 0.95
+    this.renderer.toneMappingExposure = 0.96
     this.renderer.setClearColor(0x000000, 0)
 
     this.scene = new THREE.Scene()
     const pmrem = new THREE.PMREMGenerator(this.renderer)
     const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
     this.scene.environment = envTex
-    this.scene.environmentIntensity = 0.26
+    this.scene.environmentIntensity = 0.3
     pmrem.dispose()
 
     this.camera = new THREE.OrthographicCamera(-9.5, 9.5, 10, -10, 0.1, 90)
@@ -171,11 +211,10 @@ export class MeadowApp {
     this.controls.maxPolarAngle = this.homePolar + 0.32
     this.controls.update()
 
-    // Balanced warm sunlit studio lighting with cozy contrast
-    const hemi = new THREE.HemisphereLight(0xfff8ea, 0xa2b672, 0.64)
+    const hemi = new THREE.HemisphereLight(0xfffaf0, 0x9ec0c7, 0.68)
     this.scene.add(hemi)
 
-    const sun = new THREE.DirectionalLight(0xffebc2, 1.24)
+    const sun = new THREE.DirectionalLight(0xffedc6, 1.26)
     sun.position.set(-10, 17, 6.5)
     sun.castShadow = true
     sun.shadow.mapSize.set(1024, 1024)
@@ -191,7 +230,7 @@ export class MeadowApp {
     sun.shadow.camera.bottom = -span
     this.scene.add(sun)
 
-    const rim = new THREE.DirectionalLight(0xffe6c4, 0.26)
+    const rim = new THREE.DirectionalLight(0xe5f5fa, 0.32)
     rim.position.set(12, 9, -10)
     this.scene.add(rim)
 
@@ -217,9 +256,9 @@ export class MeadowApp {
     this.scene.add(this.herdRange.group)
 
     this.paintHostMeta()
-    this.bindStick()
+    this.bindUnifiedStick()
+    this.bindDashButton()
     this.bindKeyboard()
-    requestAnimationFrame(() => this.stick?.reposition())
     this.resize()
     this.updateLevelPills()
     this.updateNotice()
@@ -260,7 +299,9 @@ export class MeadowApp {
     const layout = sheepLayout(this.level)
     for (let i = 0; i < SHEEP_COUNT; i++) {
       const [x, z] = layout[i]
-      const state = createSheep()
+      // Sheep #0 is the Golden Crown Lead Sheep (+3 bonus, Penguin Pushers golden penguin nod!)
+      const isGolden = i === 0
+      const state = createSheep(isGolden)
       state.homeX = x
       state.homeZ = z
       state.group.position.set(x, groundHeight(this.level, x, z), z)
@@ -269,43 +310,70 @@ export class MeadowApp {
       } else {
         state.group.rotation.y = Math.random() * Math.PI * 2
       }
-      state.group.scale.setScalar(1.18)
+      state.group.scale.setScalar(isGolden ? 1.24 : 1.16)
       this.sheep.push(state)
       this.scene.add(state.group)
     }
   }
 
-  private bindStick() {
-    const zone = document.getElementById('stick')
+  /** Unified pointer + keyboard visual joystick so desktop Arrow/WASD physically moves the knob */
+  private bindUnifiedStick() {
+    const zone = this.stickEl
     if (!zone) return
-    const manager = createStick({
-      zone,
-      mode: 'static',
-      position: { left: '50%', top: '50%' },
-      size: 112,
-      threshold: 0.1,
-      restOpacity: 0.94,
-      color: {
-        front: '#6E8544',
-        back: 'rgba(252, 248, 239, 0.86)',
-      },
-    })
-    this.stick = manager
-    zone.addEventListener('pointerdown', (e) => {
-      e.stopPropagation()
-      unlockSound()
-    })
-    manager.on('move', (evt) => {
-      if (this.over || this.paused) return
-      this.stickX = evt.data.vector.x
-      this.stickY = evt.data.vector.y
-      if (!this.started && Math.hypot(this.stickX, this.stickY) >= 0.15) {
+
+    const updateFromClient = (clientX: number, clientY: number) => {
+      const rect = zone.getBoundingClientRect()
+      const cx = rect.left + rect.width / 2
+      const cy = rect.top + rect.height / 2
+      const dx = clientX - cx
+      const dy = -(clientY - cy) // +Y is up
+      const dist = Math.hypot(dx, dy)
+      const maxR = Math.max(24, rect.width * 0.34)
+      const mag = Math.min(1, dist / maxR)
+      if (dist > 2) {
+        this.pointerStickX = (dx / dist) * mag
+        this.pointerStickY = (dy / dist) * mag
+      } else {
+        this.pointerStickX = 0
+        this.pointerStickY = 0
+      }
+      if (!this.started && !this.over && !this.paused && mag >= 0.14) {
         this.beginRound()
       }
+    }
+
+    zone.addEventListener('pointerdown', (e) => {
+      if (this.over || this.paused) return
+      e.stopPropagation()
+      unlockSound()
+      this.pointerActiveId = e.pointerId
+      zone.setPointerCapture?.(e.pointerId)
+      updateFromClient(e.clientX, e.clientY)
     })
-    manager.on('end', () => {
-      this.stickX = 0
-      this.stickY = 0
+
+    zone.addEventListener('pointermove', (e) => {
+      if (this.pointerActiveId !== e.pointerId) return
+      if (this.over || this.paused) return
+      e.stopPropagation()
+      updateFromClient(e.clientX, e.clientY)
+    })
+
+    const endPointer = (e: PointerEvent) => {
+      if (this.pointerActiveId !== e.pointerId) return
+      this.pointerActiveId = null
+      this.pointerStickX = 0
+      this.pointerStickY = 0
+    }
+    zone.addEventListener('pointerup', endPointer)
+    zone.addEventListener('pointercancel', endPointer)
+  }
+
+  private bindDashButton() {
+    if (!this.dashBtnEl) return
+    this.dashBtnEl.addEventListener('pointerdown', (e) => {
+      e.stopPropagation()
+      unlockSound()
+      this.performDash()
     })
   }
 
@@ -325,6 +393,12 @@ export class MeadowApp {
         this.setPaused(!this.paused)
         return
       }
+      if (e.code === 'Space' && !this.over && !this.paused) {
+        e.preventDefault()
+        unlockSound()
+        this.performDash()
+        return
+      }
       if (!moveKeys.has(e.code)) return
       e.preventDefault()
       unlockSound()
@@ -342,9 +416,28 @@ export class MeadowApp {
     })
   }
 
-  private readInputVector(): { x: number; y: number } {
-    let x = this.stickX
-    let y = this.stickY
+  private performDash() {
+    if (this.over || this.paused) return
+    if (!this.started) this.beginRound()
+    const input = this.readInputVector()
+    const world = this.screenInputToWorld(input.x, input.y)
+    const dirX = Math.hypot(world.x, world.z) > 0.15 ? world.x : this.lastInputWorldX
+    const dirZ = Math.hypot(world.x, world.z) > 0.15 ? world.z : this.lastInputWorldZ
+    const ok = triggerSkaterDash(this.skater, dirX, dirZ, DEFAULT_SKATER_PARAMS)
+    if (!ok) return
+    playDash()
+    buzz(14)
+    const pos = this.herder.group.position
+    spawnIceSpray(this.scene, pos.x, pos.y, pos.z, -dirX, -dirZ, 0.9, 6, 0xfff8e2)
+    this.dashBtnEl?.classList.remove('is-triggered')
+    void this.dashBtnEl?.offsetWidth
+    this.dashBtnEl?.classList.add('is-triggered')
+  }
+
+  private readInputVector(): { x: number; y: number; fromKeyboard: boolean } {
+    let x = this.pointerStickX
+    let y = this.pointerStickY
+    let fromKeyboard = false
     if (this.keys.size > 0) {
       let kx = 0
       let ky = 0
@@ -356,19 +449,75 @@ export class MeadowApp {
       if (len > 0) {
         x = kx / len
         y = ky / len
+        fromKeyboard = true
       }
     }
-    return { x, y }
+    return { x, y, fromKeyboard }
+  }
+
+  private screenInputToWorld(ix: number, iy: number): { x: number; z: number } {
+    const mag = Math.hypot(ix, iy)
+    if (mag < 0.05) return { x: 0, z: 0 }
+    const e = this.camera.matrixWorld.elements
+    const rightX = e[0]
+    const rightZ = e[2]
+    const fwdX = -e[8]
+    const fwdZ = -e[10]
+    const rlen = Math.hypot(rightX, rightZ) || 1
+    const flen = Math.hypot(fwdX, fwdZ) || 1
+    const wx = (rightX / rlen) * ix + (fwdX / flen) * iy
+    const wz = (rightZ / rlen) * ix + (fwdZ / flen) * iy
+    const wlen = Math.hypot(wx, wz) || 1
+    return { x: (wx / wlen) * Math.min(1, mag), z: (wz / wlen) * Math.min(1, mag) }
+  }
+
+  /** Animates the visible joystick knob & directional pips in sync with BOTH touch and keyboard Arrow/WASD */
+  private updateVisualStick(dt: number, inputX: number, inputY: number, skidding: boolean) {
+    const ease = Math.min(1, dt * 18)
+    this.visualStickX += (inputX - this.visualStickX) * ease
+    this.visualStickY += (inputY - this.visualStickY) * ease
+
+    if (this.stickKnobEl) {
+      const tx = this.visualStickX * STICK_MAX_OFFSET
+      const ty = -this.visualStickY * STICK_MAX_OFFSET
+      this.stickKnobEl.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0)`
+    }
+    const active = Math.hypot(inputX, inputY) > 0.12
+    this.stickEl?.classList.toggle('is-active', active)
+    this.stickEl?.classList.toggle('is-skidding', skidding)
+
+    this.stickDirs.forEach((el) => {
+      const dir = el.dataset.dir
+      let lit = false
+      if (dir === 'up') lit = inputY > 0.35
+      else if (dir === 'down') lit = inputY < -0.35
+      else if (dir === 'left') lit = inputX < -0.35
+      else if (dir === 'right') lit = inputX > 0.35
+      el.classList.toggle('is-lit', lit)
+    })
+
+    // Update Dash button cooldown visual ring
+    if (this.dashBtnEl) {
+      const ready = this.skater.dashCooldown <= 0
+      this.dashBtnEl.classList.toggle('is-cooling', !ready)
+      if (this.dashRingEl) {
+        const circum = 150.8
+        const ratio = Math.max(0, Math.min(1, 1 - this.skater.dashCooldown / DEFAULT_SKATER_PARAMS.dashCooldown))
+        this.dashRingEl.style.strokeDashoffset = (circum * (1 - ratio)).toFixed(1)
+      }
+    }
   }
 
   private releaseStick() {
-    this.stickX = 0
-    this.stickY = 0
+    this.pointerActiveId = null
+    this.pointerStickX = 0
+    this.pointerStickY = 0
   }
 
   private beginRound() {
     if (this.started) return
     this.started = true
+    playStartWhistle()
     this.updateNotice()
   }
 
@@ -392,6 +541,7 @@ export class MeadowApp {
     if (next) {
       this.releaseStick()
       this.keys.clear()
+      updateSkidSound(0)
     }
     if (this.pauseModalEl) {
       this.pauseModalEl.hidden = !next
@@ -408,140 +558,194 @@ export class MeadowApp {
     return this.level
   }
 
-  private spawnDust(x: number, y: number, z: number, dirX: number, dirZ: number) {
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xfbf5e6,
-      transparent: true,
-      opacity: 0.65,
-      depthWrite: false,
-    })
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), mat)
-    mesh.position.set(
-      x - dirX * 0.25 + (Math.random() - 0.5) * 0.18,
-      y + 0.1,
-      z - dirZ * 0.25 + (Math.random() - 0.5) * 0.18,
-    )
-    this.scene.add(mesh)
-    this.dust.push({
-      mesh,
-      age: 0,
-      life: 0.42,
-      vx: -dirX * 0.35 + (Math.random() - 0.5) * 0.2,
-      vy: 0.35 + Math.random() * 0.25,
-      vz: -dirZ * 0.35 + (Math.random() - 0.5) * 0.2,
-    })
-  }
-
-  private stepDust(dt: number) {
-    for (let i = this.dust.length - 1; i >= 0; i--) {
-      const d = this.dust[i]
-      d.age += dt
-      const u = d.age / d.life
-      if (u >= 1) {
-        this.scene.remove(d.mesh)
-        d.mesh.geometry.dispose()
-        d.mesh.material.dispose()
-        this.dust.splice(i, 1)
-        continue
-      }
-      d.mesh.position.x += d.vx * dt
-      d.mesh.position.y += d.vy * dt
-      d.mesh.position.z += d.vz * dt
-      d.mesh.scale.setScalar(1 + u * 0.85)
-      d.mesh.material.opacity = 0.62 * (1 - u)
-    }
-  }
-
-  private clearDust() {
-    for (const d of this.dust) {
-      this.scene.remove(d.mesh)
-      d.mesh.geometry.dispose()
-      d.mesh.material.dispose()
-    }
-    this.dust = []
-  }
-
-  private stepHerder(dt: number) {
+  private stepHerder(dt: number, t: number) {
     const pos = this.herder.group.position
     const input = this.readInputVector()
-    const mag = Math.hypot(input.x, input.y)
-    let power = 0
-    let moveDx = 0
-    let moveDz = 0
-
-    if (mag >= 0.15) {
-      const e = this.camera.matrixWorld.elements
-      const rightX = e[0]
-      const rightZ = e[2]
-      const fwdX = -e[8]
-      const fwdZ = -e[10]
-      const rlen = Math.hypot(rightX, rightZ) || 1
-      const flen = Math.hypot(fwdX, fwdZ) || 1
-      power = Math.min(1, (mag - 0.15) / 0.85)
-      let dx = (rightX / rlen) * (input.x / mag) + (fwdX / flen) * (input.y / mag)
-      let dz = (rightZ / rlen) * (input.x / mag) + (fwdZ / flen) * (input.y / mag)
-      const dlen = Math.hypot(dx, dz) || 1
-      dx /= dlen
-      dz /= dlen
-      moveDx = dx
-      moveDz = dz
-      const step = HERDER_SPEED * power * dt
-      const next = moveHerder(pos.x + dx * step, pos.z + dz * step, this.level)
-      pos.x = next.x
-      pos.z = next.z
-      if (!insideGrass(next.x, next.z)) {
-        pos.y = groundHeight(this.level, pos.x, pos.z)
-        this.beginFall(dx, dz)
-        return
-      }
-      this.dustTimer -= dt
-      if (this.dustTimer <= 0 && power > 0.35) {
-        this.spawnDust(pos.x, groundHeight(this.level, pos.x, pos.z), pos.z, moveDx, moveDz)
-        this.dustTimer = 0.16
-      }
+    const worldIn = this.screenInputToWorld(input.x, input.y)
+    if (Math.hypot(worldIn.x, worldIn.z) > 0.12) {
+      this.lastInputWorldX = worldIn.x
+      this.lastInputWorldZ = worldIn.z
     }
 
+    const res = stepSkaterVelocity(this.skater, worldIn.x, worldIn.z, dt, DEFAULT_SKATER_PARAMS)
+    this.updateVisualStick(dt, input.x, input.y, res.skidding)
+
+    // Integrate position with soft bouncy snow-oak perimeter walls + fence/water stops
+    const rawX = pos.x + this.skater.vx * dt
+    const rawZ = pos.z + this.skater.vz * dt
+    const bounded = bounceInArena(rawX, rawZ, this.skater.vx, this.skater.vz, ARENA_HERDER_LIMIT, 0.48)
+    this.skater.vx = bounded.vx
+    this.skater.vz = bounded.vz
+    if (bounded.bounced && res.speed > 2.2) {
+      playWallBoing()
+      spawnIceSpray(this.scene, bounded.x, pos.y, bounded.z, bounded.nx, bounded.nz, 0.5, 3)
+      this.cameraShake = Math.max(this.cameraShake, 0.08)
+    }
+
+    const next = moveHerder(bounded.x, bounded.z, this.level)
+    pos.x = next.x
+    pos.z = next.z
     pos.y = groundHeight(this.level, pos.x, pos.z)
-    playHerder(this.herder, dt, power, input.x)
 
-    // Softly reveal subtle herding halo only when moving
-    const targetRing = power > 0.1 ? 0.34 : 0.1
-    const targetFill = power > 0.1 ? 0.08 : 0.02
-    this.herdRange.ringMat.opacity += (targetRing - this.herdRange.ringMat.opacity) * Math.min(1, dt * 6)
-    this.herdRange.fillMat.opacity += (targetFill - this.herdRange.fillMat.opacity) * Math.min(1, dt * 6)
-  }
+    // Project skater velocity onto camera screen X for natural L/R facing & skid lean direction
+    const e = this.camera.matrixWorld.elements
+    const rightX = e[0]
+    const rightZ = e[2]
+    const rlen = Math.hypot(rightX, rightZ) || 1
+    const screenVelX = (this.skater.vx * rightX + this.skater.vz * rightZ) / rlen
 
-  private beginFall(dirX: number, dirZ: number) {
-    const pos = this.herder.group.position
-    this.over = true
-    this.releaseStick()
-    this.keys.clear()
-    this.fall = {
-      t: 0,
-      dirX,
-      dirZ,
-      x0: pos.x,
-      z0: pos.z,
-      y0: pos.y,
+    const speedRatio = Math.min(1, res.speed / DEFAULT_SKATER_PARAMS.maxSpeed)
+    playHerder(this.herder, dt, {
+      speedRatio,
+      screenVelX,
+      skidIntensity: res.skidIntensity,
+      dashing: res.dashing,
+      time: t,
+    })
+
+    // Mario-style high-friction ice braking audio + twin frost tracks + ice-crystal spray!
+    updateSkidSound(res.skidIntensity)
+    if (res.skidIntensity > 0.12) {
+      this.skidMarkTimer -= dt
+      if (this.skidMarkTimer <= 0) {
+        spawnTwinSkidMarks(this.scene, pos.x, pos.y, pos.z, res.skidDirX, res.skidDirZ, res.skidIntensity)
+        this.skidMarkTimer = 0.045
+      }
+      this.skidSprayTimer -= dt
+      if (this.skidSprayTimer <= 0) {
+        spawnIceSpray(
+          this.scene,
+          pos.x,
+          pos.y,
+          pos.z,
+          res.skidDirX,
+          res.skidDirZ,
+          res.skidIntensity,
+          res.skidIntensity > 0.6 ? 4 : 2,
+        )
+        this.skidSprayTimer = 0.06
+      }
+    } else if (res.speed > 1.8) {
+      if (Math.hypot(input.x, input.y) > 0.25 && !res.dashing) {
+        playSkateStep(speedRatio)
+      }
+      this.skidMarkTimer -= dt
+      if (this.skidMarkTimer <= 0) {
+        const ang = Math.atan2(-this.skater.vz, this.skater.vx)
+        spawnSkidMark(this.scene, pos.x, pos.y, pos.z, ang, 0.26, 0.055, false)
+        this.skidMarkTimer = res.dashing ? 0.04 : 0.12
+      }
     }
-    spawnImpact(this.scene, pos.x, pos.z, dirX, dirZ, 0.85)
-    playScream()
+
+    // Subtle frosted herding aura
+    const targetRing = res.skidding ? 0.38 : res.speed > 0.6 ? 0.24 : 0.08
+    const targetFill = res.skidding ? 0.09 : res.speed > 0.6 ? 0.05 : 0.015
+    this.herdRange.ringMat.opacity += (targetRing - this.herdRange.ringMat.opacity) * Math.min(1, dt * 7)
+    this.herdRange.fillMat.opacity += (targetFill - this.herdRange.fillMat.opacity) * Math.min(1, dt * 7)
   }
 
-  private stepFall(dt: number) {
-    const fall = this.fall
-    if (!fall) return
-    fall.t += dt
-    const u = Math.min(1, fall.t / FALL_SECONDS)
-    const ease = u * u * (3 - 2 * u)
-    const pos = this.herder.group.position
-    pos.x = fall.x0 + fall.dirX * FALL_SLIDE * ease
-    pos.z = fall.z0 + fall.dirZ * FALL_SLIDE * ease
-    pos.y = fall.y0 + (FALL_DROP - fall.y0) * ease
-    stepHerderFall(this.herder, ease)
-    if (u >= 1) {
-      this.fall = null
-      this.finish('fall')
+  /** Elastic Herder->Sheep shove that transfers skating momentum into Penguin belly-slides! */
+  private collideHerderWithSheep(s: SheepState, hx: number, hz: number) {
+    if (s.mode === 'penned' || s.bumpCooldown > 0) return
+    const dashing = this.skater.dashTimer > 0
+    const extraPush = dashing ? 4.4 : 2.35
+    const hit = resolveElasticBump(
+      hx,
+      hz,
+      this.skater.vx,
+      this.skater.vz,
+      s.group.position.x,
+      s.group.position.z,
+      s.velocity.x,
+      s.velocity.y,
+      TOUCH,
+      2.6,
+      1.0,
+      0.92,
+      extraPush,
+    )
+    if (!hit.collided) return
+
+    const clamped = pushOutOfWater(
+      this.level,
+      clamp(hit.bPos.x, -7.0, 7.0),
+      clamp(hit.bPos.z, -7.0, 7.0),
+      0.26,
+    )
+    s.group.position.x = clamp(clamped.x, -7.0, 7.0)
+    s.group.position.z = clamp(clamped.z, -7.0, 7.0)
+    s.group.position.y = groundHeight(this.level, s.group.position.x, s.group.position.z)
+
+    // Cap sheep launch speed so slides feel juicy & controllable
+    const launchSpd = Math.hypot(hit.bVel.x, hit.bVel.z)
+    const maxLaunch = dashing ? 8.6 : 6.4
+    const scale = launchSpd > maxLaunch ? maxLaunch / launchSpd : 1
+    s.velocity.set(hit.bVel.x * scale, hit.bVel.z * scale)
+    s.slideCarry = dashing ? 1.15 : 0.82
+    s.mode = 'flee'
+    s.fleeCarry = 1.2
+    s.bumpCooldown = BUMP_COOLDOWN
+
+    // Slight recoil on herder feels weighty & crisp
+    this.skater.vx = hit.aVel.x
+    this.skater.vz = hit.aVel.z
+
+    spawnImpact(this.scene, (s.group.position.x + hx) / 2, (s.group.position.z + hz) / 2, hit.nx, hit.nz, dashing ? 1.05 : 0.82)
+    spawnIceSpray(this.scene, s.group.position.x, s.group.position.y, s.group.position.z, hit.nx, hit.nz, 0.75, 4)
+    playBump(hit.impactSpeed / 4.2, false)
+    playSheepSlide()
+    if (dashing || hit.impactSpeed > 3.2) {
+      this.cameraShake = Math.max(this.cameraShake, dashing ? 0.16 : 0.09)
+      buzz(dashing ? 22 : 12)
+    }
+  }
+
+  /** Sheep-on-Sheep elastic bowling chain reaction! */
+  private resolveSheepChainCollisions() {
+    for (let i = 0; i < this.sheep.length; i++) {
+      const a = this.sheep[i]
+      if (a.mode === 'penned') continue
+      for (let j = i + 1; j < this.sheep.length; j++) {
+        const b = this.sheep[j]
+        if (b.mode === 'penned') continue
+        const hit = resolveElasticBump(
+          a.group.position.x,
+          a.group.position.z,
+          a.velocity.x,
+          a.velocity.y,
+          b.group.position.x,
+          b.group.position.z,
+          b.velocity.x,
+          b.velocity.y,
+          SHEEP_PAIR_DIST,
+          1.0,
+          1.0,
+          0.86,
+          0,
+        )
+        if (!hit.collided) continue
+
+        a.group.position.x = clamp(hit.aPos.x, -7.0, 7.0)
+        a.group.position.z = clamp(hit.aPos.z, -7.0, 7.0)
+        b.group.position.x = clamp(hit.bPos.x, -7.0, 7.0)
+        b.group.position.z = clamp(hit.bPos.z, -7.0, 7.0)
+        a.velocity.set(hit.aVel.x, hit.aVel.z)
+        b.velocity.set(hit.bVel.x, hit.bVel.z)
+
+        if (hit.impactSpeed > 1.3) {
+          a.slideCarry = Math.max(a.slideCarry, 0.65)
+          b.slideCarry = Math.max(b.slideCarry, 0.72)
+          playBump(hit.impactSpeed / 3.8, true)
+          spawnImpact(
+            this.scene,
+            (a.group.position.x + b.group.position.x) / 2,
+            (a.group.position.z + b.group.position.z) / 2,
+            hit.nx,
+            hit.nz,
+            0.65,
+          )
+        }
+      }
     }
   }
 
@@ -558,7 +762,6 @@ export class MeadowApp {
     if (w === 0 || h === 0) return
     this.renderer.setSize(w, h, false)
     const aspect = w / h
-    // Lush, full hero framing on both widescreen desktop (~75% height) and portrait mobile
     const minHalfW = 9.4
     const minHalfH = aspect >= 1 ? 9.5 : 10.6
     const halfH = Math.max(minHalfH, minHalfW / Math.max(0.42, aspect))
@@ -570,17 +773,22 @@ export class MeadowApp {
     this.camera.bottom = -halfH
     this.camera.zoom = zoom
     this.camera.updateProjectionMatrix()
-    requestAnimationFrame(() => this.stick?.reposition())
   }
 
   restart() {
     stopScream()
-    this.fall = null
+    updateSkidSound(0)
+    this.skater = createSkaterState()
     this.remaining = ROUND_SECONDS
     this.shownSecond = ROUND_SECONDS
     this.started = false
     this.paused = false
     this.over = false
+    this.penOccupancy = [0, 0, 0, 0]
+    this.bonusPoints = 0
+    this.comboCount = 0
+    this.comboTimer = 0
+    this.cameraShake = 0
     this.releaseStick()
     this.keys.clear()
     this.placeHerderHome()
@@ -590,7 +798,7 @@ export class MeadowApp {
     for (const s of this.sheep) resetSheep(s, this.level)
     this.baaWait = 2.4
     clearImpacts()
-    this.clearDust()
+    clearTrails()
     resetPens(this.pens, this.level)
     if (this.resultModalEl) {
       this.resultModalEl.hidden = true
@@ -605,55 +813,37 @@ export class MeadowApp {
     this.updateHud()
   }
 
-  private bumpHerder(s: SheepState, hx: number, hz: number) {
-    if (s.mode === 'penned' || s.bumpCooldown > 0) return
-    const dx = s.group.position.x - hx
-    const dz = s.group.position.z - hz
-    const dist = Math.hypot(dx, dz)
-    if (dist >= TOUCH || dist < 0.001) return
-    spawnImpact(this.scene, (s.group.position.x + hx) / 2, (s.group.position.z + hz) / 2, dx, dz, 0.9)
-    const push = TOUCH - dist + 0.05
-    const shoved = pushOutOfWater(
-      this.level,
-      clamp(s.group.position.x + (dx / dist) * push, -6.9, 6.9),
-      clamp(s.group.position.z + (dz / dist) * push, -6.9, 6.9),
-      0.26,
-    )
-    s.group.position.x = clamp(shoved.x, -6.9, 6.9)
-    s.group.position.z = clamp(shoved.z, -6.9, 6.9)
-    s.group.position.y = groundHeight(this.level, s.group.position.x, s.group.position.z)
-    s.bumpCooldown = BUMP_COOLDOWN
-  }
-
   private pennedCount() {
     return this.sheep.filter((s) => s.mode === 'penned').length
   }
 
-  private finish(reason: 'round' | 'fall' = 'round') {
+  private finish() {
     this.over = true
     this.paused = false
+    updateSkidSound(0)
     this.releaseStick()
     this.keys.clear()
     const n = this.pennedCount()
+    const totalScore = n + this.bonusPoints
     const meta = LEVEL_META[this.level]
     const settled = settleMeadowRound({
       level: this.level,
-      penned: n,
+      penned: Math.min(SHEEP_COUNT, totalScore),
       total: SHEEP_COUNT,
-      reason,
+      reason: 'round',
     })
     this.hostCtx.starBalance = settled.starBalance
     this.paintHostMeta()
 
-    const tierStars = n >= SHEEP_COUNT ? 3 : n >= 7 ? 2 : n >= 3 ? 1 : 0
+    const tierStars = n >= SHEEP_COUNT ? 3 : totalScore >= 8 ? 2 : totalScore >= 3 ? 1 : 0
     if (this.resultTagEl) {
-      this.resultTagEl.textContent =
-        reason === 'fall'
-          ? `第 ${this.level} 关 · 滑出草边`
-          : `第 ${this.level} 关 · ${meta.name}`
+      this.resultTagEl.textContent = `第 ${this.level} 关 · ${meta.name}`
     }
     if (this.scoreEl) {
-      this.scoreEl.textContent = `${n} / ${SHEEP_COUNT} 只进圈`
+      this.scoreEl.textContent =
+        this.bonusPoints > 0
+          ? `${n} / ${SHEEP_COUNT} 只进圈（金绒 +${this.bonusPoints}）`
+          : `${n} / ${SHEEP_COUNT} 只进圈`
     }
     if (this.starsEl) {
       this.starsEl.textContent = `${'✦'.repeat(tierStars)}${'✧'.repeat(3 - tierStars)}`
@@ -728,13 +918,19 @@ export class MeadowApp {
     stepTrees(this.trees, t)
 
     if (!this.paused) {
+      if (this.comboTimer > 0) {
+        this.comboTimer = Math.max(0, this.comboTimer - dt)
+        if (this.comboTimer === 0) this.comboCount = 0
+      }
+
       if (!this.over) {
         if (this.started) {
           this.remaining = Math.max(0, this.remaining - dt)
+          stepBgm(dt, true, this.remaining <= 5)
         }
-        this.stepHerder(dt)
+        this.stepHerder(dt, t)
       }
-      if (this.fall) this.stepFall(dt)
+
       if (!this.over) {
         const hx = this.herder.group.position.x
         const hz = this.herder.group.position.z
@@ -745,26 +941,84 @@ export class MeadowApp {
         this.baaWait -= dt
         const wantIdle = flock.length > 0 && this.baaWait <= 0
         let startled = false
+        this.sheepTrailTimer -= dt
+        const emitSheepTrail = this.sheepTrailTimer <= 0
+        if (emitSheepTrail) this.sheepTrailTimer = 0.085
+
         for (const s of this.sheep) {
           const calm = s.mode !== 'flee' && s.mode !== 'penned'
-          const event = stepSheep(s, dt, t, hx, hz, flock, this.level)
+          const event = stepSheep(s, dt, t, hx, hz, flock, this.level, (penIdx) => {
+            const cur = this.penOccupancy[penIdx] || 0
+            this.penOccupancy[penIdx] = cur + 1
+            return cur
+          })
           if (calm && s.mode === 'flee') startled = true
-          if (event?.kind === 'fence') {
+
+          if (s.sliding && emitSheepTrail) {
+            const ang = Math.atan2(-s.velocity.y, s.velocity.x)
+            spawnSkidMark(
+              this.scene,
+              s.group.position.x,
+              groundHeight(this.level, s.group.position.x, s.group.position.z),
+              s.group.position.z,
+              ang,
+              0.3,
+              0.14,
+              false,
+            )
+          }
+
+          if (event?.kind === 'slideStart') {
+            playSheepSlide()
+            spawnIceSpray(
+              this.scene,
+              event.x,
+              groundHeight(this.level, event.x, event.z),
+              event.z,
+              -s.velocity.x,
+              -s.velocity.y,
+              0.4,
+              2,
+            )
+          } else if (event?.kind === 'fence') {
             spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
+            playWallBoing()
           } else if (event?.kind === 'penned') {
-            spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.8)
+            this.comboCount++
+            this.comboTimer = COMBO_WINDOW
+            if (event.isGolden) this.bonusPoints += 2 // 1 + 2 = 3 pts total
+
+            spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.9)
+            spawnPenBurst(
+              this.scene,
+              event.x,
+              groundHeight(this.level, event.x, event.z),
+              event.z,
+              event.isGolden,
+            )
             kickPen(this.pens, event.penIndex)
             const last = this.pennedCount() === SHEEP_COUNT
-            popStar()
+            if (event.isGolden) {
+              popStar('👑 金绒羊 +3', 'gold')
+            } else if (this.comboCount >= 2) {
+              popStar(`✦ ×${this.comboCount} 连击!`, 'combo')
+            } else {
+              popStar('✦ +1', 'normal')
+            }
             this.pulse(this.countPill)
-            playPenned(last)
-            buzz(last ? [16, 30, 28] : 18)
+            playPenned(this.comboCount, event.isGolden, last)
+            this.cameraShake = Math.max(this.cameraShake, event.isGolden ? 0.18 : 0.1)
+            buzz(last ? [16, 30, 28] : event.isGolden ? [16, 20, 24] : 16)
           }
-          this.bumpHerder(s, hx, hz)
+
+          this.collideHerderWithSheep(s, hx, hz)
         }
+
+        this.resolveSheepChainCollisions()
+
         if (startled) {
           playBaa('scare')
-          this.baaWait = Math.max(this.baaWait, 1.6)
+          this.baaWait = Math.max(this.baaWait, 1.5)
         } else if (wantIdle) {
           playBaa('idle')
           this.baaWait = 3.4 + Math.random() * 3.6
@@ -777,7 +1031,19 @@ export class MeadowApp {
       }
       stepPens(this.pens, dt, this.level)
       stepImpacts(dt)
-      this.stepDust(dt)
+      stepTrails(dt)
+    }
+
+    // Subtle joyous micro camera shake on impacts & combos
+    if (this.cameraShake > 0.002) {
+      this.cameraShake = Math.max(0, this.cameraShake - dt * 1.1)
+      this.controls.target.set(
+        LOOK.x + (Math.random() - 0.5) * this.cameraShake,
+        LOOK.y + (Math.random() - 0.5) * this.cameraShake * 0.5,
+        LOOK.z + (Math.random() - 0.5) * this.cameraShake,
+      )
+    } else {
+      this.controls.target.copy(LOOK)
     }
 
     this.herdRange.group.visible = !this.over
@@ -794,7 +1060,6 @@ function disposeGeometries(root: THREE.Object3D) {
   })
 }
 
-/** Fluffy floating wool-felt clouds framing the warm sunny diorama sky */
 function createFeltClouds(): THREE.Group {
   const root = new THREE.Group()
   root.name = 'felt_clouds'
@@ -840,22 +1105,21 @@ function stepFeltClouds(root: THREE.Group, t: number) {
   }
 }
 
-/** Whisper-subtle warm cream herding aura (replaces harsh green tower-defense circle) */
 function createHerdRange(radius: number) {
   const group = new THREE.Group()
   const fillMat = new THREE.MeshBasicMaterial({
-    color: 0xfff8e6,
+    color: 0xffffff,
     transparent: true,
-    opacity: 0.03,
+    opacity: 0.02,
     depthWrite: false,
   })
   const fill = new THREE.Mesh(new THREE.CircleGeometry(radius, 64), fillMat)
   fill.rotation.x = -Math.PI / 2
-  fill.position.y = 0.03
+  fill.position.y = 0.029
   const ringMat = new THREE.MeshBasicMaterial({
     color: 0xfffcf2,
     transparent: true,
-    opacity: 0.12,
+    opacity: 0.1,
     depthWrite: false,
     side: THREE.DoubleSide,
   })
@@ -864,7 +1128,7 @@ function createHerdRange(radius: number) {
     ringMat,
   )
   ring.rotation.x = -Math.PI / 2
-  ring.position.y = 0.045
+  ring.position.y = 0.042
   group.add(fill, ring)
   return { group, fillMat, ringMat }
 }

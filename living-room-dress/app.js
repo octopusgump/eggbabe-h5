@@ -5587,8 +5587,8 @@
     {
       id: "danbaobao-meadow",
       name: "蛋宝宝牧场",
-      tag: "3D 赶小羊 · +12✦",
-      desc: "陪伙伴在 3D 粘土浮岛草场 25 秒快节奏赶小羊进圈，赢取星星与陪伴经验",
+      tag: "冰面滑行赶羊 · +12✦",
+      desc: "陪穿好新衣的伙伴在晨霜冰场漂移急刹、把打滑小羊与金绒领头羊铲进木圈",
       thumb: sharedUrl("assets/shared/png/meadow/thumb_meadow.png"),
       containThumb: true,
       url: "./living-room-dress/meadow/site/"

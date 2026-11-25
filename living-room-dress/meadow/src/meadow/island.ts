@@ -10,207 +10,167 @@ import {
   riverClosest,
   type LevelId,
 } from './levels'
-import { ceramic, clay, felt, oakWood } from './materials'
-import { isInsideCornerPen } from './pen'
+import { clay, felt, iceRink, oakWood, snowTrim } from './materials'
+import { PEN_ARM, PEN_CORNERS } from './bounds'
 import { ribbonMesh } from './ribbon'
 
-const GRASS_BASE = 0xb5cf7a
-const GRASS_ACCENT = 0x9fba65
+const ICE_BASE = 0xc3e4ec
+const ICE_TINT = 0xa6d2df
 const SOIL_WARM = 0xb18355
 const OAK_TRIM = 0xc39666
-const PEBBLE_COLORS = [0xe2d2b5, 0xd8c4a3, 0xe8dac0]
-const DAISY_PETAL = 0xfffcf2
-const DAISY_CENTER = 0xf0c558
-const BLUSH_BUD = 0xf0c6b5
 
-function mulberry32(seed: number) {
-  let a = seed
-  return () => {
-    a |= 0
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
-const PATH: [number, number][] = [
-  [0.4, 6.8],
-  [2.1, 4.4],
-  [3.2, 1.9],
-  [2.9, -0.6],
-  [1.9, -3.1],
-  [0.6, -5.4],
-  [-0.5, -6.9],
-]
-
-function onRibbon(x: number, z: number, pts: [number, number][], half: number) {
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [x1, z1] = pts[i]
-    const [x2, z2] = pts[i + 1]
-    const dx = x2 - x1
-    const dz = z2 - z1
-    const len2 = dx * dx + dz * dz
-    const t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / len2))
-    const px = x1 + dx * t
-    const pz = z1 + dz * t
-    if ((x - px) ** 2 + (z - pz) ** 2 < half * half) return true
-  }
-  return false
-}
-
-/** Smooth 3D pebble stepping stones nestled into the felt lawn */
-function addPebblePath(island: THREE.Group, rng: () => number) {
-  const curve = new THREE.CatmullRomCurve3(
-    PATH.map(([x, z]) => new THREE.Vector3(x, 0, z)),
-  )
-  const samples = 21
-  for (let i = 0; i < samples; i++) {
-    const t = i / (samples - 1)
-    const pt = curve.getPoint(t)
-    const tangent = curve.getTangent(t)
-    const perpX = -tangent.z
-    const perpZ = tangent.x
-    const side = (i % 2 === 0 ? 1 : -1) * (0.16 + rng() * 0.22)
-    const sx = pt.x + perpX * side
-    const sz = pt.z + perpZ * side
-    const rx = 0.42 + rng() * 0.24
-    const rz = 0.34 + rng() * 0.2
-    const stone = new THREE.Mesh(
-      new THREE.CylinderGeometry(1, 1.08, 0.12, 14),
-      clay(PEBBLE_COLORS[i % PEBBLE_COLORS.length], 0.9),
-    )
-    stone.scale.set(rx, 1, rz)
-    stone.position.set(sx, 0.035, sz)
-    stone.rotation.y = Math.atan2(-tangent.z, tangent.x) + (rng() - 0.5) * 0.5
-    stone.castShadow = true
-    stone.receiveShadow = true
-    island.add(stone)
-
-    // Occasional tiny companion pebble beside the main stone
-    if (rng() > 0.42) {
-      const mini = new THREE.Mesh(
-        new THREE.CylinderGeometry(1, 1.06, 0.09, 10),
-        clay(PEBBLE_COLORS[(i + 1) % PEBBLE_COLORS.length], 0.92),
-      )
-      const mr = 0.14 + rng() * 0.08
-      mini.scale.set(mr * 1.15, 1, mr)
-      mini.position.set(
-        sx - perpX * side * 1.6 + (rng() - 0.5) * 0.25,
-        0.025,
-        sz - perpZ * side * 1.6 + (rng() - 0.5) * 0.25,
-      )
-      mini.receiveShadow = true
-      island.add(mini)
-    }
-  }
-}
-
-/** Plump handmade felt grass sprouts & miniature cream daisies (replacing spiky dark cones) */
-function addMeadowFlora(island: THREE.Group, rng: () => number, level: LevelId = 1) {
-  const placed: [number, number][] = []
-  const sproutGeo = new THREE.SphereGeometry(1, 10, 8)
-  const sproutMatA = felt(0x9ec068, 0x8eb058, 1, 0.02)
-  const sproutMatB = felt(0xadc974, 0x9ab962, 1, 0.02)
-
-  // 72 soft plump felt grass tufts
-  const tuftCount = 72
-  for (let i = 0; placed.length < tuftCount && i < tuftCount * 14; i++) {
-    const x = (rng() - 0.5) * ISLAND_HALF * 1.84
-    const z = (rng() - 0.5) * ISLAND_HALF * 1.84
-    if (isInsideCornerPen(x, z)) continue
-    if (level === 1 && onRibbon(x, z, PATH, 1.05)) continue
-    if (level !== 1 && riverClosest(x, z).dist < 1.15) continue
-    if (placed.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < 1.15 * 1.15)) continue
-    placed.push([x, z])
-
-    const y = level !== 1 ? groundHeight(level, x, z) : 0.02
-    const tuft = new THREE.Group()
-    const mat = rng() > 0.45 ? sproutMatA : sproutMatB
-    const blades = 3
-    for (let b = 0; b < blades; b++) {
-      const ang = (b / blades) * Math.PI * 2 + rng() * 0.6
-      const blade = new THREE.Mesh(sproutGeo, mat)
-      const h = 0.09 + rng() * 0.06
-      const w = 0.045 + rng() * 0.02
-      blade.scale.set(w, h, w)
-      blade.position.set(Math.cos(ang) * 0.055, h * 0.72, Math.sin(ang) * 0.055)
-      blade.rotation.z = (rng() - 0.5) * 0.35
-      blade.rotation.x = (rng() - 0.5) * 0.35
-      tuft.add(blade)
-    }
-    tuft.position.set(x, y, z)
-    island.add(tuft)
-  }
-
-  // 26 tiny cream & butter-yellow daisies scattered near edges and meadows
-  const petalMat = clay(DAISY_PETAL, 0.85)
-  const peachMat = clay(BLUSH_BUD, 0.85)
-  const centerMat = clay(DAISY_CENTER, 0.82)
-  const petalGeo = new THREE.SphereGeometry(0.052, 8, 6)
-  const centerGeo = new THREE.SphereGeometry(0.046, 8, 6)
-  let flowers = 0
-  for (let i = 0; flowers < 26 && i < 360; i++) {
-    const x = (rng() - 0.5) * ISLAND_HALF * 1.82
-    const z = (rng() - 0.5) * ISLAND_HALF * 1.82
-    if (isInsideCornerPen(x, z)) continue
-    if (level === 1 && onRibbon(x, z, PATH, 0.95)) continue
-    if (level !== 1 && riverClosest(x, z).dist < 1.15) continue
-    // Prefer gentle perimeter & pockets so the middle feels open and calm
-    const edgeBias = Math.max(Math.abs(x), Math.abs(z))
-    if (edgeBias < 2.6 && rng() < 0.55) continue
-
-    const y = level !== 1 ? groundHeight(level, x, z) : 0.03
-    const f = new THREE.Group()
-    const pMat = rng() > 0.25 ? petalMat : peachMat
-    for (let p = 0; p < 5; p++) {
-      const a = (p / 5) * Math.PI * 2
-      const petal = new THREE.Mesh(petalGeo, pMat)
-      petal.scale.set(1.1, 0.52, 0.9)
-      petal.position.set(Math.cos(a) * 0.068, 0.05, Math.sin(a) * 0.068)
-      f.add(petal)
-    }
-    const core = new THREE.Mesh(centerGeo, centerMat)
-    core.scale.set(1, 0.65, 1)
-    core.position.y = 0.068
-    f.add(core)
-    const s = 0.85 + rng() * 0.5
-    f.scale.setScalar(s)
-    f.position.set(x, y, z)
-    island.add(f)
-    flowers++
-  }
-}
-
-/** Decorative warm clay pebbles tucked along the island base rim */
-function addRimAccents(island: THREE.Group, rng: () => number, level: LevelId) {
+/** Rounded bouncy snow-oak perimeter bumper walls along all 4 sides (leaving 4 corner pens open) */
+function addPerimeterBumpers(island: THREE.Group, level: LevelId) {
   const half = ISLAND_HALF
-  const pebbleGeo = new THREE.SphereGeometry(1, 10, 8)
-  const stoneMats = [clay(0xd7cbb7, 0.9), clay(0xc7b59a, 0.92), clay(0xe3d8c6, 0.88)]
-  const mossMat = felt(0x95b762, 0x83a650, 1, 0.025)
-  for (let i = 0; i < 24; i++) {
-    const side = i % 4
-    const u = (rng() - 0.5) * half * 1.68
-    let x = half + 0.04
-    let z = u
-    if (side === 1) {
-      x = -half - 0.04
-      z = u
-    } else if (side === 2) {
-      x = u
-      z = half + 0.04
-    } else if (side === 3) {
-      x = u
-      z = -half - 0.04
+  const snowMat = snowTrim(0xfbf9f3, 0xe9f0f2, 2)
+  const woodCapMat = oakWood(0xc89e6f, 2)
+  const segSpan = (half - PEN_ARM - 0.52) * 2
+  const rimY = 0.24
+
+  // Four straight middle snow-cushioned bumper segments (north, south, east, west)
+  const edges: { x: number; z: number; sx: number; sz: number }[] = [
+    { x: 0, z: half - 0.2, sx: segSpan, sz: 0.56 },
+    { x: 0, z: -half + 0.2, sx: segSpan, sz: 0.56 },
+    { x: half - 0.2, z: 0, sx: 0.56, sz: segSpan },
+    { x: -half + 0.2, z: 0, sx: 0.56, sz: segSpan },
+  ]
+
+  for (const e of edges) {
+    const y = level !== 1 ? groundHeight(level, e.x, e.z) : 0
+    // Skip blocking the river banks on east/west edges by lifting slightly or splitting cleanly
+    if (level !== 1 && Math.abs(e.x) > half - 1) {
+      // Two shorter snow banks north & south of the stream
+      for (const [zMid, zLen] of [[-3.3, 3.3], [3.7, 2.9]] as const) {
+        const py = groundHeight(level, e.x, zMid)
+        const bank = new THREE.Mesh(
+          new RoundedBoxGeometry(0.58, 0.44, zLen, 5, 0.2),
+          snowMat,
+        )
+        bank.position.set(e.x, py + 0.2, zMid)
+        bank.castShadow = true
+        bank.receiveShadow = true
+        island.add(bank)
+      }
+      continue
     }
-    const yTop = level !== 1 ? groundHeight(level, Math.max(-half, Math.min(half, x)), Math.max(-half, Math.min(half, z))) : 0
-    const isMoss = rng() > 0.58
-    const m = new THREE.Mesh(pebbleGeo, isMoss ? mossMat : stoneMats[i % stoneMats.length])
-    const r = 0.14 + rng() * 0.14
-    m.scale.set(r * 1.15, r * 0.72, r * 1.05)
-    m.position.set(x, yTop - 0.38 - rng() * 0.68, z)
-    island.add(m)
+
+    const bank = new THREE.Mesh(
+      new RoundedBoxGeometry(e.sx, 0.44, e.sz, 5, 0.2),
+      snowMat,
+    )
+    bank.position.set(e.x, y + rimY, e.z)
+    bank.castShadow = true
+    bank.receiveShadow = true
+    island.add(bank)
+
+    // Subtle warm oak top bumper rail echoing EggBabe woodwork
+    const rail = new THREE.Mesh(
+      new RoundedBoxGeometry(
+        e.sx > e.sz ? e.sx - 0.4 : 0.24,
+        0.11,
+        e.sz > e.sx ? e.sz - 0.4 : 0.24,
+        4,
+        0.05,
+      ),
+      woodCapMat,
+    )
+    rail.position.set(e.x, y + rimY + 0.22, e.z)
+    rail.castShadow = true
+    island.add(rail)
   }
+
+  // Cheerful miniature clay snowman perched on the east snowbank (loving Penguin Pushers nod!)
+  addSnowman(island, half - 0.24, -2.95, level)
+}
+
+function addSnowman(island: THREE.Group, x: number, z: number, level: LevelId) {
+  const g = new THREE.Group()
+  const snow = snowTrim(0xfffdf8, 0xeef3f5, 1)
+  const base = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 12), snow)
+  base.position.y = 0.26
+  base.castShadow = true
+  g.add(base)
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 14, 12), snow)
+  head.position.y = 0.66
+  head.castShadow = true
+  g.add(head)
+
+  // Cozy EggBabe sage knit scarf
+  const scarf = new THREE.Mesh(
+    new THREE.TorusGeometry(0.18, 0.052, 8, 16),
+    felt(0x9db65b, 0x86a149, 1, 0.02),
+  )
+  scarf.rotation.x = Math.PI / 2
+  scarf.position.y = 0.49
+  g.add(scarf)
+
+  // Tiny warm orange clay carrot nose & cocoa button eyes
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.038, 0.14, 8), clay(0xe38b52, 0.8))
+  nose.rotation.z = Math.PI / 2
+  nose.position.set(-0.24, 0.66, 0)
+  g.add(nose)
+
+  const eyeMat = clay(0x3a2a20, 0.35)
+  for (const ez of [-0.065, 0.065]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), eyeMat)
+    eye.position.set(-0.2, 0.72, ez)
+    g.add(eye)
+  }
+
+  const y = level !== 1 ? groundHeight(level, x, z) : 0
+  g.position.set(x, y + 0.38, z)
+  island.add(g)
+}
+
+/** Subtle painted warm-cream guide chevrons pointing into the 4 open corner pens */
+function addPenChevrons(island: THREE.Group, level: LevelId) {
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xf7d774,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+  })
+
+  for (const [cx, cz] of PEN_CORNERS) {
+    const sx = Math.sign(cx)
+    const sz = Math.sign(cz)
+    const mx = cx - sx * (PEN_ARM + 0.82)
+    const mz = cz - sz * (PEN_ARM + 0.82)
+    const y = (level !== 1 ? groundHeight(level, mx, mz) : 0) + 0.028
+
+    const chev = new THREE.Group()
+    const armGeo = new THREE.PlaneGeometry(0.56, 0.14)
+    armGeo.rotateX(-Math.PI / 2)
+    const left = new THREE.Mesh(armGeo, mat)
+    left.position.set(-0.14, 0, -0.14)
+    left.rotation.y = Math.PI / 4
+    const right = new THREE.Mesh(armGeo, mat)
+    right.position.set(-0.14, 0, 0.14)
+    right.rotation.y = -Math.PI / 4
+    chev.add(left, right)
+
+    chev.position.set(mx, y, mz)
+    chev.rotation.y = Math.atan2(-sz, sx)
+    island.add(chev)
+  }
+}
+
+/** Subtle warm cream center rink medallion (cozy tabletop ice rink detail) */
+function addCenterIceRing(island: THREE.Group) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(2.15, 2.32, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.34,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+  )
+  ring.rotation.x = -Math.PI / 2
+  ring.position.y = 0.026
+  island.add(ring)
 }
 
 function addWater(island: THREE.Group) {
@@ -229,11 +189,11 @@ function addWater(island: THREE.Group) {
   samples.push([last[0], last[1]])
 
   const waterMat = new THREE.MeshStandardMaterial({
-    color: 0x99cac6,
-    roughness: 0.24,
-    metalness: 0.04,
+    color: 0x7ebbc4,
+    roughness: 0.16,
+    metalness: 0.08,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.9,
   })
 
   let run: [number, number][] = []
@@ -242,7 +202,7 @@ function addWater(island: THREE.Group) {
       run = []
       return
     }
-    const mesh = ribbonMesh(run, 1.56, 0x99cac6, 0)
+    const mesh = ribbonMesh(run, 1.56, 0x7ebbc4, 0)
     mesh.material = waterMat
     const pos = mesh.geometry.getAttribute('position')
     for (let i = 0; i < pos.count; i++) {
@@ -263,8 +223,8 @@ function addWater(island: THREE.Group) {
     for (const ox of [-0.58, 0, 0.58]) {
       const hit = riverClosest(ford.x + ox, 0.5)
       const stone = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.28, 0.09, 12),
-        clay(0xebe2d0, 0.88),
+        new THREE.CylinderGeometry(0.26, 0.3, 0.1, 12),
+        clay(0xebe2d0, 0.86),
       )
       stone.position.set(hit.x, bankHeight(hit.z) + 0.045, hit.z)
       stone.castShadow = true
@@ -310,11 +270,10 @@ function createSlopeIsland(level: LevelId) {
   topGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
   topGeo.setIndex(indices)
   topGeo.computeVertexNormals()
-  const top = new THREE.Mesh(topGeo, felt(GRASS_BASE, GRASS_ACCENT, 5, 0.04))
+  const top = new THREE.Mesh(topGeo, iceRink(ICE_BASE, ICE_TINT, 2))
   top.receiveShadow = true
   island.add(top)
 
-  // Warm oak / terracotta diorama skirt
   const edge: [number, number][] = []
   for (let i = 0; i < n; i++) edge.push([i, 0])
   for (let j = 1; j < n; j++) edge.push([seg, j])
@@ -348,7 +307,6 @@ function createSlopeIsland(level: LevelId) {
   skirt.receiveShadow = true
   island.add(skirt)
 
-  // Warm oak bottom tray lip
   const plinth = new THREE.Mesh(
     new RoundedBoxGeometry(half * 2 + 0.14, 0.36, half * 2 + 0.14, 6, 0.22),
     oakWood(OAK_TRIM, 3),
@@ -359,8 +317,8 @@ function createSlopeIsland(level: LevelId) {
   island.add(plinth)
 
   addWater(island)
-  const rng = mulberry32(level === 3 ? 37 : 23)
-  addMeadowFlora(island, rng, level)
+  addPerimeterBumpers(island, level)
+  addPenChevrons(island, level)
   return island
 }
 
@@ -390,21 +348,27 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   trayLip.receiveShadow = true
   island.add(trayLip)
 
-  // Plump overhanging wool-felt grass cushion top
-  const grassTop = new THREE.Mesh(
-    new RoundedBoxGeometry(w + 0.18, 0.38, d + 0.18, 8, 0.24),
-    felt(GRASS_BASE, GRASS_ACCENT, 5, 0.048),
+  // Soft snow-cushion rim collar right under the ice sheet
+  const snowCollar = new THREE.Mesh(
+    new RoundedBoxGeometry(w + 0.22, 0.34, d + 0.22, 8, 0.22),
+    snowTrim(0xfbf9f3, 0xe8eff2, 3),
   )
-  grassTop.position.y = -0.17
-  grassTop.castShadow = true
-  grassTop.receiveShadow = true
-  island.add(grassTop)
+  snowCollar.position.y = -0.2
+  snowCollar.castShadow = true
+  snowCollar.receiveShadow = true
+  island.add(snowCollar)
 
-  const rng = mulberry32(19)
-  addPebblePath(island, rng)
-  addMeadowFlora(island, rng, 1)
+  // Gleaming sunlit frosted ice rink surface (with subtle skate scratch texture & specular glint)
+  const iceTop = new THREE.Mesh(
+    new RoundedBoxGeometry(w - 0.3, 0.14, d - 0.3, 6, 0.08),
+    iceRink(ICE_BASE, ICE_TINT, 2),
+  )
+  iceTop.position.y = -0.05
+  iceTop.receiveShadow = true
+  island.add(iceTop)
 
-  void ceramic
-  void addRimAccents
+  addCenterIceRing(island)
+  addPerimeterBumpers(island, 1)
+  addPenChevrons(island, 1)
   return island
 }
