@@ -1994,6 +1994,80 @@
     return [px * geom.panoScale, py * geom.panoScale];
   }
 
+  let fxUidSeq = 0;
+  function buildFxSvg(kind) {
+    const uid = ++fxUidSeq;
+    if (kind === "heart") {
+      return `<svg class="emo-fx-svg emo-fx-svg--heart" viewBox="0 0 40 40" width="28" height="28" aria-hidden="true">
+        <defs>
+          <radialGradient id="fxH${uid}" cx="34%" cy="28%" r="72%">
+            <stop offset="0%" stop-color="#FFD4DE"/>
+            <stop offset="46%" stop-color="#F27E98"/>
+            <stop offset="100%" stop-color="#C9526D"/>
+          </radialGradient>
+        </defs>
+        <path d="M20 34.2 C18.8 33.2 6.2 24.4 6.2 14.8 C6.2 9.9 10.1 6.2 14.8 6.2 C17.6 6.2 19.3 7.6 20 9.1 C20.7 7.6 22.4 6.2 25.2 6.2 C29.9 6.2 33.8 9.9 33.8 14.8 C33.8 24.4 21.2 33.2 20 34.2 Z" fill="url(#fxH${uid})" stroke="#FFFBF5" stroke-width="2.2" stroke-linejoin="round"/>
+        <ellipse cx="13.8" cy="12.6" rx="3.4" ry="2.0" transform="rotate(-28 13.8 12.6)" fill="#FFF7F9" opacity="0.88"/>
+        <circle cx="11.4" cy="16.2" r="1.15" fill="#FFF7F9" opacity="0.72"/>
+      </svg>`;
+    }
+    if (kind === "star") {
+      return `<svg class="emo-fx-svg emo-fx-svg--star" viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">
+        <defs>
+          <radialGradient id="fxS${uid}" cx="36%" cy="32%" r="70%">
+            <stop offset="0%" stop-color="#FFF9DF"/>
+            <stop offset="50%" stop-color="#F5C34B"/>
+            <stop offset="100%" stop-color="#D48E1F"/>
+          </radialGradient>
+        </defs>
+        <path d="M20 4.5 C21.4 13.4 26.6 18.6 35.5 20 C26.6 21.4 21.4 26.6 20 35.5 C18.6 26.6 13.4 21.4 4.5 20 C13.4 18.6 18.6 13.4 20 4.5 Z" fill="url(#fxS${uid})" stroke="#FFFDF6" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="18.2" cy="17.5" r="2.2" fill="#FFFFFF" opacity="0.82"/>
+      </svg>`;
+    }
+    if (kind === "q") {
+      return `<svg class="emo-fx-svg emo-fx-svg--q" viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">
+        <defs>
+          <linearGradient id="fxQ${uid}" x1="20%" y1="10%" x2="80%" y2="95%">
+            <stop offset="0%" stop-color="#9CBBE6"/>
+            <stop offset="55%" stop-color="#6A8FC2"/>
+            <stop offset="100%" stop-color="#4A6FA3"/>
+          </linearGradient>
+        </defs>
+        <circle cx="20" cy="20" r="16" fill="#FCF8EF" stroke="#E5D7BF" stroke-width="1.8"/>
+        <path d="M15.4 15.2 C15.4 12.2 17.6 10.4 20.3 10.4 C23.1 10.4 25.1 12.1 25.1 14.7 C25.1 17.1 23.3 18.3 21.4 19.4 C20.3 20.1 19.9 20.8 19.9 22.2" fill="none" stroke="url(#fxQ${uid})" stroke-width="3.6" stroke-linecap="round"/>
+        <circle cx="20" cy="27.8" r="2.2" fill="url(#fxQ${uid})"/>
+      </svg>`;
+    }
+    if (kind === "bang") {
+      return `<svg class="emo-fx-svg emo-fx-svg--bang" viewBox="0 0 40 40" width="28" height="28" aria-hidden="true">
+        <defs>
+          <linearGradient id="fxB${uid}" x1="20%" y1="10%" x2="80%" y2="95%">
+            <stop offset="0%" stop-color="#F7A17E"/>
+            <stop offset="55%" stop-color="#E56F4A"/>
+            <stop offset="100%" stop-color="#BE4B2A"/>
+          </linearGradient>
+        </defs>
+        <circle cx="20" cy="20" r="16" fill="#FCF8EF" stroke="#E8D2BE" stroke-width="1.8"/>
+        <line x1="20" y1="10.5" x2="20" y2="22.2" stroke="url(#fxB${uid})" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="20" cy="28" r="2.3" fill="url(#fxB${uid})"/>
+      </svg>`;
+    }
+    if (kind === "tear") {
+      return `<svg class="emo-fx-svg emo-fx-svg--tear" viewBox="0 0 24 32" width="14" height="19" aria-hidden="true">
+        <defs>
+          <radialGradient id="fxT${uid}" cx="36%" cy="58%" r="65%">
+            <stop offset="0%" stop-color="#FFFFFF"/>
+            <stop offset="45%" stop-color="#8FD0FA"/>
+            <stop offset="100%" stop-color="#3E8ED0"/>
+          </radialGradient>
+        </defs>
+        <path d="M12 2.5 C12 2.5 21 14.2 21 20.5 C21 25.5 17 29.5 12 29.5 C7 29.5 3 25.5 3 20.5 C3 14.2 12 2.5 12 2.5 Z" fill="url(#fxT${uid})" stroke="#F5FBFF" stroke-width="1.6"/>
+        <ellipse cx="8.8" cy="18.8" rx="1.9" ry="3.4" transform="rotate(-14 8.8 18.8)" fill="#FFFFFF" opacity="0.85"/>
+      </svg>`;
+    }
+    return "";
+  }
+
   function spawnBeatFx(rt, b, s, pose) {
     if (REDUCED_MOTION) return;
     const fc = rt.faceCfg;
@@ -2003,32 +2077,83 @@
 
     const n = document.createElement("div");
     n.className = "emo-beat-node";
-    let src, frames, dur = 950;
+    let src, frames, dur = 1050;
     if (b.fx === "haha") {
-      src = anchor(b.at, s); n.textContent = b.t; n.style.color = "#e0785a"; n.style.fontSize = "17px";
-      const dx = (b.at === "L" ? -1 : 1) * 15;
-      frames = [[0, 0, 0.5, 0, -4], [dx * 0.5, -12, 1.15, 1, 0], [dx, -32, 1, 0, 5]];
+      src = anchor(b.at, s);
+      const side = b.at === "L" ? -1 : 1;
+      src = [src[0] + side * 14, src[1] - 10];
+      n.classList.add("emo-beat-node--haha");
+      n.textContent = b.t;
+      const dx = side * 18;
+      frames = [
+        [0, 4, 0.35, 0, -6 * side],
+        [dx * 0.45, -10, 1.12, 1, 2 * side],
+        [dx * 0.85, -24, 1.0, 0.92, -2 * side],
+        [dx, -36, 0.92, 0, 5 * side]
+      ];
     } else if (b.fx === "tear") {
       const e = fc.eyes[b.eye]; const out = e.x < cx ? -1 : 1;
       src = [e.ex + out * e.erx * 0.55, e.ey + e.ery * 0.58];
-      n.style.width = "8px"; n.style.height = "12px";
-      n.style.borderRadius = "50% 50% 50% 50% / 38% 38% 62% 62%";
-      n.style.background = "radial-gradient(circle at 36% 60%, #ffffff 0, #7cc6f8 42%, #2f80c8 100%)";
-      frames = [[0, 0, 0.5, 0, 0], [out * 2, 14, 1.1, 1, 0], [out * 4, 32, 0.9, 0, 0]];
+      n.classList.add("emo-beat-node--tear");
+      n.innerHTML = buildFxSvg("tear");
+      dur = 980;
+      frames = [
+        [0, 0, 0.45, 0, 0],
+        [out * 2, 10, 1.08, 1, out * -4],
+        [out * 3.5, 22, 0.98, 0.9, out * 2],
+        [out * 5, 34, 0.82, 0, 0]
+      ];
     } else if (b.fx === "q") {
-      src = b.flip ? (s > 0 ? A.L : A.R) : topAnchor(s); n.textContent = "?";
-      n.style.color = "#6b8fc4"; n.style.fontSize = b.big ? "24px" : "17px"; dur = 1150;
-      frames = [[0, 0, 0.3, 0, -18], [0, -10, 1.1, 1, 6], [5, -24, 1, 0, 4]];
+      src = b.flip ? (s > 0 ? A.L : A.R) : topAnchor(s);
+      src = [src[0], src[1] - 14];
+      n.classList.add("emo-beat-node--q");
+      if (b.big) n.classList.add("is-big");
+      n.innerHTML = buildFxSvg("q");
+      dur = 1180;
+      frames = [
+        [0, 6, 0.25, 0, -16],
+        [0, -8, 1.16, 1, 6],
+        [3, -16, 1.0, 0.95, 2],
+        [6, -26, 0.9, 0, 5]
+      ];
     } else if (b.fx === "bang") {
-      src = topAnchor(s); n.textContent = "!"; n.style.color = "#ef5b3f"; n.style.fontSize = "26px"; dur = 800;
-      frames = [[0, 4, 0.2, 0, 0], [0, -8, 1.3, 1, 0], [0, -16, 1, 0, 0]];
+      src = topAnchor(s);
+      src = [src[0], src[1] - 16];
+      n.classList.add("emo-beat-node--bang");
+      n.innerHTML = buildFxSvg("bang");
+      dur = 860;
+      frames = [
+        [0, 8, 0.2, 0, 0],
+        [0, -8, 1.24, 1, 0],
+        [0, -14, 1.02, 0.96, 0],
+        [0, -22, 0.9, 0, 0]
+      ];
     } else if (b.fx === "heart") {
-      src = anchor(b.at, s); n.textContent = "♥"; n.style.color = "#ff6f91"; n.style.fontSize = "18px"; dur = 1200;
       const d = b.at === "L" ? -1 : 1;
-      frames = [[0, 0, 0.3, 0, 0], [d * 6, -14, 1.1, 1, -8 * d], [d * 4, -40, 0.9, 0, 0]];
+      const baseSrc = anchor(b.at, s);
+      src = [baseSrc[0] + d * 20, baseSrc[1] - 18];
+      n.classList.add("emo-beat-node--heart");
+      n.innerHTML = buildFxSvg("heart");
+      dur = 1320;
+      frames = [
+        [0, 6, 0.24, 0, -10 * d],
+        [d * 8, -12, 1.18, 1, 8 * d],
+        [d * 14, -30, 1.02, 0.92, -6 * d],
+        [d * 10, -48, 0.86, 0, 4 * d]
+      ];
     } else {
-      src = anchor(b.at, s); n.textContent = "✦"; n.style.color = "#ffc23d"; n.style.fontSize = "18px";
-      frames = [[0, 0, 0.2, 0, 0], [0, -6, 1.25, 1, 90], [0, -10, 0.6, 0, 180]];
+      const baseSrc = anchor(b.at, s);
+      const d = b.at === "L" ? -1 : 1;
+      src = [baseSrc[0] + d * 12, baseSrc[1] - 12];
+      n.classList.add("emo-beat-node--star");
+      n.innerHTML = buildFxSvg("star");
+      dur = 1040;
+      frames = [
+        [0, 2, 0.2, 0, -20],
+        [0, -6, 1.22, 1, 35],
+        [0, -12, 0.96, 0.9, 95],
+        [0, -18, 0.55, 0, 145]
+      ];
     }
     const st = petCanvasPtToBoxPx(rt, src[0], src[1], pose);
     petFxHostEl.appendChild(n);
@@ -2037,7 +2162,7 @@
         transform: `translate(${(st[0] + f[0]).toFixed(1)}px,${(st[1] + f[1]).toFixed(1)}px) translate(-50%,-50%) scale(${f[2]}) rotate(${f[4]}deg)`,
         opacity: f[3],
         offset: i / (frames.length - 1)
-      })), { duration: dur, easing: "ease-out", fill: "forwards" });
+      })), { duration: dur, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "forwards" });
       an.onfinish = () => n.remove();
     } else {
       setTimeout(() => n.remove(), dur);
