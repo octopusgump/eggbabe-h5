@@ -1,23 +1,33 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { GATE_HALF_W, GATE_MOUTH_Z } from './bounds'
 import { ISLAND_HALF } from './constants'
 import {
   bankHeight,
   FORDS,
   groundHeight,
+  hasRiver,
+  hasTerrainRelief,
   inFord,
+  levelConfig,
   RIVER,
   riverClosest,
   type LevelId,
 } from './levels'
 import { clay, felt, iceRink, oakWood, snowTrim } from './materials'
-import { GATE_HALF_W, GATE_MOUTH_Z } from './bounds'
 import { ribbonMesh } from './ribbon'
 
 const ICE_BASE = 0xc3e4ec
 const ICE_TINT = 0xa6d2df
 const SOIL_WARM = 0xb18355
 const OAK_TRIM = 0xc39666
+
+export type IslandRig = {
+  root: THREE.Group
+  bumpers: THREE.Group[]
+  bumperSquash: number[]
+  boostChevrons: { mesh: THREE.Mesh; baseOffset: number; dirX: number; dirZ: number }[]
+}
 
 /** Full enclosed snow-oak perimeter bumper walls (North, West, East, and South flanks around the single South-Center gate) */
 function addPerimeterBumpers(island: THREE.Group, level: LevelId) {
@@ -28,9 +38,10 @@ function addPerimeterBumpers(island: THREE.Group, level: LevelId) {
   const southFlankLen = half - GATE_HALF_W - 0.25
   const southFlankCenter = GATE_HALF_W + southFlankLen / 2 + 0.08
   const rimY = 0.24
+  const river = hasRiver(level)
 
   const addSeg = (x: number, z: number, sx: number, sz: number) => {
-    const y = level !== 1 ? groundHeight(level, x, z) : 0
+    const y = hasTerrainRelief(level) ? groundHeight(level, x, z) : 0
     const bank = new THREE.Mesh(
       new RoundedBoxGeometry(sx, 0.46, sz, 5, 0.2),
       snowMat,
@@ -55,16 +66,12 @@ function addPerimeterBumpers(island: THREE.Group, level: LevelId) {
     island.add(rail)
   }
 
-  // Continuous North wall (complete enclosure!)
   addSeg(0, -half + 0.22, fullSpan, 0.58)
-
-  // Two symmetrical South flank walls framing the single wide South-Center gate
   addSeg(-southFlankCenter, half - 0.22, southFlankLen, 0.58)
   addSeg(southFlankCenter, half - 0.22, southFlankLen, 0.58)
 
-  // East & West walls (split cleanly around the stream on Levels 2 & 3)
   for (const sideX of [-half + 0.22, half - 0.22]) {
-    if (level !== 1) {
+    if (river) {
       for (const [zMid, zLen] of [[-4.1, 6.2], [4.5, 5.4]] as const) {
         addSeg(sideX, zMid, 0.58, zLen)
       }
@@ -73,7 +80,6 @@ function addPerimeterBumpers(island: THREE.Group, level: LevelId) {
     }
   }
 
-  // Cheerful miniature clay snowman perched on the east snowbank (loving Penguin Pushers nod!)
   addSnowman(island, half - 0.26, 2.2, level)
 }
 
@@ -90,7 +96,6 @@ function addSnowman(island: THREE.Group, x: number, z: number, level: LevelId) {
   head.castShadow = true
   g.add(head)
 
-  // Cozy EggBabe sage knit scarf
   const scarf = new THREE.Mesh(
     new THREE.TorusGeometry(0.18, 0.052, 8, 16),
     felt(0x9db65b, 0x86a149, 1, 0.02),
@@ -99,7 +104,6 @@ function addSnowman(island: THREE.Group, x: number, z: number, level: LevelId) {
   scarf.position.y = 0.49
   g.add(scarf)
 
-  // Tiny warm orange clay carrot nose & cocoa button eyes
   const nose = new THREE.Mesh(new THREE.ConeGeometry(0.038, 0.14, 8), clay(0xe38b52, 0.8))
   nose.rotation.z = Math.PI / 2
   nose.position.set(-0.24, 0.66, 0)
@@ -112,12 +116,133 @@ function addSnowman(island: THREE.Group, x: number, z: number, level: LevelId) {
     g.add(eye)
   }
 
-  const y = level !== 1 ? groundHeight(level, x, z) : 0
+  const y = hasTerrainRelief(level) ? groundHeight(level, x, z) : 0
   g.position.set(x, y + 0.38, z)
   island.add(g)
 }
 
-/** Bold warm-gold double chevrons on the ice pointing straight into the single South-Center gate */
+/** Pinball-like plump snow-oak bumper posts for Levels 2 & 6 */
+function addSnowBumpers(island: THREE.Group, level: LevelId): THREE.Group[] {
+  const cfg = levelConfig(level)
+  const groups: THREE.Group[] = []
+  const snowMat = snowTrim(0xfffdf8, 0xe8f2f5, 1)
+  const bandMat = new THREE.MeshStandardMaterial({
+    color: 0xf6cf5c,
+    emissive: 0xeab738,
+    emissiveIntensity: 0.22,
+    roughness: 0.4,
+    metalness: 0.08,
+  })
+  const capMat = oakWood(0xc69868, 1)
+
+  for (const b of cfg.bumpers) {
+    const g = new THREE.Group()
+    const r = b.radius
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r * 1.02, 0.56, 18), snowMat)
+    base.position.y = 0.28
+    base.castShadow = true
+    base.receiveShadow = true
+    g.add(base)
+
+    const band = new THREE.Mesh(new THREE.TorusGeometry(r * 0.94, 0.11, 10, 22), bandMat)
+    band.rotation.x = Math.PI / 2
+    band.position.y = 0.32
+    band.castShadow = true
+    g.add(band)
+
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(r * 0.72, 16, 12), capMat)
+    cap.scale.set(1, 0.5, 1)
+    cap.position.y = 0.6
+    cap.castShadow = true
+    g.add(cap)
+
+    const y = groundHeight(level, b.x, b.z)
+    g.position.set(b.x, y, b.z)
+    island.add(g)
+    groups.push(g)
+  }
+  return groups
+}
+
+/** Glowing warm-gold starlight boost strips for Levels 5 & 6 */
+function addBoostPads(
+  island: THREE.Group,
+  level: LevelId,
+): { mesh: THREE.Mesh; baseOffset: number; dirX: number; dirZ: number }[] {
+  const cfg = levelConfig(level)
+  const animated: { mesh: THREE.Mesh; baseOffset: number; dirX: number; dirZ: number }[] = []
+
+  const stripMat = new THREE.MeshBasicMaterial({
+    color: 0xf7cf5c,
+    transparent: true,
+    opacity: 0.52,
+    depthWrite: false,
+  })
+  const railMat = new THREE.MeshBasicMaterial({
+    color: 0xdca024,
+    transparent: true,
+    opacity: 0.78,
+    depthWrite: false,
+  })
+  const arrowMat = new THREE.MeshBasicMaterial({
+    color: 0xe39414,
+    transparent: true,
+    opacity: 0.94,
+    depthWrite: false,
+  })
+
+  for (const pad of cfg.boostPads) {
+    const padGroup = new THREE.Group()
+    const y = groundHeight(level, pad.x, pad.z) + 0.034
+    const angle = Math.atan2(pad.dirX, pad.dirZ)
+
+    const plate = new THREE.Mesh(
+      new THREE.PlaneGeometry(pad.halfW * 2, pad.halfD * 2),
+      stripMat,
+    )
+    plate.rotation.x = -Math.PI / 2
+    padGroup.add(plate)
+
+    // Left & right golden edge rails so the boost lane pops crisply on ice
+    const railGeo = new THREE.PlaneGeometry(0.11, pad.halfD * 2)
+    railGeo.rotateX(-Math.PI / 2)
+    for (const side of [-1, 1]) {
+      const rail = new THREE.Mesh(railGeo, railMat)
+      rail.position.set(side * (pad.halfW - 0.055), 0.004, 0)
+      padGroup.add(rail)
+    }
+
+    // Bold forward-pointing amber chevrons sliding along +Z (pad direction)
+    const count = Math.max(2, Math.round(pad.halfD * 1.45))
+    const armW = Math.min(0.68, pad.halfW * 0.78)
+    const armGeo = new THREE.PlaneGeometry(armW, 0.16)
+    armGeo.rotateX(-Math.PI / 2)
+    for (let i = 0; i < count; i++) {
+      const chevMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.01, 0.01),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }),
+      )
+      const leftArm = new THREE.Mesh(armGeo, arrowMat)
+      leftArm.position.set(-armW * 0.32, 0, 0)
+      leftArm.rotation.y = -Math.PI / 4
+      const rightArm = new THREE.Mesh(armGeo, arrowMat)
+      rightArm.position.set(armW * 0.32, 0, 0)
+      rightArm.rotation.y = Math.PI / 4
+      chevMesh.add(leftArm, rightArm)
+      chevMesh.position.set(0, 0.012, -pad.halfD * 0.68 + (i / Math.max(1, count - 1)) * pad.halfD * 1.36)
+      padGroup.add(chevMesh)
+      animated.push({ mesh: chevMesh, baseOffset: i / count, dirX: pad.dirX, dirZ: pad.dirZ })
+    }
+
+    padGroup.position.set(pad.x, y, pad.z)
+    padGroup.rotation.y = angle
+    island.add(padGroup)
+  }
+
+  return animated
+}
+
+/** Bold warm-gold double chevrons on the ice pointing straight South (+Z) into the single gate */
 function addPenChevrons(island: THREE.Group, level: LevelId) {
   const mat = new THREE.MeshBasicMaterial({
     color: 0xf6cf5c,
@@ -131,7 +256,7 @@ function addPenChevrons(island: THREE.Group, level: LevelId) {
 
   for (const offsetZ of [1.25, 2.05]) {
     const mz = GATE_MOUTH_Z - offsetZ
-    const y = (level !== 1 ? groundHeight(level, 0, mz) : 0) + 0.03
+    const y = (hasTerrainRelief(level) ? groundHeight(level, 0, mz) : 0) + 0.03
     const chev = new THREE.Group()
     const left = new THREE.Mesh(armGeo, mat)
     left.position.set(-0.26, 0, 0)
@@ -145,7 +270,6 @@ function addPenChevrons(island: THREE.Group, level: LevelId) {
   }
 }
 
-/** Subtle warm cream center rink medallion (cozy tabletop ice rink detail) */
 function addCenterIceRing(island: THREE.Group) {
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(2.15, 2.32, 48),
@@ -223,7 +347,7 @@ function addWater(island: THREE.Group) {
   }
 }
 
-function createSlopeIsland(level: LevelId) {
+function createReliefIsland(level: LevelId): IslandRig {
   const island = new THREE.Group()
   const seg = 64
   const half = ISLAND_HALF
@@ -305,19 +429,25 @@ function createSlopeIsland(level: LevelId) {
   plinth.receiveShadow = true
   island.add(plinth)
 
-  addWater(island)
+  if (hasRiver(level)) addWater(island)
   addPerimeterBumpers(island, level)
   addPenChevrons(island, level)
-  return island
+  const bumpers = addSnowBumpers(island, level)
+  const boostChevrons = addBoostPads(island, level)
+  return {
+    root: island,
+    bumpers,
+    bumperSquash: bumpers.map(() => 0),
+    boostChevrons,
+  }
 }
 
-export function createIsland(level: LevelId = 1): THREE.Group {
-  if (level !== 1) return createSlopeIsland(level)
+export function createIsland(level: LevelId = 1): IslandRig {
+  if (hasTerrainRelief(level)) return createReliefIsland(level)
   const island = new THREE.Group()
   const w = ISLAND_HALF * 2
   const d = ISLAND_HALF * 2
 
-  // Thick warm oak diorama base slab echoing EggBabe oak furniture
   const baseSlab = new THREE.Mesh(
     new RoundedBoxGeometry(w - 0.08, 1.38, d - 0.08, 8, 0.56),
     oakWood(SOIL_WARM, 3),
@@ -327,7 +457,6 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   baseSlab.receiveShadow = true
   island.add(baseSlab)
 
-  // Warm oak bottom tray lip
   const trayLip = new THREE.Mesh(
     new RoundedBoxGeometry(w + 0.12, 0.28, d + 0.12, 6, 0.2),
     oakWood(OAK_TRIM, 3),
@@ -337,7 +466,6 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   trayLip.receiveShadow = true
   island.add(trayLip)
 
-  // Soft snow-cushion rim collar right under the ice sheet
   const snowCollar = new THREE.Mesh(
     new RoundedBoxGeometry(w + 0.22, 0.34, d + 0.22, 8, 0.22),
     snowTrim(0xfbf9f3, 0xe8eff2, 3),
@@ -347,7 +475,6 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   snowCollar.receiveShadow = true
   island.add(snowCollar)
 
-  // Gleaming sunlit frosted ice rink surface (with subtle skate scratch texture & specular glint)
   const iceTop = new THREE.Mesh(
     new RoundedBoxGeometry(w - 0.3, 0.14, d - 0.3, 6, 0.08),
     iceRink(ICE_BASE, ICE_TINT, 2),
@@ -357,7 +484,36 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   island.add(iceTop)
 
   addCenterIceRing(island)
-  addPerimeterBumpers(island, 1)
-  addPenChevrons(island, 1)
-  return island
+  addPerimeterBumpers(island, level)
+  addPenChevrons(island, level)
+  const bumpers = addSnowBumpers(island, level)
+  const boostChevrons = addBoostPads(island, level)
+  return {
+    root: island,
+    bumpers,
+    bumperSquash: bumpers.map(() => 0),
+    boostChevrons,
+  }
+}
+
+export function kickBumper(rig: IslandRig | null, index: number) {
+  if (!rig || index < 0 || index >= rig.bumperSquash.length) return
+  rig.bumperSquash[index] = 1
+}
+
+export function stepIsland(rig: IslandRig | null, dt: number, t: number) {
+  if (!rig) return
+  for (let i = 0; i < rig.bumpers.length; i++) {
+    if (rig.bumperSquash[i] > 0.001) {
+      rig.bumperSquash[i] = Math.max(0, rig.bumperSquash[i] - dt * 5.2)
+      const wobble = Math.sin(rig.bumperSquash[i] * Math.PI * 2.5) * 0.22 * rig.bumperSquash[i]
+      rig.bumpers[i].scale.set(1 + wobble, 1 - wobble * 0.7, 1 + wobble)
+    } else {
+      rig.bumpers[i].scale.set(1, 1, 1)
+    }
+  }
+  for (const ch of rig.boostChevrons) {
+    const pulse = 0.55 + 0.45 * Math.sin(t * 5.2 - ch.baseOffset * Math.PI * 2)
+    ch.mesh.scale.setScalar(0.85 + pulse * 0.3)
+  }
 }

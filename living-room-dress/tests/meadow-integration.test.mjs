@@ -74,7 +74,8 @@ test("meadow UI strictly follows EggBabe Design System v1.0 tokens and 25s fast 
   assert.ok(builtHtml.includes("../../cross-end-store.js"), "built HTML must load cross-end-store.js");
   assert.ok(builtHtml.includes("../../catalog-snapshot.js"), "built HTML must load catalog-snapshot.js for equipped outfits");
   assert.ok(/ROUND_SECONDS\s*=\s*25\b/.test(constants), "ROUND_SECONDS must be 25s fast pace");
-  assert.ok(/LevelId\s*=\s*1\s*\|\s*2\s*\|\s*3/.test(levels), "must support 3 levels");
+  assert.ok(/LEVEL_COUNT\s*=\s*6\b/.test(constants), "LEVEL_COUNT must be 6");
+  assert.ok(/LevelId\s*=\s*1\s*\|\s*2\s*\|\s*3\s*\|\s*4\s*\|\s*5\s*\|\s*6/.test(levels), "must support 6 progressive levels");
 
   const materialsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/materials.ts"), "utf8");
   const appTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/MeadowApp.ts"), "utf8");

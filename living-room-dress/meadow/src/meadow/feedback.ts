@@ -181,6 +181,32 @@ export function playWallBoing() {
   play([.22, , 185, .006, .035, .1, 0, 1.1, 4, , 55, .02])
 }
 
+/** Playful pinball chime when bouncing off Level 2/6 snow bumpers */
+export function playBumperBoing() {
+  const now = performance.now()
+  if (!enabled || now - lastBump < 70) return
+  lastBump = now
+  play([.36, , 420, .004, .05, .14, 0, 1.25, 14, , 180, .03])
+}
+
+/** Crisp shimmer whoosh when gliding over Level 5/6 starlight boost pads */
+export function playBoostWhoosh() {
+  const now = performance.now()
+  if (!enabled || now - lastSlide < 260) return
+  lastSlide = now
+  play([.26, , 520, .005, .05, .16, 1, 1.2, 22, , 280, .04])
+}
+
+/** Joyful ascending sparkle triad when crossing a 1★ / 2★ / 3★ threshold mid-round! */
+export function playStarRankUp(stars: number) {
+  const base = stars >= 3 ? 783.99 : stars === 2 ? 659.25 : 523.25
+  ;[1, 1.25, 1.5].forEach((mul, idx) => {
+    window.setTimeout(() => {
+      play([.36, , base * mul, .006, .055, .19, 0, 1.2])
+    }, idx * 70)
+  })
+}
+
 /** Playful cartoon penguin/sheep belly-slide "ziiip!" */
 export function playSheepSlide() {
   const now = performance.now()
@@ -284,6 +310,83 @@ export function buzz(pattern: number | number[]) {
     vibrate(pattern)
   } catch {
     /* ignore */
+  }
+}
+
+/** Floating score sticker right above the gate in screen space */
+export function popAtScreen(
+  x: number,
+  y: number,
+  label = '+1 ✦',
+  variant: 'normal' | 'combo' | 'gold' | 'rank' = 'normal',
+) {
+  const host = document.getElementById('pops')
+  if (!host) return
+  const el = document.createElement('div')
+  el.className = `pop-gate pop-gate--${variant}`
+  el.textContent = label
+  el.style.left = `${x.toFixed(0)}px`
+  el.style.top = `${y.toFixed(0)}px`
+  host.appendChild(el)
+  el.addEventListener('animationend', () => el.remove())
+}
+
+/** Launches 1 (white) or 3 (golden) warm star orbs arcing from the gate to the top-right HUD star counter */
+export function flyStarsToHud(
+  fromX: number,
+  fromY: number,
+  count: number,
+  isGolden: boolean,
+  onArrive?: () => void,
+) {
+  const host = document.getElementById('pops')
+  const targetEl = document.getElementById('score-pill') || document.getElementById('count-pill')
+  if (!host || !targetEl) {
+    onArrive?.()
+    return
+  }
+  const hostRect = host.getBoundingClientRect()
+  const targetRect = targetEl.getBoundingClientRect()
+  const toX = targetRect.left + targetRect.width * 0.5 - hostRect.left
+  const toY = targetRect.top + targetRect.height * 0.5 - hostRect.top
+
+  for (let i = 0; i < count; i++) {
+    window.setTimeout(() => {
+      const orb = document.createElement('div')
+      orb.className = isGolden ? 'fly-star fly-star--gold' : 'fly-star'
+      orb.textContent = '✦'
+      const jitterX = (i - (count - 1) / 2) * 26
+      const sx = fromX + jitterX
+      const sy = fromY
+      orb.style.left = `${sx.toFixed(0)}px`
+      orb.style.top = `${sy.toFixed(0)}px`
+      host.appendChild(orb)
+
+      const ctrlX = (sx + toX) * 0.5 + (isGolden ? -40 : 24)
+      const ctrlY = Math.min(sy, toY) - 68
+      const start = performance.now()
+      const dur = 520
+
+      const animate = (now: number) => {
+        const u = Math.min(1, (now - start) / dur)
+        const ease = 1 - (1 - u) * (1 - u)
+        const inv = 1 - ease
+        const cx = inv * inv * sx + 2 * inv * ease * ctrlX + ease * ease * toX
+        const cy = inv * inv * sy + 2 * inv * ease * ctrlY + ease * ease * toY
+        const sc = 1.25 - 0.35 * ease
+        orb.style.left = `${cx.toFixed(1)}px`
+        orb.style.top = `${cy.toFixed(1)}px`
+        orb.style.transform = `translate(-50%, -50%) scale(${sc.toFixed(2)})`
+        orb.style.opacity = u > 0.85 ? String((1 - u) / 0.15) : '1'
+        if (u < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          orb.remove()
+          onArrive?.()
+        }
+      }
+      requestAnimationFrame(animate)
+    }, i * 85)
   }
 }
 

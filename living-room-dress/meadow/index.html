@@ -22,19 +22,27 @@
         <span id="standalone-star-pill" class="eb-topbar__stars">✦ 0</span>
       </header>
 
-      <!-- 顶部极简双胶囊 HUD -->
+      <!-- 顶部双胶囊 HUD：左侧倒计时+关卡，右侧实时进圈+得分+三星点亮条 -->
       <div id="hud">
         <div class="hud-left">
           <div id="time-pill" class="hud-pill">
             <span id="time">0:25</span>
             <span class="hud-dot" aria-hidden="true"></span>
-            <span id="level">第1关 · 晨霜滑冰场</span>
+            <span id="level">第1关 · 晨霜纯冰场</span>
           </div>
         </div>
         <div class="hud-right">
+          <div id="score-pill" class="hud-pill hud-pill--score">
+            <span id="live-score" class="hud-live-score">✦ 0</span>
+            <span class="hud-stars" aria-label="本关实时星级">
+              <span class="hud-star" data-hud-star="1">✦</span>
+              <span class="hud-star" data-hud-star="2">✦</span>
+              <span class="hud-star" data-hud-star="3">✦</span>
+            </span>
+          </div>
           <div id="count-pill" class="hud-pill hud-pill--count">
-            <span id="pet-badge" class="hud-pet-tag">玉兔上场</span>
-            <span id="count">0/11</span>
+            <span id="pet-badge" class="hud-pet-tag">玉兔</span>
+            <span id="count">0/6</span>
           </div>
         </div>
       </div>
@@ -64,7 +72,7 @@
 
       <!-- 开局轻引导（置于顶部 HUD 下方，不遮挡浮岛） -->
       <div id="ready-notice" class="eb-inline-notice" role="status" aria-live="polite">
-        方向键/摇杆滑行 · 反向急刹甩尾把小羊铲进下方大门
+        方向键/摇杆滑行 · 把自由滑溜的小羊铲进下方大门
       </div>
 
       <!-- 右下统一操控簇：滑冲按钮 + 键鼠/触控联动可视滑杆 -->
@@ -89,16 +97,37 @@
         </div>
       </div>
 
-      <!-- 暂停与选关卡片 -->
+      <!-- 暂停与 2x3 六关选关卡片 -->
       <div id="pause-modal" class="eb-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="牧场暂停">
         <div id="pause-backdrop" class="eb-modal__backdrop"></div>
-        <div class="eb-card">
-          <p class="eb-card__eyebrow">蛋宝宝牧场</p>
-          <h2 class="eb-card__title">先歇一小会儿</h2>
-          <div class="eb-level-picker" role="group" aria-label="选择滑冰草场关卡">
-            <button type="button" class="eb-level-chip is-active" data-level-pick="1">1 · 晨霜滑冰场</button>
-            <button type="button" class="eb-level-chip" data-level-pick="2">2 · 暖阳冰溪坡</button>
-            <button type="button" class="eb-level-chip" data-level-pick="3">3 · 双冰暖丘谷</button>
+        <div class="eb-card eb-card--wide">
+          <p class="eb-card__eyebrow">蛋宝宝牧场 · 6 关挑战</p>
+          <h2 class="eb-card__title">选择滑冰关卡</h2>
+          <div class="eb-level-picker eb-level-picker--grid" role="group" aria-label="选择 6 个滑冰草场关卡">
+            <button type="button" class="eb-level-chip is-active" data-level-pick="1">
+              <span class="eb-level-chip__name">1 · 晨霜纯冰场</span>
+              <span class="eb-level-chip__meta">6只羊 <span class="eb-level-chip__stars">✧✧✧</span></span>
+            </button>
+            <button type="button" class="eb-level-chip" data-level-pick="2">
+              <span class="eb-level-chip__name">2 · 雪墩弹弹场</span>
+              <span class="eb-level-chip__meta">8只羊 <span class="eb-level-chip__stars">✧✧✧</span></span>
+            </button>
+            <button type="button" class="eb-level-chip" data-level-pick="3">
+              <span class="eb-level-chip__name">3 · 霜林松柏场</span>
+              <span class="eb-level-chip__meta">10只羊 <span class="eb-level-chip__stars">✧✧✧</span></span>
+            </button>
+            <button type="button" class="eb-level-chip" data-level-pick="4">
+              <span class="eb-level-chip__name">4 · 暖阳冰溪坡</span>
+              <span class="eb-level-chip__meta">12只羊 <span class="eb-level-chip__stars">✧✧✧</span></span>
+            </button>
+            <button type="button" class="eb-level-chip" data-level-pick="5">
+              <span class="eb-level-chip__name">5 · 星光加速道</span>
+              <span class="eb-level-chip__meta">14只羊 <span class="eb-level-chip__stars">✧✧✧</span></span>
+            </button>
+            <button type="button" class="eb-level-chip" data-level-pick="6">
+              <span class="eb-level-chip__name">6 · 金绒嘉年华</span>
+              <span class="eb-level-chip__meta">16只羊 <span class="eb-level-chip__stars">✧✧✧</span></span>
+            </button>
           </div>
           <div class="eb-card__actions">
             <button type="button" id="btn-resume" class="eb-btn eb-btn--primary">继续滑行</button>
@@ -112,10 +141,10 @@
       <div id="result-modal" class="eb-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="本局结算">
         <div class="eb-modal__backdrop"></div>
         <div class="eb-card">
-          <p id="result-tag" class="eb-card__eyebrow">第 1 关 · 晨霜滑冰场</p>
-          <h2 id="score" class="eb-card__score">0 / 11 只进圈</h2>
-          <p id="stars" class="eb-card__stars" aria-label="本局星级">✦✦✦</p>
-          <div id="reward-pill" class="eb-reward-pill">获得 +10 ✦</div>
+          <p id="result-tag" class="eb-card__eyebrow">第 1 关 · 晨霜纯冰场</p>
+          <h2 id="score" class="eb-card__score">进圈 0/6 · 得分 0 ✦</h2>
+          <p id="stars" class="eb-card__stars" aria-label="本局星级">✧✧✧</p>
+          <div id="reward-pill" class="eb-reward-pill">到账 +10 ✦</div>
           <p id="pet-reply" class="eb-card__reply"></p>
           <div class="eb-card__actions">
             <button type="button" id="next" class="eb-btn eb-btn--primary">下一关</button>

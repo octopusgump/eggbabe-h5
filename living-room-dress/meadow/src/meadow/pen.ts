@@ -59,8 +59,8 @@ function picket(parent: THREE.Group, x: number, z: number, tall = false) {
   parent.add(cap)
 }
 
-/** Cute sculpted frost-sheep / golden lantern gate totem flanking the single entrance (Penguin Pushers gate nod!) */
-function addGatePillar(parent: THREE.Group, x: number, z: number) {
+/** Cute sculpted golden lantern gate totem flanking the single entrance */
+function addGatePillar(parent: THREE.Group, x: number, z: number): THREE.MeshStandardMaterial {
   const pillar = new THREE.Group()
   const base = new THREE.Mesh(
     new THREE.CylinderGeometry(0.24, 0.28, 0.56, 12),
@@ -78,23 +78,21 @@ function addGatePillar(parent: THREE.Group, x: number, z: number) {
   snowCap.position.y = 0.58
   pillar.add(snowCap)
 
-  // Glowing warm-amber star lantern orb on top of each gate post
-  const orb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.18, 14, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xffe48a,
-      emissive: 0xffc84a,
-      emissiveIntensity: 0.45,
-      roughness: 0.35,
-      metalness: 0.05,
-    }),
-  )
+  const orbMat = new THREE.MeshStandardMaterial({
+    color: 0xffe48a,
+    emissive: 0xffc84a,
+    emissiveIntensity: 0.45,
+    roughness: 0.35,
+    metalness: 0.05,
+  })
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 12), orbMat)
   orb.position.y = 0.78
   orb.castShadow = true
   pillar.add(orb)
 
   pillar.position.set(x, 0, z)
   parent.add(pillar)
+  return orbMat
 }
 
 /** Warm golden-cream checkered entrance threshold mat (exact visual landmark cue like Penguin Pushers!) */
@@ -151,9 +149,12 @@ export type PenRig = {
   root: THREE.Group
   groups: THREE.Group[]
   shake: number[]
+  lanternMats: THREE.MeshStandardMaterial[]
+  lanternFlash: number
+  starTier: number
 }
 
-/** Single grand South-Center Sheep Gate & Straw Pen (replacing 4 corner pens). */
+/** Single grand South-Center Sheep Gate & Straw Pen (holds up to 16 visible sheep!). */
 export function createCornerPens(): PenRig {
   const root = new THREE.Group()
   root.name = 'pens'
@@ -163,33 +164,29 @@ export function createCornerPens(): PenRig {
   const depth = GATE_BACK_Z - GATE_MOUTH_Z
   const centerZ = (GATE_MOUTH_Z + GATE_BACK_Z) / 2
 
-  // Cozy golden straw floor pad wide enough to visibly hold all 11 sheep
   const yard = new THREE.Mesh(roundedRect(width + 0.12, depth + 0.12, 0.42), strawPad(0xe9d6a7, 3))
   yard.rotation.x = -Math.PI / 2
   yard.position.set(0, 0.034, centerZ)
   yard.receiveShadow = true
   pen.add(yard)
 
-  // Warm checkered golden entry threshold mat
   addGateThresholdMat(pen)
 
-  // Glazed ceramic water bowl tucked in the back-right of the cozy pen
   const bowl = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.32, 0.36, 0.12, 16),
+    new THREE.CylinderGeometry(0.3, 0.34, 0.11, 16),
     ceramic(0xf4ede0, 0.34),
   )
-  bowl.position.set(GATE_HALF_W - 0.56, 0.06, GATE_BACK_Z - 0.5)
+  bowl.position.set(GATE_HALF_W - 0.5, 0.06, GATE_BACK_Z - 0.44)
   bowl.castShadow = true
   pen.add(bowl)
   const water = new THREE.Mesh(
-    new THREE.CircleGeometry(0.24, 16),
+    new THREE.CircleGeometry(0.22, 16),
     ceramic(0x9ccbc4, 0.18),
   )
   water.rotation.x = -Math.PI / 2
-  water.position.set(bowl.position.x, 0.122, bowl.position.z)
+  water.position.set(bowl.position.x, 0.118, bowl.position.z)
   pen.add(water)
 
-  // Three-sided oak fence rails (Left, Right, Back; North mouth stays wide open!)
   const segments: [number, number, number, number, number][] = [
     [-GATE_HALF_W, GATE_MOUTH_Z, -GATE_HALF_W, GATE_BACK_Z, 3],
     [GATE_HALF_W, GATE_MOUTH_Z, GATE_HALF_W, GATE_BACK_Z, 3],
@@ -203,22 +200,30 @@ export function createCornerPens(): PenRig {
     }
   }
 
-  // Twin glowing gate pillars flanking the wide entrance
-  addGatePillar(pen, -GATE_HALF_W, GATE_MOUTH_Z)
-  addGatePillar(pen, GATE_HALF_W, GATE_MOUTH_Z)
+  const lanternMats = [
+    addGatePillar(pen, -GATE_HALF_W, GATE_MOUTH_Z),
+    addGatePillar(pen, GATE_HALF_W, GATE_MOUTH_Z),
+  ]
 
-  // Cozy potted plants just outside each gate pillar
   addPlanter(pen, -GATE_HALF_W - 0.42, GATE_MOUTH_Z + 0.18)
   addPlanter(pen, GATE_HALF_W + 0.42, GATE_MOUTH_Z + 0.18)
 
   root.add(pen)
-  return { root, groups: [pen], shake: [0] }
+  return { root, groups: [pen], shake: [0], lanternMats, lanternFlash: 0, starTier: 0 }
 }
 
-/** Joyful spring bounce on the pen when a sheep jumps inside. */
-export function kickPen(rig: PenRig, index = 0) {
+/** Joyful spring bounce & glowing lantern pulse when a sheep jumps inside. */
+export function kickPen(rig: PenRig, index = 0, isGolden = false) {
   const i = Math.min(rig.shake.length - 1, Math.max(0, index))
-  rig.shake[i] = 0.18
+  rig.shake[i] = isGolden ? 0.24 : 0.18
+  rig.lanternFlash = isGolden ? 1.5 : 0.95
+}
+
+export function setPenStarTier(rig: PenRig, tier: number) {
+  if (tier > rig.starTier) {
+    rig.lanternFlash = Math.max(rig.lanternFlash, 1.65)
+  }
+  rig.starTier = tier
 }
 
 export function stepPens(rig: PenRig, dt: number, _level: LevelId = 1) {
@@ -229,6 +234,12 @@ export function stepPens(rig: PenRig, dt: number, _level: LevelId = 1) {
     const k = rig.shake[i]
     rig.groups[i].position.set(0, k * 0.45, k * 0.85)
   }
+  rig.lanternFlash = Math.max(0, rig.lanternFlash - dt * 2.4)
+  const baseGlow = 0.4 + rig.starTier * 0.26
+  const intensity = baseGlow + rig.lanternFlash
+  for (const m of rig.lanternMats) {
+    m.emissiveIntensity = intensity
+  }
 }
 
 export function resetPens(rig: PenRig, _level: LevelId = 1) {
@@ -236,11 +247,16 @@ export function resetPens(rig: PenRig, _level: LevelId = 1) {
     rig.shake[i] = 0
     rig.groups[i].position.set(0, 0, 0)
   }
+  rig.lanternFlash = 0
+  rig.starTier = 0
+  for (const m of rig.lanternMats) {
+    m.emissiveIntensity = 0.4
+  }
 }
 
 /** Returns 0 if (x, z) has entered the single South-Center gate mouth, else -1. */
 export function penIndexAt(x: number, z: number, reach = 0) {
-  const halfW = GATE_HALF_W - 0.14
+  const halfW = GATE_HALF_W - 0.12
   const mouthZ = GATE_MOUTH_Z - reach * 0.48
   if (Math.abs(x) < halfW && z > mouthZ && z < GATE_BACK_Z + 0.25) {
     return 0
@@ -248,10 +264,10 @@ export function penIndexAt(x: number, z: number, reach = 0) {
   return -1
 }
 
-/** Guides fleeing sheep gently toward the single South-Center gate mouth when pushed roughly southward. */
+/** Guides fleeing sheep gently toward the single South-Center gate mouth when pushed southward. */
 export function herdTarget(x: number, z: number, awayX: number, awayZ: number) {
   const mouthX = 0
-  const mouthZ = GATE_MOUTH_Z + 0.2
+  const mouthZ = GATE_MOUTH_Z + 0.25
   const alen = Math.hypot(awayX, awayZ) || 1
   const ax = awayX / alen
   const az = awayZ / alen
@@ -269,20 +285,25 @@ export function isInsideCornerPen(x: number, z: number) {
   return penIndexAt(x, z, 0) >= 0
 }
 
-/** Assigns one of 11 cozy non-overlapping straw spots inside the single grand South-Center pen. */
+/** Assigns one of 16 cozy staggered straw spots inside the single grand South-Center pen. */
 export function assignSinglePenSpot(slotIndex: number): [number, number] {
   const spots: [number, number][] = [
-    [0.0, 6.45],
-    [-0.9, 6.4],
-    [0.9, 6.4],
-    [-1.65, 6.55],
-    [1.65, 6.55],
-    [-0.45, 7.15],
-    [0.45, 7.15],
-    [-1.3, 7.2],
-    [1.25, 7.2],
-    [-1.7, 5.95],
-    [1.65, 5.95],
+    [0.0, 6.42],
+    [-0.86, 6.38],
+    [0.86, 6.38],
+    [-1.68, 6.45],
+    [1.68, 6.45],
+    [-0.44, 7.05],
+    [0.44, 7.05],
+    [-1.28, 7.12],
+    [1.24, 7.12],
+    [-1.78, 5.92],
+    [1.72, 5.92],
+    [-0.92, 5.94],
+    [0.92, 5.94],
+    [0.0, 5.98],
+    [-1.84, 7.22],
+    [0.0, 7.3],
   ]
   return spots[slotIndex % spots.length]
 }
