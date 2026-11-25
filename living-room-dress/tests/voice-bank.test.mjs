@@ -28,6 +28,7 @@ test("EggBabeVoice defines 6 swappable personality archetypes, all passing anti-
     "lamp_off",
     "outfit_done"
   ];
+  const iconSet = new Set();
   for (const p of Voice.PERSONA_LIST) {
     const bank = Voice.PERSONA_LINES[p.id];
     assert.ok(bank, `missing line bank for ${p.id}`);
@@ -35,7 +36,13 @@ test("EggBabeVoice defines 6 swappable personality archetypes, all passing anti-
       assert.ok(Array.isArray(bank[sc]) && bank[sc].length >= 2, `${p.id}.${sc} must have >= 2 lines`);
     }
     assert.ok(Voice.getDirtyCueText(p.id).length > 0, `${p.id} must have a dirty cue text`);
+    assert.ok(typeof p.emoji === "string" && p.emoji.length > 0, `${p.id} must have a non-empty emoji`);
+    const svg = Voice.getPersonaIconSvg(p.id);
+    assert.ok(typeof svg === "string" && svg.startsWith("<svg") && svg.endsWith("</svg>"), `${p.id} must return valid inline SVG icon`);
+    assert.ok(!svg.includes(".webp"), `${p.id} icon must not reference .webp`);
+    iconSet.add(svg);
   }
+  assert.equal(iconSet.size, 6, "all 6 personas must have distinct expression icons");
 });
 
 test("EggBabeVoice decouples species tokens from personality and avoids consecutive duplicates", () => {
