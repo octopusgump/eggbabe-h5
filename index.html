@@ -143,11 +143,6 @@
                 <img id="wall-polaroid-img" alt="纪念拍立得" />
               </button>
 
-              <!-- 书架上方轻气泡提示（未读来信时浮现，类似《动物去哪儿》信箱轻反馈） -->
-              <button id="books-mail-bubble" class="scene-mail-bubble" type="button" hidden aria-label="查看新来信">
-                <span class="scene-mail-bubble__text">有新来信 ✉</span>
-              </button>
-
               <!-- z: 4 .macro-prop：床头顶板左侧留白槽《奶肚黑猫警长发条钟》+ 接地阴影 -->
               <button id="bedside-cat-clock" class="macro-prop macro-prop--cat-clock" type="button" aria-label="奶肚黑猫警长发条钟，轻触放大并翻转">
                 <span class="scene-cat-clock__shadow" aria-hidden="true"></span>
@@ -231,6 +226,7 @@
                 </button>
                 <button id="hit-desk-mirror" class="module-hotspot module-hotspot--mirror" type="button" aria-label="照镜子进入试衣间">
                   <span class="mirror-glint" aria-hidden="true"></span>
+                  <span class="mirror-tap-sparkle" aria-hidden="true"></span>
                 </button>
                 <button id="hit-cat-clock" class="module-hotspot module-hotspot--clock" type="button" aria-label="打开奶肚黑猫警长发条钟"></button>
                 <button id="hit-sleep-pet" class="module-hotspot module-hotspot--sleep-pet" type="button" hidden aria-label="拍一拍叫醒睡觉的蛋宝宝">
@@ -392,8 +388,11 @@
         </div>
       </section>
 
-      <!-- 左下情境入口：待拆信封 / 3D 伙伴圆标 -->
+      <!-- 左下情境入口：待拆信封 / 3D 伙伴圆标 + 未读来信轻气泡 -->
       <div id="scene-context-entry" class="scene-context-entry">
+        <button id="books-mail-bubble" class="scene-mail-bubble" type="button" hidden aria-label="查看新来信">
+          <span class="scene-mail-bubble__text">有新来信 ✉</span>
+        </button>
         <button id="btn-context-entry" class="scene-action-button scene-action-button--flat-envelope" type="button" aria-label="查看来信">
           <span id="letter-plane-fx" class="companion-letter-plane" aria-hidden="true"></span>
           <img id="context-entry-icon" class="scene-action-icon-image scene-action-icon-image--companion scene-action-icon-image--flat-envelope companion-letter-envelope--arriving" src="./living-room-dress/ui/envelope.png" alt="" />
