@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { PEN_ARM, PEN_CORNERS } from './bounds'
 import { penLift, type LevelId } from './levels'
-import { clay } from './materials'
+import { ceramic, clay, felt, oakWood, strawPad } from './materials'
 
 const ARM = PEN_ARM
 const CORNERS = PEN_CORNERS
@@ -26,26 +26,61 @@ function layRail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: nu
   const dx = x2 - x1
   const dz = z2 - z1
   const len = Math.hypot(dx, dz) || 1
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, len, 8), clay(0xd5ba92))
-  mesh.position.set((x1 + x2) / 2, 0.3, (z1 + z2) / 2)
-  mesh.quaternion.setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(dx / len, 0, dz / len),
-  )
-  mesh.castShadow = true
-  parent.add(mesh)
+  const railMat = oakWood(0xc69b6b, 1)
+  for (const y of [0.22, 0.42]) {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.058, len, 10), railMat)
+    mesh.position.set((x1 + x2) / 2, y, (z1 + z2) / 2)
+    mesh.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(dx / len, 0, dz / len),
+    )
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+    parent.add(mesh)
+  }
 }
 
 function picket(parent: THREE.Group, x: number, z: number, tall = false) {
-  const h = tall ? 0.5 : 0.36
-  const top = tall ? 0.1 : 0.07
+  const h = tall ? 0.64 : 0.5
+  const top = tall ? 0.125 : 0.095
+  const mat = oakWood(tall ? 0xae7f4f : 0xc69a6a, 1)
   const mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(top, top + 0.02, h, 10),
-    clay(tall ? 0xc69c6d : 0xdcc49e),
+    new THREE.CylinderGeometry(top, top + 0.02, h, 12),
+    mat,
   )
   mesh.position.set(x, h / 2, z)
   mesh.castShadow = true
+  mesh.receiveShadow = true
   parent.add(mesh)
+
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(top * 1.02, 12, 8), mat)
+  cap.scale.set(1, 0.55, 1)
+  cap.position.set(x, h, z)
+  cap.castShadow = true
+  parent.add(cap)
+}
+
+function addCornerPlanter(parent: THREE.Group, x: number, z: number) {
+  const pot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.12, 0.18, 12),
+    clay(0xc97f57, 0.84),
+  )
+  pot.position.set(x, 0.09, z)
+  pot.castShadow = true
+  parent.add(pot)
+
+  const foliage = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 12, 10),
+    felt(0x8bb056, 0x769a44, 1, 0.025),
+  )
+  foliage.scale.set(1.1, 0.78, 1.1)
+  foliage.position.set(x, 0.22, z)
+  foliage.castShadow = true
+  parent.add(foliage)
+
+  const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), clay(0xfff9ea, 0.8))
+  bloom.position.set(x + 0.04, 0.32, z - 0.03)
+  parent.add(bloom)
 }
 
 export type PenRig = {
@@ -54,7 +89,7 @@ export type PenRig = {
   shake: number[]
 }
 
-/** One small pen in each corner of the square. The open side faces the meadow. */
+/** One cozy oak pen in each corner of the square. The open side faces the meadow. */
 export function createCornerPens(): PenRig {
   const root = new THREE.Group()
   root.name = 'pens'
@@ -66,19 +101,25 @@ export function createCornerPens(): PenRig {
     const sz = Math.sign(cz)
     const pen = new THREE.Group()
 
-    const yard = new THREE.Mesh(roundedPad(ARM * 1.05, 0.42), clay(0xf3efe0))
+    const yard = new THREE.Mesh(roundedPad(ARM * 1.08, 0.48), strawPad(0xe6d4a6, 2))
     yard.rotation.x = -Math.PI / 2
-    yard.position.set(cx - sx * ARM * 0.46, 0.025, cz - sz * ARM * 0.46)
+    yard.position.set(cx - sx * ARM * 0.46, 0.032, cz - sz * ARM * 0.46)
     yard.receiveShadow = true
     pen.add(yard)
 
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.08, 12), clay(0xe6d8be))
-    bowl.position.set(cx - sx * ARM * 0.28, 0.05, cz - sz * ARM * 0.28)
+    const bowl = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.34, 0.11, 16),
+      ceramic(0xf4ede0, 0.34),
+    )
+    bowl.position.set(cx - sx * ARM * 0.28, 0.06, cz - sz * ARM * 0.28)
     bowl.castShadow = true
     pen.add(bowl)
-    const water = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), clay(0xa9cbc3))
+    const water = new THREE.Mesh(
+      new THREE.CircleGeometry(0.22, 16),
+      ceramic(0x9ccbc4, 0.18),
+    )
     water.rotation.x = -Math.PI / 2
-    water.position.set(bowl.position.x, 0.095, bowl.position.z)
+    water.position.set(bowl.position.x, 0.118, bowl.position.z)
     pen.add(water)
 
     const arms: [number, number, number, number][] = [
@@ -94,6 +135,8 @@ export function createCornerPens(): PenRig {
         picket(pen, x1 + (x2 - x1) * t, z1 + (z2 - z1) * t, i === 0 || i === steps)
       }
     })
+
+    addCornerPlanter(pen, cx - sx * (ARM + 0.18), cz - sz * 0.22)
 
     root.add(pen)
     groups.push(pen)

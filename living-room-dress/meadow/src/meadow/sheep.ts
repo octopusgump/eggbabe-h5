@@ -6,7 +6,7 @@ import {
   slopeDrift,
   type LevelId,
 } from './levels'
-import { blobShadow, clay } from './materials'
+import { blobShadow, clay, felt } from './materials'
 import { herdTarget, hitsFence, penIndexAt } from './pen'
 
 export type SheepMode = 'wander' | 'graze' | 'flee' | 'penned'
@@ -34,7 +34,13 @@ export type SheepEvent = {
   penIndex: number
 }
 
-const WOOL = [0xf7f6f3, 0xfffefb, 0xeeeae4]
+const WOOL_PAIRS: [number, number][] = [
+  [0xfdfaf3, 0xf2eadc],
+  [0xfffdf8, 0xf5efe3],
+  [0xf6f0e4, 0xeae1cf],
+]
+const COCOA_FACE = 0x735846
+const COCOA_EAR = 0x866854
 
 function puff(
   parent: THREE.Object3D,
@@ -42,11 +48,16 @@ function puff(
   y: number,
   z: number,
   r: number,
-  color: number,
+  pairIndex: number,
 ) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), clay(color))
+  const [base, accent] = WOOL_PAIRS[pairIndex % WOOL_PAIRS.length]
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(r, 16, 12),
+    felt(base, accent, 1, 0.036),
+  )
   m.position.set(x, y, z)
   m.castShadow = true
+  m.receiveShadow = true
   parent.add(m)
 }
 
@@ -55,54 +66,81 @@ export function createSheep(): SheepState {
   group.name = 'sheep'
 
   const blobs: [number, number, number, number][] = [
-    [0, 0.34, 0, 0.26],
-    [-0.16, 0.38, 0.08, 0.2],
-    [0.14, 0.4, -0.06, 0.19],
-    [-0.06, 0.48, -0.1, 0.17],
-    [0.08, 0.5, 0.1, 0.16],
-    [0.02, 0.44, 0.14, 0.14],
-    [-0.12, 0.32, -0.12, 0.15],
-    [0.16, 0.34, 0.08, 0.13],
-    [-0.02, 0.52, 0, 0.13],
-    [0.06, 0.36, -0.14, 0.12],
+    [0, 0.35, 0, 0.27],
+    [-0.17, 0.39, 0.08, 0.21],
+    [0.14, 0.41, -0.06, 0.2],
+    [-0.06, 0.49, -0.1, 0.18],
+    [0.08, 0.51, 0.1, 0.17],
+    [0.02, 0.45, 0.15, 0.15],
+    [-0.13, 0.33, -0.13, 0.16],
+    [0.17, 0.35, 0.08, 0.14],
+    [-0.02, 0.54, 0, 0.14],
+    [0.06, 0.37, -0.14, 0.13],
+    // Fluffy little puff tail
+    [-0.28, 0.38, 0, 0.09],
   ]
-  blobs.forEach(([x, y, z, r], i) => puff(group, x, y, z, r, WOOL[i % WOOL.length]))
+  blobs.forEach(([x, y, z, r], i) => puff(group, x, y, z, r, i))
 
   const headPivot = new THREE.Group()
-  headPivot.position.set(0.22, 0.34, 0)
+  headPivot.position.set(0.22, 0.36, 0)
   group.add(headPivot)
 
   const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.1, 14, 12),
-    clay(0x1c1b19),
+    new THREE.SphereGeometry(0.115, 16, 14),
+    clay(COCOA_FACE, 0.86),
   )
-  head.scale.set(1.2, 0.92, 0.88)
+  head.scale.set(1.18, 0.94, 0.96)
   head.position.set(0.1, 0, 0)
   head.castShadow = true
   headPivot.add(head)
 
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
-  for (const z of [-0.032, 0.032]) {
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeMat)
-    eye.position.set(0.17, 0.02, z)
-    headPivot.add(eye)
+  // Cream wool bang tuft on top of head
+  const bang = new THREE.Mesh(
+    new THREE.SphereGeometry(0.085, 12, 10),
+    felt(0xfffdf8, 0xf3ecde, 1, 0.03),
+  )
+  bang.scale.set(1.05, 0.72, 1.08)
+  bang.position.set(0.075, 0.09, 0)
+  headPivot.add(bang)
+
+  // Soft drooping cocoa ears
+  const earMat = clay(COCOA_EAR, 0.88)
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), earMat)
+    ear.scale.set(0.62, 1.18, 0.45)
+    ear.position.set(0.07, 0.01, side * 0.112)
+    ear.rotation.x = side * 0.42
+    headPivot.add(ear)
   }
 
-  const legMat = clay(0x1c1b19)
+  // Expressive glossy dark eyes with soft white sclera
+  const scleraMat = clay(0xfffdf8, 0.45)
+  const pupilMat = clay(0x231b16, 0.25)
+  for (const z of [-0.042, 0.042]) {
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.025, 10, 8), scleraMat)
+    sclera.position.set(0.185, 0.022, z)
+    headPivot.add(sclera)
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), pupilMat)
+    pupil.position.set(0.203, 0.022, z * 1.04)
+    headPivot.add(pupil)
+  }
+
+  // Stubby warm cocoa plush legs
+  const legMat = clay(COCOA_FACE, 0.88)
   for (const [x, z] of [
-    [-0.1, -0.08],
-    [0.1, -0.08],
+    [-0.1, -0.09],
+    [0.1, -0.09],
     [-0.08, 0.09],
     [0.08, 0.09],
   ] as const) {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.026, 0.2, 8), legMat)
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.036, 0.12, 4, 8), legMat)
     leg.position.set(x, 0.1, z)
     leg.castShadow = true
     group.add(leg)
   }
 
-  const shade = blobShadow(0.42, 0.28, 0.9)
-  shade.position.set(0.05, 0.02, 0.06)
+  const shade = blobShadow(0.45, 0.31, 0.88)
+  shade.position.set(0.05, 0.024, 0.06)
   group.add(shade)
 
   const mode: SheepMode = Math.random() > 0.4 ? 'wander' : 'graze'

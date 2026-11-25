@@ -3,6 +3,9 @@ export type PetId = 'yutu' | 'koi'
 export type HostContext = {
   petId: PetId
   petName: string
+  equippedSetId: string
+  outfitImageUrl: string
+  fallbackImageUrl: string
   starBalance: number
   sfxOn: boolean
   dailyEarned: number
@@ -56,6 +59,8 @@ declare global {
   interface Window {
     EggBabeStore?: EggBabeStoreApi
     EggBabeCrossEndStore?: EggBabeStoreApi
+    __EGGBABE_CATALOG__?: any
+    EGGBABE_CATALOG?: any
   }
 }
 
@@ -63,6 +68,35 @@ const DEFAULT_CAP = 45
 
 function getStoreApi(): EggBabeStoreApi | null {
   return window.EggBabeStore || window.EggBabeCrossEndStore || null
+}
+
+function getRepoRootPrefix(): string {
+  try {
+    return window.location.pathname.includes('/site/') ? '../../../' : '../../'
+  } catch {
+    return '../../../'
+  }
+}
+
+function resolveSharedAsset(relPath: string): string {
+  const clean = String(relPath || '').replace(/^\/+/, '')
+  return `${getRepoRootPrefix()}${clean}`
+}
+
+function resolveOutfitUrls(petId: PetId, equippedSetId: string): { outfitImageUrl: string; fallbackImageUrl: string } {
+  const catalog = window.__EGGBABE_CATALOG__ || window.EGGBABE_CATALOG
+  const petCfg = catalog?.pets?.[petId]
+  const baseRel = petCfg?.textures?.base || `assets/shared/png/${petId}_base.png`
+  const fallbackImageUrl = resolveSharedAsset(baseRel)
+  if (!equippedSetId || equippedSetId === 'base' || equippedSetId === 'none') {
+    return { outfitImageUrl: fallbackImageUrl, fallbackImageUrl }
+  }
+  const items: any[] = Array.isArray(petCfg?.items) ? petCfg.items : []
+  const hit = items.find((item) => item && item.id === equippedSetId)
+  if (hit && typeof hit.tex === 'string' && hit.tex) {
+    return { outfitImageUrl: resolveSharedAsset(hit.tex), fallbackImageUrl }
+  }
+  return { outfitImageUrl: fallbackImageUrl, fallbackImageUrl }
 }
 
 function getTodayFallback(): string {
@@ -106,6 +140,8 @@ export function readHostContext(): HostContext {
   const petId: PetId = rawPet === 'koi' ? 'koi' : 'yutu'
   const petName =
     store?.pets?.[petId]?.name || (petId === 'yutu' ? '玉兔' : '锦鲤')
+  const equippedSetId = String(qs.get('set') || store?.pets?.[petId]?.equippedSetId || 'base')
+  const { outfitImageUrl, fallbackImageUrl } = resolveOutfitUrls(petId, equippedSetId)
   const todayKey = api ? api.getUtc8DateKey() : getTodayFallback()
   const dailyCap = api?.DAILY_MINIGAME_STAR_CAP ?? DEFAULT_CAP
   const dailyEarned = Number(store?.companion?.dailyMiniGameStars?.[todayKey] || 0)
@@ -114,6 +150,9 @@ export function readHostContext(): HostContext {
   return {
     petId,
     petName,
+    equippedSetId,
+    outfitImageUrl,
+    fallbackImageUrl,
     starBalance,
     sfxOn,
     dailyEarned,

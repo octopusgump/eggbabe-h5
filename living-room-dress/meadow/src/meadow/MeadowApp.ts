@@ -1,27 +1,44 @@
 import * as THREE from 'three'
 import { create as createStick } from 'nipplejs'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { insideGrass, moveHerder } from './bounds'
 import { LEVEL_COUNT, ROUND_SECONDS, SHEEP_COUNT } from './constants'
 import { buzz, playBaa, playPenned, playScream, playTick, popStar, stopScream, unlockSound } from './feedback'
 import { clearImpacts, spawnImpact, stepImpacts } from './impact'
 import { createIsland } from './island'
 import { groundHeight, herderHome, LEVEL_META, pushOutOfWater, sheepLayout, type LevelId } from './levels'
+import { felt } from './materials'
 import { createCornerPens, kickPen, resetPens, stepPens, type PenRig } from './pen'
-import { createHerder, resetHerder, stepHerder as playHerder, type HerderState } from './herder'
+import {
+  createHerder,
+  orientHerderToCamera,
+  resetHerder,
+  stepHerder as playHerder,
+  stepHerderFall,
+  type HerderState,
+} from './herder'
 import { createSheep, resetSheep, SHEEP_FEAR, stepSheep, type SheepState } from './sheep'
 import { readHostContext, settleMeadowRound, type HostContext } from './storeBridge'
-import { createTrees } from './trees'
+import { createTrees, stepTrees } from './trees'
 
-const CAM_POS = new THREE.Vector3(3.2, 16.5, 16.5)
-const LOOK = new THREE.Vector3(0, 0.15, 0)
-const HERDER_SPEED = 3.85
+const CAM_POS = new THREE.Vector3(3.6, 15.2, 16.4)
+const LOOK = new THREE.Vector3(0, -0.1, 0.25)
+const HERDER_SPEED = 3.9
 const FALL_SECONDS = 0.85
-const FALL_DROP = -2.2
+const FALL_DROP = -2.4
 const FALL_SLIDE = 1.35
 const TOUCH = 1.25
 const BUMP_COOLDOWN = 0.42
-const HERDER_SCALE = 2.15
+
+type DustPuff = {
+  mesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>
+  age: number
+  life: number
+  vx: number
+  vy: number
+  vz: number
+}
 
 export class MeadowApp {
   private renderer: THREE.WebGLRenderer
@@ -30,7 +47,14 @@ export class MeadowApp {
   private controls: OrbitControls
   private sheep: SheepState[] = []
   private herder: HerderState
-  private herdRange: THREE.Group
+  private herdRange: {
+    group: THREE.Group
+    fillMat: THREE.MeshBasicMaterial
+    ringMat: THREE.MeshBasicMaterial
+  }
+  private clouds: THREE.Group
+  private dust: DustPuff[] = []
+  private dustTimer = 0
   private pens: PenRig
   private island: THREE.Group | null = null
   private trees: THREE.Group | null = null
@@ -106,18 +130,24 @@ export class MeadowApp {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      alpha: false,
+      alpha: true,
     })
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
-    this.renderer.toneMapping = THREE.NoToneMapping
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 0.95
+    this.renderer.setClearColor(0x000000, 0)
 
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0xeef2e8)
+    const pmrem = new THREE.PMREMGenerator(this.renderer)
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
+    this.scene.environment = envTex
+    this.scene.environmentIntensity = 0.26
+    pmrem.dispose()
 
-    this.camera = new THREE.OrthographicCamera(-10.8, 10.8, 22, -22, 0.1, 80)
+    this.camera = new THREE.OrthographicCamera(-9.5, 9.5, 10, -10, 0.1, 90)
     this.camera.position.copy(CAM_POS)
     this.camera.lookAt(LOOK)
 
@@ -133,45 +163,58 @@ export class MeadowApp {
     this.controls.enablePan = false
     this.controls.enableRotate = false
     this.controls.zoomSpeed = 0.55
-    this.controls.minZoom = 0.78
-    this.controls.maxZoom = 1.65
+    this.controls.minZoom = 0.82
+    this.controls.maxZoom = 1.55
     this.controls.minAzimuthAngle = this.homeAzimuth - 0.18
     this.controls.maxAzimuthAngle = this.homeAzimuth + 0.18
     this.controls.minPolarAngle = this.homePolar - 0.08
     this.controls.maxPolarAngle = this.homePolar + 0.32
     this.controls.update()
 
-    const hemi = new THREE.HemisphereLight(0xfffdf8, 0xc3d997, 0.96)
+    // Balanced warm sunlit studio lighting with cozy contrast
+    const hemi = new THREE.HemisphereLight(0xfff8ea, 0xa2b672, 0.64)
     this.scene.add(hemi)
 
-    const sun = new THREE.DirectionalLight(0xfff8ec, 1.22)
-    sun.position.set(-9, 16, 5)
+    const sun = new THREE.DirectionalLight(0xffebc2, 1.24)
+    sun.position.set(-10, 17, 6.5)
     sun.castShadow = true
-    sun.shadow.mapSize.set(2048, 2048)
-    sun.shadow.bias = -0.0004
-    sun.shadow.radius = 3
-    const span = 16
+    sun.shadow.mapSize.set(1024, 1024)
+    sun.shadow.bias = -0.0005
+    sun.shadow.normalBias = 0.02
+    sun.shadow.radius = 3.2
+    const span = 15
     sun.shadow.camera.near = 2
-    sun.shadow.camera.far = 40
+    sun.shadow.camera.far = 42
     sun.shadow.camera.left = -span
     sun.shadow.camera.right = span
     sun.shadow.camera.top = span
     sun.shadow.camera.bottom = -span
     this.scene.add(sun)
 
+    const rim = new THREE.DirectionalLight(0xffe6c4, 0.26)
+    rim.position.set(12, 9, -10)
+    this.scene.add(rim)
+
+    this.clouds = createFeltClouds()
+    this.scene.add(this.clouds)
+
     this.mountTerrain()
     this.pens = createCornerPens()
     this.scene.add(this.pens.root)
     this.spawnSheep()
-    this.herder = createHerder(this.hostCtx.petId)
+
+    this.herder = createHerder(
+      this.hostCtx.petId,
+      this.hostCtx.outfitImageUrl,
+      this.hostCtx.fallbackImageUrl,
+    )
     this.placeHerderHome()
-    this.herder.group.scale.setScalar(HERDER_SCALE)
     this.scene.add(this.herder.group)
 
     this.herdRange = createHerdRange(SHEEP_FEAR)
     const [hx, hz] = herderHome(this.level)
-    this.herdRange.position.set(hx, groundHeight(this.level, hx, hz), hz)
-    this.scene.add(this.herdRange)
+    this.herdRange.group.position.set(hx, groundHeight(this.level, hx, hz), hz)
+    this.scene.add(this.herdRange.group)
 
     this.paintHostMeta()
     this.bindStick()
@@ -226,7 +269,7 @@ export class MeadowApp {
       } else {
         state.group.rotation.y = Math.random() * Math.PI * 2
       }
-      state.group.scale.setScalar(1.15)
+      state.group.scale.setScalar(1.18)
       this.sheep.push(state)
       this.scene.add(state.group)
     }
@@ -239,12 +282,12 @@ export class MeadowApp {
       zone,
       mode: 'static',
       position: { left: '50%', top: '50%' },
-      size: 124,
+      size: 112,
       threshold: 0.1,
-      restOpacity: 0.92,
+      restOpacity: 0.94,
       color: {
-        front: '#002900',
-        back: 'rgba(255, 255, 255, 0.72)',
+        front: '#6E8544',
+        back: 'rgba(252, 248, 239, 0.86)',
       },
     })
     this.stick = manager
@@ -365,11 +408,67 @@ export class MeadowApp {
     return this.level
   }
 
+  private spawnDust(x: number, y: number, z: number, dirX: number, dirZ: number) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xfbf5e6,
+      transparent: true,
+      opacity: 0.65,
+      depthWrite: false,
+    })
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 6), mat)
+    mesh.position.set(
+      x - dirX * 0.25 + (Math.random() - 0.5) * 0.18,
+      y + 0.1,
+      z - dirZ * 0.25 + (Math.random() - 0.5) * 0.18,
+    )
+    this.scene.add(mesh)
+    this.dust.push({
+      mesh,
+      age: 0,
+      life: 0.42,
+      vx: -dirX * 0.35 + (Math.random() - 0.5) * 0.2,
+      vy: 0.35 + Math.random() * 0.25,
+      vz: -dirZ * 0.35 + (Math.random() - 0.5) * 0.2,
+    })
+  }
+
+  private stepDust(dt: number) {
+    for (let i = this.dust.length - 1; i >= 0; i--) {
+      const d = this.dust[i]
+      d.age += dt
+      const u = d.age / d.life
+      if (u >= 1) {
+        this.scene.remove(d.mesh)
+        d.mesh.geometry.dispose()
+        d.mesh.material.dispose()
+        this.dust.splice(i, 1)
+        continue
+      }
+      d.mesh.position.x += d.vx * dt
+      d.mesh.position.y += d.vy * dt
+      d.mesh.position.z += d.vz * dt
+      d.mesh.scale.setScalar(1 + u * 0.85)
+      d.mesh.material.opacity = 0.62 * (1 - u)
+    }
+  }
+
+  private clearDust() {
+    for (const d of this.dust) {
+      this.scene.remove(d.mesh)
+      d.mesh.geometry.dispose()
+      d.mesh.material.dispose()
+    }
+    this.dust = []
+  }
+
   private stepHerder(dt: number) {
     const pos = this.herder.group.position
     const input = this.readInputVector()
     const mag = Math.hypot(input.x, input.y)
     let power = 0
+    let moveDx = 0
+    let moveDz = 0
+
     if (mag >= 0.15) {
       const e = this.camera.matrixWorld.elements
       const rightX = e[0]
@@ -384,23 +483,32 @@ export class MeadowApp {
       const dlen = Math.hypot(dx, dz) || 1
       dx /= dlen
       dz /= dlen
+      moveDx = dx
+      moveDz = dz
       const step = HERDER_SPEED * power * dt
       const next = moveHerder(pos.x + dx * step, pos.z + dz * step, this.level)
       pos.x = next.x
       pos.z = next.z
-      this.herder.group.rotation.y = dampAngle(
-        this.herder.group.rotation.y,
-        Math.atan2(-dz, dx),
-        dt,
-      )
       if (!insideGrass(next.x, next.z)) {
         pos.y = groundHeight(this.level, pos.x, pos.z)
         this.beginFall(dx, dz)
         return
       }
+      this.dustTimer -= dt
+      if (this.dustTimer <= 0 && power > 0.35) {
+        this.spawnDust(pos.x, groundHeight(this.level, pos.x, pos.z), pos.z, moveDx, moveDz)
+        this.dustTimer = 0.16
+      }
     }
+
     pos.y = groundHeight(this.level, pos.x, pos.z)
-    playHerder(this.herder, dt, power)
+    playHerder(this.herder, dt, power, input.x)
+
+    // Softly reveal subtle herding halo only when moving
+    const targetRing = power > 0.1 ? 0.34 : 0.1
+    const targetFill = power > 0.1 ? 0.08 : 0.02
+    this.herdRange.ringMat.opacity += (targetRing - this.herdRange.ringMat.opacity) * Math.min(1, dt * 6)
+    this.herdRange.fillMat.opacity += (targetFill - this.herdRange.fillMat.opacity) * Math.min(1, dt * 6)
   }
 
   private beginFall(dirX: number, dirZ: number) {
@@ -416,7 +524,6 @@ export class MeadowApp {
       z0: pos.z,
       y0: pos.y,
     }
-    this.herder.group.rotation.order = 'YXZ'
     spawnImpact(this.scene, pos.x, pos.z, dirX, dirZ, 0.85)
     playScream()
   }
@@ -431,11 +538,7 @@ export class MeadowApp {
     pos.x = fall.x0 + fall.dirX * FALL_SLIDE * ease
     pos.z = fall.z0 + fall.dirZ * FALL_SLIDE * ease
     pos.y = fall.y0 + (FALL_DROP - fall.y0) * ease
-    this.herder.group.rotation.order = 'YXZ'
-    this.herder.group.rotation.x = (Math.PI / 2) * ease
-    const lift = Math.sin(u * Math.PI) * 1.2
-    this.herder.leftArm.rotation.z = lift
-    this.herder.rightArm.rotation.z = -lift
+    stepHerderFall(this.herder, ease)
     if (u >= 1) {
       this.fall = null
       this.finish('fall')
@@ -455,9 +558,10 @@ export class MeadowApp {
     if (w === 0 || h === 0) return
     this.renderer.setSize(w, h, false)
     const aspect = w / h
-    const minHalfW = 10.9
-    const minHalfH = 13.6
-    const halfH = Math.max(minHalfH, minHalfW / Math.max(0.38, aspect))
+    // Lush, full hero framing on both widescreen desktop (~75% height) and portrait mobile
+    const minHalfW = 9.4
+    const minHalfH = aspect >= 1 ? 9.5 : 10.6
+    const halfH = Math.max(minHalfH, minHalfW / Math.max(0.42, aspect))
     const halfW = halfH * aspect
     const zoom = this.camera.zoom
     this.camera.left = -halfW
@@ -480,13 +584,13 @@ export class MeadowApp {
     this.releaseStick()
     this.keys.clear()
     this.placeHerderHome()
-    this.herder.group.rotation.y = 0
     resetHerder(this.herder)
     this.timePill?.classList.remove('urgent', 'pop')
     this.countPill?.classList.remove('pop')
     for (const s of this.sheep) resetSheep(s, this.level)
     this.baaWait = 2.4
     clearImpacts()
+    this.clearDust()
     resetPens(this.pens, this.level)
     if (this.resultModalEl) {
       this.resultModalEl.hidden = true
@@ -600,7 +704,6 @@ export class MeadowApp {
     }
   }
 
-  /** Rebuild the ground and start this level from the opening positions. */
   gotoLevel(level: LevelId) {
     this.level = level
     const layout = sheepLayout(level)
@@ -621,6 +724,9 @@ export class MeadowApp {
     const dt = Math.min(this.clock.getDelta(), 0.05)
     const t = this.clock.elapsedTime
 
+    stepFeltClouds(this.clouds, t)
+    stepTrees(this.trees, t)
+
     if (!this.paused) {
       if (!this.over) {
         if (this.started) {
@@ -632,7 +738,7 @@ export class MeadowApp {
       if (!this.over) {
         const hx = this.herder.group.position.x
         const hz = this.herder.group.position.z
-        this.herdRange.position.set(hx, groundHeight(this.level, hx, hz), hz)
+        this.herdRange.group.position.set(hx, groundHeight(this.level, hx, hz), hz)
         const flock = this.sheep
           .filter((s) => s.mode !== 'penned')
           .map((s) => ({ x: s.group.position.x, z: s.group.position.z }))
@@ -671,10 +777,12 @@ export class MeadowApp {
       }
       stepPens(this.pens, dt, this.level)
       stepImpacts(dt)
+      this.stepDust(dt)
     }
 
-    this.herdRange.visible = !this.over
+    this.herdRange.group.visible = !this.over
     this.controls.update()
+    orientHerderToCamera(this.herder, this.camera)
     this.renderer.render(this.scene, this.camera)
   }
 }
@@ -686,43 +794,81 @@ function disposeGeometries(root: THREE.Object3D) {
   })
 }
 
-/** Calm EggBabe sage ring showing sheep herding radius. */
+/** Fluffy floating wool-felt clouds framing the warm sunny diorama sky */
+function createFeltClouds(): THREE.Group {
+  const root = new THREE.Group()
+  root.name = 'felt_clouds'
+  const mat = felt(0xfffdf7, 0xf3ece0, 1, 0.025)
+  const specs: { x: number; y: number; z: number; scale: number; phase: number }[] = [
+    { x: -11.4, y: 1.6, z: -6.2, scale: 1.25, phase: 0.2 },
+    { x: 10.6, y: 2.2, z: -7.2, scale: 1.18, phase: 1.6 },
+    { x: -12.2, y: -1.8, z: 4.5, scale: 1.05, phase: 3.1 },
+    { x: 11.2, y: -1.6, z: 3.6, scale: 1.08, phase: 4.4 },
+  ]
+  const puffs: [number, number, number, number][] = [
+    [0, 0.15, 0, 0.82],
+    [-0.75, 0.0, 0.12, 0.62],
+    [0.78, -0.02, -0.08, 0.64],
+    [0.24, 0.42, 0.16, 0.56],
+    [-0.3, 0.36, -0.14, 0.5],
+  ]
+  for (const spec of specs) {
+    const cloud = new THREE.Group()
+    cloud.userData.baseX = spec.x
+    cloud.userData.baseY = spec.y
+    cloud.userData.phase = spec.phase
+    for (const [px, py, pz, r] of puffs) {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat)
+      m.position.set(px, py, pz)
+      m.scale.set(1.08, 0.82, 0.96)
+      cloud.add(m)
+    }
+    cloud.scale.setScalar(spec.scale)
+    cloud.position.set(spec.x, spec.y, spec.z)
+    root.add(cloud)
+  }
+  return root
+}
+
+function stepFeltClouds(root: THREE.Group, t: number) {
+  for (const c of root.children) {
+    const baseX = Number(c.userData.baseX || 0)
+    const baseY = Number(c.userData.baseY || 0)
+    const phase = Number(c.userData.phase || 0)
+    c.position.x = baseX + Math.sin(t * 0.22 + phase) * 0.85
+    c.position.y = baseY + Math.cos(t * 0.36 + phase) * 0.22
+  }
+}
+
+/** Whisper-subtle warm cream herding aura (replaces harsh green tower-defense circle) */
 function createHerdRange(radius: number) {
   const group = new THREE.Group()
-  const fill = new THREE.Mesh(
-    new THREE.CircleGeometry(radius, 72),
-    new THREE.MeshBasicMaterial({
-      color: 0xd8e5b4,
-      transparent: true,
-      opacity: 0.18,
-      depthWrite: false,
-    }),
-  )
+  const fillMat = new THREE.MeshBasicMaterial({
+    color: 0xfff8e6,
+    transparent: true,
+    opacity: 0.03,
+    depthWrite: false,
+  })
+  const fill = new THREE.Mesh(new THREE.CircleGeometry(radius, 64), fillMat)
   fill.rotation.x = -Math.PI / 2
   fill.position.y = 0.03
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xfffcf2,
+    transparent: true,
+    opacity: 0.12,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  })
   const ring = new THREE.Mesh(
-    new THREE.RingGeometry(Math.max(0.05, radius - 0.08), radius, 72),
-    new THREE.MeshBasicMaterial({
-      color: 0x9db65b,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    }),
+    new THREE.RingGeometry(Math.max(0.05, radius - 0.07), radius, 64),
+    ringMat,
   )
   ring.rotation.x = -Math.PI / 2
-  ring.position.y = 0.05
+  ring.position.y = 0.045
   group.add(fill, ring)
-  return group
+  return { group, fillMat, ringMat }
 }
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
-}
-
-function dampAngle(current: number, target: number, dt: number) {
-  let d = target - current
-  while (d > Math.PI) d -= Math.PI * 2
-  while (d < -Math.PI) d += Math.PI * 2
-  return current + d * Math.min(1, dt * 8)
 }
