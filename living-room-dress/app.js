@@ -3467,6 +3467,29 @@
           }
           openKeepsakeAlbum("keepsakes");
         },
+        onOpenHoloCard: (petId) => {
+          const pid = petId === "yutu" ? "yutu" : "koi";
+          if (window.EggBabeHoloCardShowcase) {
+            const setId = (crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].equippedSetId) || "";
+            const moodInfo = Store.computeDailyMood(Store.getUtc8DateKey(), pid, careAll[pid]);
+            window.EggBabeHoloCardShowcase.openEntityEggCard({
+              petId: pid,
+              store: crossStore,
+              catalog: catalog,
+              assetPrefix: "./",
+              outfitName: getSetName(pid, setId),
+              moodQuote: moodInfo && moodInfo.text ? `“${moodInfo.text}”` : "",
+              isOrdinary: crossStore.profileMode === "wx-mp-ordinary",
+              onTap: () => sfx.tap(),
+              onOpenCurio: () => {
+                activeDetailStoryPet = pid;
+                openKeepsakeAlbum("keepsakes");
+              }
+            });
+          } else {
+            openKeepsakeAlbum("keepsakes");
+          }
+        },
         onPlayTap: () => sfx.tap(),
         onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type),
         Voice: Voice,
@@ -4359,6 +4382,30 @@
     const targetIdx = emptyIdx >= 0 ? emptyIdx : 11;
     placeKeepsakeInSlot(activeDetailKeepsake.id, targetIdx);
     renderDetailKeepsakeStory();
+  });
+  $("btn-detail-holo-view")?.addEventListener("click", () => {
+    if (!activeDetailKeepsake || !window.EggBabeHoloCardShowcase) return;
+    sfx.tap();
+    const allKs = getAllCatalogKeepsakes();
+    const idx = allKs.findIndex((k) => k.id === activeDetailKeepsake.id);
+    const serial = idx >= 0
+      ? `${String(idx + 1).padStart(3, "0")}/${String(allKs.length).padStart(3, "0")}`
+      : "001/041";
+    window.EggBabeHoloCardShowcase.openKeepsakeCard(activeDetailKeepsake, {
+      assetPrefix: "./",
+      serial,
+      activePetId: activeDetailStoryPet || state.petId,
+      isOrdinary: crossStore.profileMode === "wx-mp-ordinary",
+      onTap: () => sfx.tap()
+    });
+  });
+  $("btn-curio-open-pack")?.addEventListener("click", () => {
+    sfx.tap();
+    const packAct = ACTIVITIES.find((a) => a.id === "holo-pack");
+    if (packAct) {
+      albumViewEl.hidden = true;
+      openActivityPlayer(packAct);
+    }
   });
 
   $("btn-close-album").addEventListener("click", () => { sfx.tap(); albumViewEl.hidden = true; });
@@ -5634,6 +5681,15 @@
   /* ---------- 活动列表（小游戏合集 + 每日 ≤45✦ 软上限闭环） ---------- */
   const ACTIVITIES = [
     {
+      id: "holo-pack",
+      name: "拾物伴手礼袋",
+      tag: "每日首袋免费 · 3张",
+      desc: "亲手撕开铝箔伴手礼袋，翻开 3 张小物件全息卡自动摆进暖橡木多宝格",
+      thumb: "./living-room-dress/ui/tb_keepsakes.png",
+      containThumb: true,
+      url: "./living-room-dress/holo-pack/"
+    },
+    {
       id: "doodle-together",
       name: "一起画",
       tag: "拾物临摹 · +10✦",
@@ -5849,6 +5905,17 @@
     } else if (data.type === "eggbabe:meadow-nav") {
       closeActivityPlayer();
       showSceneFeedback("从蛋宝宝牧场回来啦 ✦", "system");
+    } else if (data.type === "eggbabe:holo-pack-complete") {
+      syncFromExternalStoreUpdate();
+      if (data.newlyUnlocked) {
+        tbAlbumDotEl.hidden = false;
+      }
+    } else if (data.type === "eggbabe:holo-pack-nav") {
+      closeActivityPlayer();
+      if (data.target === "curio") {
+        openKeepsakeAlbum("keepsakes");
+        showSceneFeedback("新拾取的小物件已摆入多宝收藏格 ✨", "system");
+      }
     }
   });
 
