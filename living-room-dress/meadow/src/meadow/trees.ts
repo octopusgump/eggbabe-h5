@@ -1,27 +1,26 @@
 import * as THREE from 'three'
 import { groundHeight, type LevelId } from './levels'
-import { blobShadow, clay, felt, oakWood } from './materials'
+import { blobShadow, clay, felt, oakWood, snowTrim } from './materials'
 
 type TreeSpec = { x: number; z: number; scale?: number }
 
 const BASE_SPECS: TreeSpec[] = [
-  { x: -5.8, z: 3.6, scale: 1.08 },
-  { x: -1.6, z: 5.8, scale: 0.94 },
-  { x: 5.6, z: 2.2, scale: 0.98 },
-  { x: 5.2, z: -2.6, scale: 1.12 },
-  { x: 2.35, z: -4.8, scale: 1.1 },
-  { x: -4.4, z: -5.4, scale: 0.92 },
+  { x: -6.45, z: 3.1, scale: 0.96 },
+  { x: -2.9, z: 6.45, scale: 0.88 },
+  { x: 6.45, z: 2.6, scale: 0.92 },
+  { x: 6.45, z: -3.9, scale: 0.98 },
+  { x: 3.1, z: -6.45, scale: 0.94 },
+  { x: -3.2, z: -6.45, scale: 0.9 },
 ]
 
 const LEVEL3_EXTRA: TreeSpec[] = [
-  { x: -0.2, z: 3.35, scale: 1.02 },
-  { x: 2.4, z: 5.4, scale: 0.88 },
+  { x: -0.2, z: 3.35, scale: 0.92 },
 ]
 
 function canopy(parent: THREE.Group, s: number) {
-  const crownTop = felt(0xa6c46d, 0x92b15a, 2, 0.042)
-  const crownMid = felt(0x8cb059, 0x799d49, 2, 0.044)
-  const crownLow = felt(0x749948, 0x64873c, 2, 0.042)
+  const crownTop = felt(0x9cb976, 0x87a663, 2, 0.04)
+  const crownMid = felt(0x82a564, 0x6f9253, 2, 0.042)
+  const crownLow = felt(0x6c8f52, 0x5c7d44, 2, 0.04)
   const mats = [crownMid, crownTop, crownLow]
 
   const blobs: [number, number, number, number, number][] = [
@@ -43,15 +42,25 @@ function canopy(parent: THREE.Group, s: number) {
     parent.add(leaf)
   }
 
-  // Tiny warm cream blossom buds nestled in the felt crown
+  // Soft cream snow blanket resting cleanly on top of the winter felt canopy
+  const snowCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.41 * s, 16, 12),
+    snowTrim(0xfffdf8, 0xeef4f6, 1),
+  )
+  snowCap.scale.set(1.06, 0.44, 1.04)
+  snowCap.position.set(0.04 * s, 1.54 * s, 0.06 * s)
+  snowCap.castShadow = true
+  parent.add(snowCap)
+
+  // Tiny warm cream blossom/winter berry dots
   const budMat = clay(0xfff8e6, 0.82)
   const budPositions: [number, number, number][] = [
-    [0.24, 1.24, 0.34],
-    [-0.36, 1.04, 0.22],
-    [0.36, 0.96, -0.24],
+    [0.24, 1.18, 0.34],
+    [-0.36, 1.0, 0.22],
+    [0.36, 0.94, -0.24],
   ]
   for (const [bx, by, bz] of budPositions) {
-    const bud = new THREE.Mesh(new THREE.SphereGeometry(0.062 * s, 8, 6), budMat)
+    const bud = new THREE.Mesh(new THREE.SphereGeometry(0.058 * s, 8, 6), budMat)
     bud.position.set(bx * s, by * s, bz * s)
     parent.add(bud)
   }

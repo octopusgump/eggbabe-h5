@@ -275,6 +275,100 @@ export function ceramic(color: number, roughness = 0.34) {
   return clay(color, roughness)
 }
 
+/** Procedural sunlit frosted ice rink texture with fine skate scratches & translucent depth */
+function getIceTextures(baseHex: number, tintHex: number, repeat: number) {
+  const key = `ice:${baseHex}:${tintHex}:${repeat}`
+  const hit = texCache.get(key)
+  if (hit) return hit
+
+  const size = 512
+  const col = makeCanvas(size)
+  const bmp = makeCanvas(size)
+  const rng = seeded(baseHex ^ (tintHex << 2) ^ 0x77b1)
+  const [r0, g0, b0] = hexToRgb(baseHex)
+  const [r1, g1, b1] = hexToRgb(tintHex)
+
+  col.g.fillStyle = `rgb(${r0},${g0},${b0})`
+  col.g.fillRect(0, 0, size, size)
+  bmp.g.fillStyle = '#808080'
+  bmp.g.fillRect(0, 0, size, size)
+
+  // Soft sunlit glacial mottling under the surface
+  for (let i = 0; i < 36; i++) {
+    const x = rng() * size
+    const y = rng() * size
+    const rad = 40 + rng() * 95
+    const grd = col.g.createRadialGradient(x, y, 4, x, y, rad)
+    const warm = rng() > 0.45
+    const rr = warm ? clampByte(r0 + 16) : r1
+    const gg = warm ? clampByte(g0 + 14) : g1
+    const bb = warm ? clampByte(b0 + 10) : b1
+    grd.addColorStop(0, `rgba(${rr},${gg},${bb},0.22)`)
+    grd.addColorStop(1, `rgba(${rr},${gg},${bb},0)`)
+    col.g.fillStyle = grd
+    col.g.fillRect(x - rad, y - rad, rad * 2, rad * 2)
+  }
+
+  // Fine crisscrossing ice-skate arcs & frosted scrape lines
+  for (let i = 0; i < 240; i++) {
+    const x = rng() * size
+    const y = rng() * size
+    const rad = 28 + rng() * 90
+    const a0 = rng() * Math.PI * 2
+    const span = 0.35 + rng() * 0.9
+    col.g.strokeStyle = `rgba(255, 255, 255, ${0.14 + rng() * 0.22})`
+    col.g.lineWidth = 0.7 + rng() * 1.1
+    col.g.beginPath()
+    col.g.arc(x, y, rad, a0, a0 + span)
+    col.g.stroke()
+
+    bmp.g.strokeStyle = `rgba(215, 215, 215, 0.28)`
+    bmp.g.lineWidth = 1.1
+    bmp.g.beginPath()
+    bmp.g.arc(x, y, rad, a0, a0 + span)
+    bmp.g.stroke()
+  }
+
+  // Subtle frost micro-sparkles
+  for (let i = 0; i < 420; i++) {
+    const x = rng() * size
+    const y = rng() * size
+    const s = 0.9 + rng() * 1.4
+    col.g.fillStyle = `rgba(255, 253, 248, ${0.18 + rng() * 0.25})`
+    col.g.fillRect(x, y, s, s)
+  }
+
+  const pair = {
+    map: finalizeTexture(col.c, repeat, true),
+    bump: finalizeTexture(bmp.c, repeat, false),
+  }
+  texCache.set(key, pair)
+  return pair
+}
+
+/** Sunlit smooth frost-ice rink material (low roughness specular sheen + skate scratch bump) */
+export function iceRink(color = 0xd6ecee, tint = 0xc1e0e6, repeat = 2) {
+  const key = `iceMat:${color}:${tint}:${repeat}`
+  let mat = stdCache.get(key)
+  if (!mat) {
+    const { map, bump } = getIceTextures(color, tint, repeat)
+    mat = new THREE.MeshStandardMaterial({
+      map,
+      bumpMap: bump,
+      bumpScale: 0.014,
+      roughness: 0.19,
+      metalness: 0.04,
+    })
+    stdCache.set(key, mat)
+  }
+  return mat
+}
+
+/** Soft warm cream snowbank trim */
+export function snowTrim(color = 0xfaf7f0, accent = 0xedf2f2, repeat = 2) {
+  return felt(color, accent, repeat, 0.024)
+}
+
 let shadowTex: THREE.CanvasTexture | null = null
 
 export function softShadowTexture() {
