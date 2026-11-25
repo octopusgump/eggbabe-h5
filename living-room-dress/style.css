@@ -1047,8 +1047,8 @@ button:active {
 }
 .companion-toolbox__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 14px;
 }
 .companion-toolbox__item {
   display: flex;
@@ -2938,6 +2938,129 @@ button:active {
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* 纪念册 · 收藏卡页签（实体蛋 3D 全息纪念卡展台） */
+.holocards-album-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.holocards-album-view[hidden] {
+  display: none;
+}
+.holocards-album-head__eyebrow {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #6B7B58;
+  margin-bottom: 4px;
+}
+.holocards-album-head__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+.holocards-album-head__sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #7A766E;
+  line-height: 1.45;
+}
+.holocards-album-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 14px;
+}
+.holocard-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 248, 232, 0.72);
+  background: var(--hc-frame, linear-gradient(150deg, #F8F3E4 0%, #D9E5C7 42%, #9DB65B 100%));
+  box-shadow: 0 10px 24px -10px rgba(42, 34, 20, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  color: #1C2418;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.holocard-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.34) 0%, transparent 38%, rgba(255, 234, 178, 0.22) 66%, transparent 100%);
+}
+.holocard-tile:active {
+  transform: scale(0.97);
+}
+.holocard-tile__win {
+  position: relative;
+  aspect-ratio: 1 / 1.04;
+  border-radius: 12px;
+  background: var(--hc-win);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.holocard-tile__win img {
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgba(24, 18, 10, 0.28));
+}
+.holocard-tile__plaque {
+  padding: 8px 10px;
+  border-radius: 11px;
+  background: rgba(255, 253, 248, 0.95);
+  border: 1px solid rgba(0, 41, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.holocard-tile__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.holocard-tile__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1A1A1A;
+}
+.holocard-tile__tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(0, 41, 0, 0.07);
+  color: #35483C;
+}
+.holocard-tile__outfit {
+  font-size: 11.5px;
+  color: #6E675C;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.holocard-tile__cta {
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(0, 41, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: #002900;
 }
 .curio-arrange-btn {
   padding: 5px 11px;
