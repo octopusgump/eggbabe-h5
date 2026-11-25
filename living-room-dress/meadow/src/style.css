@@ -573,8 +573,8 @@ body.is-embedded .eb-inline-notice {
 
 @keyframes card-enter {
   0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
+    opacity: 0.85;
+    transform: translateY(5px) scale(0.98);
   }
   100% {
     opacity: 1;
@@ -637,26 +637,192 @@ body.is-embedded .eb-inline-notice {
   text-align: left;
 }
 
-/* 关卡切换胶囊组 */
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-pill--score {
+  gap: 6px;
+  padding: 0 11px;
+}
+
+.hud-live-score {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8A6110;
+}
+
+.hud-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.hud-star {
+  font-size: 13px;
+  color: rgba(164, 134, 98, 0.36);
+  transition: color 180ms ease-out, transform 180ms ease-out;
+}
+
+.hud-star.is-lit {
+  color: #E2A928;
+  text-shadow: 0 1px 4px rgba(226, 169, 40, 0.38);
+}
+
+.hud-star.is-pop {
+  animation: hud-star-pop 420ms ease-out;
+}
+
+@keyframes hud-star-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.65); }
+  100% { transform: scale(1); }
+}
+
+/* 大门原地 3D 投射大飘字（+1 ✦ / +3 ✦ 👑 / 升至 ★★） */
+.pop-gate {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 5px 13px;
+  border-radius: var(--eb-radius-pill);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(74, 52, 30, 0.18);
+  animation: gate-pop 900ms cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
+}
+
+.pop-gate--normal {
+  background: rgba(255, 252, 240, 0.96);
+  border: 1.5px solid rgba(218, 174, 68, 0.55);
+  color: #7D5810;
+}
+
+.pop-gate--combo {
+  background: var(--eb-green-surface);
+  border: 1.5px solid rgba(157, 182, 91, 0.78);
+  color: var(--eb-ink);
+  font-size: 16px;
+}
+
+.pop-gate--gold {
+  background: linear-gradient(180deg, #FFF8D4 0%, #FDE38A 100%);
+  border: 1.5px solid #D9A228;
+  color: #6B4608;
+  font-size: 17px;
+}
+
+.pop-gate--rank {
+  background: var(--eb-ink);
+  border: 1.5px solid #F4CF67;
+  color: #FFE792;
+  font-size: 15px;
+}
+
+@keyframes gate-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.65);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -70%) scale(1.14);
+  }
+  75% {
+    opacity: 1;
+    transform: translate(-50%, -115%) scale(1.0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -145%) scale(0.94);
+  }
+}
+
+/* 飞向右上角实时星星胶囊的暖金飞星 */
+.fly-star {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF9D8 0%, #F2C44E 100%);
+  border: 1.5px solid #FFFDF6;
+  color: #7A530B;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(218, 165, 40, 0.45);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  will-change: left, top, transform, opacity;
+}
+
+.fly-star--gold {
+  width: 26px;
+  height: 26px;
+  font-size: 14px;
+  background: radial-gradient(circle at 35% 30%, #FFFCE0 0%, #F4B92E 100%);
+  box-shadow: 0 4px 14px rgba(226, 162, 24, 0.58);
+}
+
+.eb-card--wide {
+  max-width: 344px;
+}
+
+/* 2x3 六关选关网格 */
 .eb-level-picker {
-  margin-top: 16px;
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
+.eb-level-picker--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .eb-level-chip {
-  height: 38px;
-  padding: 0 14px;
-  border-radius: var(--eb-radius-pill);
+  min-height: 52px;
+  padding: 7px 10px;
+  border-radius: 12px;
   border: 1px solid rgba(164, 134, 98, 0.24);
   background: #FAF6EC;
   color: #5C4E3C;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  text-align: left;
   cursor: pointer;
   transition: transform 160ms ease-out, background-color 160ms ease-out, border-color 160ms ease-out;
+}
+
+.eb-level-chip__name {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.eb-level-chip__meta {
+  font-size: 11px;
+  font-weight: 500;
+  color: #847058;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.eb-level-chip__stars {
+  color: #D9A228;
+  letter-spacing: 1px;
 }
 
 .eb-level-chip:active {
@@ -667,7 +833,16 @@ body.is-embedded .eb-inline-notice {
   background: var(--eb-green-surface);
   border-color: var(--eb-egg-green);
   color: var(--eb-green-on-tint);
-  font-weight: 600;
+}
+
+@media (max-width: 440px) {
+  .hud-pet-tag {
+    display: none;
+  }
+  .hud-pill {
+    padding: 0 10px;
+    gap: 5px;
+  }
 }
 
 /* 规范按钮栈 */

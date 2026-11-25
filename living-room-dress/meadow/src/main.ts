@@ -41,9 +41,9 @@ document.getElementById('pause-backdrop')?.addEventListener('click', () => app.s
 
 document.querySelectorAll<HTMLButtonElement>('[data-level-pick]').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const lvl = Number(btn.dataset.levelPick) as LevelId
-    if (lvl === 1 || lvl === 2 || lvl === 3) {
-      app.gotoLevel(lvl)
+    const lvl = Number(btn.dataset.levelPick)
+    if (lvl >= 1 && lvl <= 6) {
+      app.gotoLevel(lvl as LevelId)
     }
   })
 })

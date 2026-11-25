@@ -1,21 +1,6 @@
 import * as THREE from 'three'
-import { groundHeight, type LevelId } from './levels'
+import { groundHeight, levelConfig, type LevelId, type TreeObstacle } from './levels'
 import { blobShadow, clay, felt, oakWood, snowTrim } from './materials'
-
-type TreeSpec = { x: number; z: number; scale?: number }
-
-const BASE_SPECS: TreeSpec[] = [
-  { x: -6.35, z: -6.2, scale: 1.02 },
-  { x: 6.35, z: -6.2, scale: 1.0 },
-  { x: -6.45, z: 1.9, scale: 0.92 },
-  { x: 6.45, z: -2.0, scale: 0.94 },
-  { x: -6.25, z: 6.25, scale: 0.95 },
-  { x: 6.25, z: 6.25, scale: 0.95 },
-]
-
-const LEVEL3_EXTRA: TreeSpec[] = [
-  { x: -0.2, z: 2.95, scale: 0.88 },
-]
 
 function canopy(parent: THREE.Group, s: number) {
   const crownTop = felt(0x9cb976, 0x87a663, 2, 0.04)
@@ -42,7 +27,6 @@ function canopy(parent: THREE.Group, s: number) {
     parent.add(leaf)
   }
 
-  // Soft cream snow blanket resting cleanly on top of the winter felt canopy
   const snowCap = new THREE.Mesh(
     new THREE.SphereGeometry(0.41 * s, 16, 12),
     snowTrim(0xfffdf8, 0xeef4f6, 1),
@@ -52,7 +36,6 @@ function canopy(parent: THREE.Group, s: number) {
   snowCap.castShadow = true
   parent.add(snowCap)
 
-  // Tiny warm cream blossom/winter berry dots
   const budMat = clay(0xfff8e6, 0.82)
   const budPositions: [number, number, number][] = [
     [0.24, 1.18, 0.34],
@@ -66,7 +49,7 @@ function canopy(parent: THREE.Group, s: number) {
   }
 }
 
-function tree(spec: TreeSpec, level: LevelId, idx: number): THREE.Group {
+function tree(spec: TreeObstacle, level: LevelId, idx: number): THREE.Group {
   const g = new THREE.Group()
   g.userData.swayPhase = idx * 1.17
   const s = spec.scale ?? 1
@@ -92,14 +75,14 @@ function tree(spec: TreeSpec, level: LevelId, idx: number): THREE.Group {
   return g
 }
 
+/** Strictly spawns trees from levelConfig(level).trees (Level 1 has 0 trees!). */
 export function createTrees(level: LevelId = 1): THREE.Group {
   const root = new THREE.Group()
-  const specs = level === 3 ? [...BASE_SPECS, ...LEVEL3_EXTRA] : BASE_SPECS
+  const specs = levelConfig(level).trees
   specs.forEach((spec, idx) => root.add(tree(spec, level, idx)))
   return root
 }
 
-/** Gentle sunny meadow breeze sway on tree crowns */
 export function stepTrees(root: THREE.Group | null, t: number) {
   if (!root) return
   for (const child of root.children) {

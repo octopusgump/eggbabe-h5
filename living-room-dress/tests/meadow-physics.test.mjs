@@ -10,6 +10,13 @@ import {
   stepSkaterVelocity,
   triggerSkaterDash,
 } from "../meadow/src/meadow/physics.ts";
+import {
+  LEVEL_CONFIGS,
+  computeStarTier,
+  maxLevelScore,
+  resolveCircleObstacles,
+  sampleBoostPad,
+} from "../meadow/src/meadow/levels.ts";
 
 const REPO = path.resolve(import.meta.dirname, "../..");
 
@@ -82,7 +89,78 @@ test("Soft bouncy snow-oak perimeter keeps skaters inside arena with rebound", (
   assert.ok(hit.vx < 0, "outward velocity must reflect inward");
 });
 
-test("Keyboard-synced visual joystick, Dash button, skid audio, and visible in-pen sheep are wired", () => {
+test("6 progressive levels escalate sheep count 6->16 and Level 1 is pure zero-tree ice rink", () => {
+  const levels = [1, 2, 3, 4, 5, 6];
+  const counts = levels.map((lvl) => LEVEL_CONFIGS[lvl].sheep.length);
+  const goldenCounts = levels.map((lvl) => LEVEL_CONFIGS[lvl].sheep.filter((s) => s.isGolden).length);
+  const maxScores = levels.map((lvl) => maxLevelScore(lvl));
+
+  assert.deepEqual(counts, [6, 8, 10, 12, 14, 16], "sheep counts must escalate 6, 8, 10, 12, 14, 16");
+  assert.deepEqual(goldenCounts, [1, 1, 2, 2, 3, 4], "golden sheep count must escalate across levels");
+  assert.deepEqual(maxScores, [8, 10, 14, 16, 20, 24], "max score must account for +3 golden sheep");
+
+  // Level 1: zero trees, zero bumpers, pure fenced rink
+  assert.equal(LEVEL_CONFIGS[1].trees.length, 0, "Level 1 must have 0 trees");
+  assert.equal(LEVEL_CONFIGS[1].bumpers.length, 0, "Level 1 must have 0 bumpers");
+  assert.equal(LEVEL_CONFIGS[1].hasRiver, false, "Level 1 must be flat ice");
+
+  // Level 2: 3 elastic snow bumpers
+  assert.equal(LEVEL_CONFIGS[2].bumpers.length, 3, "Level 2 must have 3 snow bumpers");
+  assert.equal(LEVEL_CONFIGS[2].trees.length, 0, "Level 2 must have 0 trees");
+
+  // Level 3: 4 collision pine trees
+  assert.equal(LEVEL_CONFIGS[3].trees.length, 4, "Level 3 must have 4 pine trees");
+
+  // Level 4: slope + river + zero trees
+  assert.equal(LEVEL_CONFIGS[4].hasRiver, true);
+  assert.equal(LEVEL_CONFIGS[4].hasSlope, true);
+  assert.equal(LEVEL_CONFIGS[4].trees.length, 0);
+
+  // Level 5: 3 warm-gold starlight boost pads
+  assert.equal(LEVEL_CONFIGS[5].boostPads.length, 3);
+
+  // Level 6: central knoll + 2 bumpers + 1 boost pad
+  assert.equal(LEVEL_CONFIGS[6].hasKnoll, true);
+  assert.equal(LEVEL_CONFIGS[6].bumpers.length, 2);
+  assert.equal(LEVEL_CONFIGS[6].boostPads.length, 1);
+});
+
+test("Obstacle physics: Level 2 snow bumper high-elastic rebound, Level 3 pine collision, Level 5 boost pad", () => {
+  // Level 2 bumper at (0, -0.6), radius 0.76 -> approach from south moving north
+  const bHit = resolveCircleObstacles(2, 0, 0.25, 0, -4.0, 0.45);
+  assert.equal(bHit.hitKind, "bumper");
+  assert.equal(bHit.bumperIndex, 2);
+  assert.ok(bHit.vz > 4.5, `bumper must impart high-elastic outward kick, got vz=${bHit.vz}`);
+
+  // Level 3 tree at (-3.5, -3.4), radius 0.62 -> approach from east moving west
+  const tHit = resolveCircleObstacles(3, -2.6, -3.4, -4.0, 0, 0.45);
+  assert.equal(tHit.hitKind, "tree");
+  assert.ok(tHit.vx > 0, `pine tree must reflect incoming skater, got vx=${tHit.vx}`);
+
+  // Level 5 center boost pad at (0, -1.4) pushes south (+Z)
+  const boostOn = sampleBoostPad(5, 0, -1.4);
+  assert.equal(boostOn.active, true);
+  assert.ok(boostOn.fz > 10, `boost pad must push strongly southward, got fz=${boostOn.fz}`);
+  const boostOff = sampleBoostPad(5, 0, 4.5);
+  assert.equal(boostOff.active, false);
+});
+
+test("Instant star-tier computation triggers 1★/2★/3★ upgrades immediately on score gain", () => {
+  // Level 1 thresholds: [3, 5, 6]
+  assert.equal(computeStarTier(1, 0), 0);
+  assert.equal(computeStarTier(1, 2), 0);
+  assert.equal(computeStarTier(1, 3), 1, "golden sheep (+3) on Level 1 immediately grants 1★");
+  assert.equal(computeStarTier(1, 5), 2);
+  assert.equal(computeStarTier(1, 6), 3);
+
+  // Level 6 thresholds: [8, 13, 18]
+  assert.equal(computeStarTier(6, 7), 0);
+  assert.equal(computeStarTier(6, 8), 1);
+  assert.equal(computeStarTier(6, 13), 2);
+  assert.equal(computeStarTier(6, 18), 3);
+});
+
+test("Keyboard-synced visual joystick, Dash button, skid audio, instant star HUD, and 4-way belly-sliding sheep are wired", () => {
   const html = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/index.html"), "utf8");
   const appTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/MeadowApp.ts"), "utf8");
   const sheepTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/sheep.ts"), "utf8");
@@ -91,10 +169,19 @@ test("Keyboard-synced visual joystick, Dash button, skid audio, and visible in-p
   assert.ok(html.includes('id="stick-knob"'), "visual joystick knob must exist");
   assert.ok(html.includes('data-dir="up"') && html.includes('data-dir="left"'), "directional pips must exist");
   assert.ok(html.includes('id="btn-dash"'), "Dash button must exist");
+  assert.ok(html.includes('id="score-pill"') && html.includes('data-hud-star="3"'), "live star HUD pill must exist");
+  assert.ok(html.includes('data-level-pick="6"'), "6-level picker must exist in pause modal");
   assert.ok(appTs.includes("updateVisualStick"), "MeadowApp must sync keyboard input to visible joystick knob");
   assert.ok(appTs.includes("ArrowUp") && appTs.includes("Space"), "desktop arrow keys and Space dash must be wired");
-  assert.ok(feedbackTs.includes("updateSkidSound") && feedbackTs.includes("playSheepSlide"), "ice skid & sheep slide audio must exist");
-  assert.ok(sheepTs.includes("isGolden") && !sheepTs.includes("s.group.visible = false"), "golden sheep exists and penned sheep remain visible");
+  assert.ok(appTs.includes("flyStarsToHud") && appTs.includes("popAtScreen"), "instant gate star popups & flying orbs must be wired");
+  assert.ok(feedbackTs.includes("updateSkidSound") && feedbackTs.includes("playStarRankUp"), "ice skid & star rank-up audio must exist");
+  assert.ok(
+    sheepTs.includes("isGolden") &&
+      !sheepTs.includes("s.group.visible = false") &&
+      sheepTs.includes("'waddle' | 'slide' | 'penned'") &&
+      !sheepTs.includes("'graze'"),
+    "golden sheep, visible penned sheep, and autonomous waddle/slide AI (no graze) must exist"
+  );
 
   const penTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/pen.ts"), "utf8");
   const boundsTs = fs.readFileSync(path.join(REPO, "living-room-dress/meadow/src/meadow/bounds.ts"), "utf8");
