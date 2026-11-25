@@ -14,11 +14,11 @@ import { clay } from './materials'
 import { isInsideCornerPen } from './pen'
 import { ribbonMesh } from './ribbon'
 
-const GRASS = 0xd7f3a4
-const SIDE = 0xb8e472
-/** Close pair. Both sit a step under the lawn, so the field stays one green. */
-const TUFT_A = 0x7ec45a
-const TUFT_B = 0x74b854
+const GRASS = 0xc9df9a
+const SIDE = 0xa9c56e
+/** Close pair. Both sit a step under the lawn, so the field stays calm EggBabe sage. */
+const TUFT_A = 0x86ab58
+const TUFT_B = 0x7aa04d
 
 function mulberry32(seed: number) {
   let a = seed
@@ -81,13 +81,13 @@ function addTufts(island: THREE.Group, rng: () => number, level: LevelId = 1) {
       continue
     if (isInsideCornerPen(x, z)) continue
     if (level === 1 && onRibbon(x, z, PATH, 1.05)) continue
-    if (level === 2 && riverClosest(x, z).dist < 1.05) continue
+    if (level !== 1 && riverClosest(x, z).dist < 1.05) continue
     if (placed.some(([px, pz]) => (x - px) ** 2 + (z - pz) ** 2 < gap * gap)) continue
     placed.push([x, z])
 
     const h = 0.09 + rng() * 0.09
     const w = 0.028 + rng() * 0.016
-    const ground = level === 2 ? groundHeight(2, x, z) : 0
+    const ground = level !== 1 ? groundHeight(level, x, z) : 0
     dummy.position.set(x, ground + h * 0.5 + 0.02, z)
     dummy.rotation.set(0, rng() * Math.PI, (rng() - 0.5) * 0.18)
     dummy.scale.set(w, h, w)
@@ -126,7 +126,7 @@ function addWater(island: THREE.Group) {
       run = []
       return
     }
-    const mesh = ribbonMesh(run, 1.55, 0x8fd0d4, 0)
+    const mesh = ribbonMesh(run, 1.55, 0x9bc7c4, 0)
     const pos = mesh.geometry.getAttribute('position')
     for (let i = 0; i < pos.count; i++) {
       pos.setY(i, bankHeight(pos.getZ(i)) - 0.09)
@@ -147,7 +147,7 @@ function addWater(island: THREE.Group) {
       const hit = riverClosest(ford.x + ox, 0.5)
       const stone = new THREE.Mesh(
         new THREE.CylinderGeometry(0.2, 0.24, 0.07, 8),
-        clay(0xd5cec0),
+        clay(0xdad2c4),
       )
       stone.position.set(hit.x, bankHeight(hit.z) + 0.04, hit.z)
       stone.castShadow = true
@@ -157,7 +157,7 @@ function addWater(island: THREE.Group) {
   }
 }
 
-function createSlopeIsland() {
+function createSlopeIsland(level: LevelId) {
   const island = new THREE.Group()
   const seg = 64
   const half = ISLAND_HALF
@@ -168,7 +168,7 @@ function createSlopeIsland() {
   const point = (i: number, j: number) => {
     const x = -half + (i / seg) * half * 2
     const z = -half + (j / seg) * half * 2
-    return { x, z, y: groundHeight(2, x, z) }
+    return { x, z, y: groundHeight(level, x, z) }
   }
   for (let j = 0; j < n; j++) {
     for (let i = 0; i < n; i++) {
@@ -223,12 +223,12 @@ function createSlopeIsland() {
   island.add(skirt)
 
   addWater(island)
-  addTufts(island, mulberry32(23), 2)
+  addTufts(island, mulberry32(level === 3 ? 37 : 23), level)
   return island
 }
 
 export function createIsland(level: LevelId = 1): THREE.Group {
-  if (level === 2) return createSlopeIsland()
+  if (level !== 1) return createSlopeIsland(level)
   const island = new THREE.Group()
   const w = ISLAND_HALF * 2
   const d = ISLAND_HALF * 2
@@ -250,8 +250,8 @@ export function createIsland(level: LevelId = 1): THREE.Group {
   top.receiveShadow = true
   island.add(top)
 
-  island.add(ribbonMesh(PATH, 1.9, 0xe6d4a8, 0.02))
+  island.add(ribbonMesh(PATH, 1.9, 0xe7dcc3, 0.02))
 
-  addTufts(island, mulberry32(19))
+  addTufts(island, mulberry32(19), 1)
   return island
 }

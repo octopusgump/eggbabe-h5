@@ -1,6 +1,18 @@
-export type LevelId = 1 | 2
+export type LevelId = 1 | 2 | 3
 
-/** Same flock as the flat meadow. */
+export type LevelMeta = {
+  id: LevelId
+  name: string
+  hint: string
+}
+
+export const LEVEL_META: Record<LevelId, LevelMeta> = {
+  1: { id: 1, name: '晴日草场', hint: '拖动摇杆，把小羊赶进四角木羊圈' },
+  2: { id: 2, name: '溪流北坡', hint: '走浅滩石块过溪，小心别跌出草坡' },
+  3: { id: 3, name: '暖丘溪谷', hint: '绕过中央小丘，把高低坡小羊聚拢进圈' },
+}
+
+/** Level 1: classic flat meadow. */
 const LEVEL1_SHEEP: readonly [number, number][] = [
   [-3.4, 2.2],
   [-1.6, 1.1],
@@ -15,7 +27,7 @@ const LEVEL1_SHEEP: readonly [number, number][] = [
   [3.6, 0.2],
 ]
 
-/** Five sheep on the south flat, six on the north slope. */
+/** Level 2: five sheep on the south flat, six on the north slope. */
 const LEVEL2_SHEEP: readonly [number, number][] = [
   [-2.8, 2.2],
   [-1.0, 3.0],
@@ -30,12 +42,28 @@ const LEVEL2_SHEEP: readonly [number, number][] = [
   [-0.3, -4.4],
 ]
 
+/** Level 3: gentle central knoll + river + north bank, sheep scattered high and low. */
+const LEVEL3_SHEEP: readonly [number, number][] = [
+  [-3.6, 3.1],
+  [-1.2, 3.6],
+  [1.5, 3.2],
+  [3.5, 2.4],
+  [0.0, 2.2],
+  [-3.5, -2.2],
+  [-1.8, -3.8],
+  [0.1, -2.8],
+  [2.2, -3.6],
+  [3.6, -2.0],
+  [-0.2, -4.7],
+]
+
 const HOMES: Record<LevelId, [number, number]> = {
   1: [0, -4.4],
   2: [0, 4.6],
+  3: [0, 4.9],
 }
 
-/** Gentle east-west stream. North bank rises; the south side stays flat. */
+/** Gentle east-west stream. North bank rises; the south side stays flat or knolled. */
 export const RIVER: readonly [number, number][] = [
   [-7.4, 0.85],
   [-4.2, 0.35],
@@ -63,8 +91,14 @@ const NORTH_PADS = [
 ] as const
 const PAD_ARM = 2.2
 
+export function hasRiver(level: LevelId) {
+  return level === 2 || level === 3
+}
+
 export function sheepLayout(level: LevelId) {
-  return level === 1 ? LEVEL1_SHEEP : LEVEL2_SHEEP
+  if (level === 1) return LEVEL1_SHEEP
+  if (level === 2) return LEVEL2_SHEEP
+  return LEVEL3_SHEEP
 }
 
 export function herderHome(level: LevelId) {
@@ -122,9 +156,16 @@ function northPad(x: number, z: number) {
   return best
 }
 
+/** Gentle south-central clay knoll for Level 3. */
+function southKnoll(x: number, z: number) {
+  const d = Math.hypot(x, z - 3.35)
+  return (1 - smoothstep(0.6, 2.75, d)) * 0.78
+}
+
 export function groundHeight(level: LevelId, x: number, z: number) {
-  if (level !== 2) return 0
+  if (level === 1) return 0
   const slope = bankHeight(z)
+  const knoll = level === 3 ? southKnoll(x, z) : 0
   const hit = riverClosest(x, z)
   let groove = 0
   const reach = 0.98
@@ -132,26 +173,26 @@ export function groundHeight(level: LevelId, x: number, z: number) {
     const t = 1 - hit.dist / reach
     groove = t * t * 0.22
   }
-  const carved = slope - groove
+  const carved = slope + knoll - groove
   const pad = northPad(x, z)
   return carved * (1 - pad) + SLOPE_RISE * pad
 }
 
 /** How far to lift a corner pen so its floor sits on the ground. */
 export function penLift(level: LevelId, index: number) {
-  if (level !== 2) return 0
+  if (level === 1) return 0
   return index === 2 || index === 3 ? SLOPE_RISE : 0
 }
 
 export function hitsWater(level: LevelId, x: number, z: number, radius: number) {
-  if (level !== 2) return false
+  if (!hasRiver(level)) return false
   const hit = riverClosest(x, z)
   if (inFord(hit.x)) return false
   return hit.dist < WATER_HALF + radius
 }
 
 export function pushOutOfWater(level: LevelId, x: number, z: number, radius: number) {
-  if (level !== 2) return { x, z }
+  if (!hasRiver(level)) return { x, z }
   let px = x
   let pz = z
   const limit = WATER_HALF + radius
@@ -175,7 +216,7 @@ export function pushOutOfWater(level: LevelId, x: number, z: number, radius: num
 
 /** Extra southward speed for a sheep standing on the north slope. */
 export function slopeDrift(level: LevelId, x: number, z: number) {
-  if (level !== 2 || z > -1.05) return 0
+  if (!hasRiver(level) || z > -1.05) return 0
   const hit = riverClosest(x, z)
   if (hit.dist < 1.25 && inFord(hit.x)) return 0
   for (const [cx, cz] of NORTH_PADS) {
@@ -183,5 +224,6 @@ export function slopeDrift(level: LevelId, x: number, z: number) {
     const mz = cz - Math.sign(cz) * PAD_ARM * 0.62
     if ((x - mx) ** 2 + (z - mz) ** 2 < 2.8 * 2.8) return 0
   }
-  return SLOPE_DRIFT * smoothstep(-1.05, -1.7, z)
+  const factor = level === 3 ? SLOPE_DRIFT * 1.15 : SLOPE_DRIFT
+  return factor * smoothstep(-1.05, -1.7, z)
 }
