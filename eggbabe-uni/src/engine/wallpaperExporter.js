@@ -123,3 +123,50 @@ export async function exportWallpaper({ canvas, bg, pet, worn }) {
   return tempFilePath;
   // #endif
 }
+
+/**
+ * 渲染紧凑型透明底宠物快照（360x360 PNG DataURL），用于同步给 iOS WidgetKit 桌面小组件
+ */
+export async function renderWidgetSnapshotDataUrl({ pet, worn }) {
+  // #ifdef H5
+  if (!pet || typeof document === "undefined") return "";
+  const size = 360;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, size, size);
+
+  const scale = Math.min((size * 0.9) / pet.canvasW, (size * 0.9) / pet.canvasH);
+  const dw = pet.canvasW * scale;
+  const dh = pet.canvasH * scale;
+  const ox = (size - dw) / 2;
+  const oy = (size - dh) / 2;
+
+  let bodyUrl = pet.textures.base;
+  if (pet.mode === "sets" && worn && worn.set) {
+    const setItem = pet.items.find((x) => x.id === worn.set);
+    if (setItem) bodyUrl = setItem.texUrl;
+  }
+  const bodyImg = await loadImage(canvas, bodyUrl);
+  ctx.drawImage(bodyImg, ox, oy, dw, dh);
+
+  if (pet.mode === "accessories" && worn) {
+    const slotIds = [worn.neck, worn.head];
+    for (let i = 0; i < slotIds.length; i++) {
+      const id = slotIds[i];
+      if (!id) continue;
+      const it = pet.items.find((x) => x.id === id);
+      if (!it) continue;
+      const accImg = await loadImage(canvas, it.texUrl);
+      ctx.drawImage(accImg, ox + it.x * scale, oy + it.y * scale, it.w * scale, it.h * scale);
+    }
+  }
+  return canvas.toDataURL("image/png");
+  // #endif
+
+  // #ifndef H5
+  return "";
+  // #endif
+}
+

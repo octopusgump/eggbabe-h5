@@ -1,0 +1,64 @@
+name: Deploy H5 & Assets to Alibaba Cloud Singapore OSS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-oss:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check OSS secrets
+        id: check
+        env:
+          OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
+          OSS_AK: ${{ secrets.ALIYUN_OSS_ACCESS_KEY_ID }}
+          OSS_SK: ${{ secrets.ALIYUN_OSS_ACCESS_KEY_SECRET }}
+        run: |
+          if [ -z "$OSS_BUCKET" ] || [ -z "$OSS_AK" ] || [ -z "$OSS_SK" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Alibaba Cloud OSS secrets not configured yet. Add ALIYUN_OSS_BUCKET, ALIYUN_OSS_ACCESS_KEY_ID, ALIYUN_OSS_ACCESS_KEY_SECRET, and ALIYUN_CDN_BASE in repo Settings -> Secrets."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        if: steps.check.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build H5 with OSS CDN_BASE
+        if: steps.check.outputs.configured == 'true'
+        env:
+          VITE_CDN_BASE: ${{ secrets.ALIYUN_CDN_BASE }}
+        run: |
+          npm --prefix eggbabe-uni install
+          npm --prefix eggbabe-uni run build:h5
+
+      - name: Setup ossutil
+        if: steps.check.outputs.configured == 'true'
+        uses: manyuanrong/setup-ossutil@v3.0
+        with:
+          endpoint: ${{ secrets.ALIYUN_OSS_ENDPOINT || 'oss-ap-southeast-1.aliyuncs.com' }}
+          access-key-id: ${{ secrets.ALIYUN_OSS_ACCESS_KEY_ID }}
+          access-key-secret: ${{ secrets.ALIYUN_OSS_ACCESS_KEY_SECRET }}
+
+      - name: Sync H5 & shared assets to Singapore OSS
+        if: steps.check.outputs.configured == 'true'
+        env:
+          OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
+        run: |
+          # 1. Sync static assets (long cache)
+          ossutil cp -rf --meta "Cache-Control:public, max-age=31536000, immutable" \
+            eggbabe-uni/site/assets/ "oss://${OSS_BUCKET}/assets/"
+          ossutil cp -rf --meta "Cache-Control:public, max-age=604800" \
+            assets/shared/png/ "oss://${OSS_BUCKET}/assets/shared/png/"
+
+          # 2. Sync index.html & catalog.json (no-cache for instant hot updates)
+          ossutil cp -f --meta "Cache-Control:no-cache, no-store, must-revalidate" \
+            eggbabe-uni/site/index.html "oss://${OSS_BUCKET}/index.html"
+          ossutil cp -f --meta "Cache-Control:no-cache, no-store, must-revalidate" \
+            assets/shared/catalog.json "oss://${OSS_BUCKET}/assets/shared/catalog.json"

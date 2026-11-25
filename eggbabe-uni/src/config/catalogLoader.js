@@ -6,7 +6,13 @@ import fallbackCatalog from "../../../assets/shared/catalog.json";
  *   H5 与已上线的微信小程序会在下次打开时自动拉取最新配置，无需重新提交微信审核。
  * - 正式上线微信小程序前：将仓库 `assets/` 上传至自己的已备案 COS/OSS，并替换下方 CDN_BASE。
  */
-export const CDN_BASE = "https://octopusgump.github.io/eggbabe-h5";
+const DEFAULT_CDN_BASE = "https://octopusgump.github.io/eggbabe-h5";
+const RAW_CDN_BASE =
+  (typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_CDN_BASE) ||
+  DEFAULT_CDN_BASE;
+export const CDN_BASE = String(RAW_CDN_BASE).replace(/\/+$/, "");
 
 export function assetUrl(relPath) {
   if (!relPath) return "";
