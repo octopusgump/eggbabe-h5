@@ -36,12 +36,12 @@
     },
     slots: {
       lampGlow: [695, 345, 620, 520],
-      catClock: [418, 434, 174, 180],
-      catClockHit: [418, 434, 196, 200],
+      catClock: [432, 468, 174, 180],
+      catClockHit: [432, 468, 196, 200],
       wallPolaroid: [1160, 215, 148, 175],
       mailBubble: [1135, 385],
       awayNote: [1520, 1090],
-      sillProp: [1730, 548, 148, 148]
+      sillProp: [1730, 586, 148, 148]
     },
     hotspots: {
       lamp: [595, 195, 200, 300],
