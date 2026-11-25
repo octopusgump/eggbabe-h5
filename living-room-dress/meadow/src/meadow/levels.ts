@@ -39,6 +39,7 @@ export type LevelConfig = {
   hasSlope: boolean
   hasKnoll: boolean
   sheep: readonly SheepSpawn[]
+  troublemakers: readonly [number, number][]
   trees: readonly TreeObstacle[]
   bumpers: readonly BumperObstacle[]
   boostPads: readonly BoostPad[]
@@ -51,12 +52,12 @@ function makeSheep(coords: readonly [number, number][], goldenIndices: readonly 
 }
 
 export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
-  // 第 1 关：完全无树木、全护栏、6 只羊（5 白 + 1 黄，满分 8 分）
+  // 第 1 关：完全无树木、全护栏、6 只羊（5 白 + 1 黄，0 黑羊，入门熟悉紧凑小圈与滑冲桌球连撞）
   1: {
     id: 1,
     name: '晨霜纯冰场',
     shortLabel: '1 · 晨霜纯冰场',
-    hint: '方向键/摇杆滑行 · 把自由滑溜的小羊铲进下方大门',
+    hint: '贴身卡位 + 空格滑冲桌球连撞 · 抢金铃铛触发聚羊 Fever',
     herderHome: [0, -4.6],
     hasRiver: false,
     hasSlope: false,
@@ -72,18 +73,19 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       ],
       [0],
     ),
+    troublemakers: [],
     trees: [],
     bumpers: [],
     boostPads: [],
-    starThresholds: [3, 5, 6],
+    starThresholds: [4, 7, 10],
   },
 
-  // 第 2 关：雪墩弹弹场 — 3 个弹性碰碰雪墩，8 只羊（7 白 + 1 黄，满分 10 分）
+  // 第 2 关：雪墩弹弹场 — 3 个弹性碰碰雪墩 + 1 只捣蛋黑羊，8 只羊（7 白 + 1 黄）
   2: {
     id: 2,
     name: '雪墩弹弹场',
     shortLabel: '2 · 雪墩弹弹场',
-    hint: '借冰面弹弹雪墩折返反弹，把 8 只小羊弹进大门',
+    hint: '借雪墩反弹赶羊，小心把捣蛋黑羊顶离大门（进门 -2✦）！',
     herderHome: [0, -5.0],
     hasRiver: false,
     hasSlope: false,
@@ -101,6 +103,7 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       ],
       [0],
     ),
+    troublemakers: [[-0.2, 2.1]],
     trees: [],
     bumpers: [
       { x: -3.1, z: 0.4, radius: 0.72 },
@@ -108,15 +111,15 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       { x: 0.0, z: -0.6, radius: 0.76 },
     ],
     boostPads: [],
-    starThresholds: [4, 6, 8],
+    starThresholds: [5, 9, 13],
   },
 
-  // 第 3 关：霜林松柏场 — 4 棵带碰撞体积的积雪松树，10 只羊（8 白 + 2 黄，满分 14 分）
+  // 第 3 关：霜林松柏场 — 4 棵带碰撞体积的积雪松树 + 1 只捣蛋黑羊，10 只羊（8 白 + 2 黄）
   3: {
     id: 3,
     name: '霜林松柏场',
     shortLabel: '3 · 霜林松柏场',
-    hint: '绕开积雪松树甩尾卡位，拦截 2 只高速金绒羊',
+    hint: '绕松树急刹截杀侧闪金绒羊，同时守住大门挡住黑羊！',
     herderHome: [0, -5.2],
     hasRiver: false,
     hasSlope: false,
@@ -136,6 +139,7 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       ],
       [0, 1],
     ),
+    troublemakers: [[0.0, 2.0]],
     trees: [
       { x: -3.5, z: -3.4, scale: 0.96, radius: 0.62 },
       { x: 3.5, z: -3.4, scale: 0.96, radius: 0.62 },
@@ -144,15 +148,15 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
     ],
     bumpers: [],
     boostPads: [],
-    starThresholds: [5, 8, 11],
+    starThresholds: [7, 12, 16],
   },
 
-  // 第 4 关：暖阳冰溪坡 — 北坡加速俯冲 + 冰溪双浅滩，12 只羊（10 白 + 2 黄，满分 16 分）
+  // 第 4 关：暖阳冰溪坡 — 北坡加速俯冲 + 冰溪双浅滩 + 1 只捣蛋黑羊，12 只羊（10 白 + 2 黄）
   4: {
     id: 4,
     name: '暖阳冰溪坡',
     shortLabel: '4 · 暖阳冰溪坡',
-    hint: '顺北坡俯冲加速，过双浅滩把 12 只羊推入大门',
+    hint: '顺北坡俯冲连撞过双浅滩，别让捣蛋黑羊混进大门！',
     herderHome: [0, -5.6],
     hasRiver: true,
     hasSlope: true,
@@ -174,18 +178,19 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       ],
       [0, 1],
     ),
+    troublemakers: [[0.0, 2.4]],
     trees: [],
     bumpers: [],
     boostPads: [],
-    starThresholds: [6, 9, 12],
+    starThresholds: [8, 13, 18],
   },
 
-  // 第 5 关：星光加速道 — 暖金加速滑道助推连杀，14 只羊（11 白 + 3 黄，满分 20 分）
+  // 第 5 关：星光加速道 — 暖金加速滑道 + 2 只捣蛋黑羊，14 只羊（11 白 + 3 黄）
   5: {
     id: 5,
     name: '星光加速道',
     shortLabel: '5 · 星光加速道',
-    hint: '把四散小羊赶上暖金加速冰道，触发连环多杀！',
+    hint: '警惕 2 只捣蛋黑羊踩加速道冲门！抢金铃铛反打清场！',
     herderHome: [0, -5.4],
     hasRiver: false,
     hasSlope: false,
@@ -209,6 +214,10 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       ],
       [0, 1, 2],
     ),
+    troublemakers: [
+      [-2.1, 2.0],
+      [2.1, 2.0],
+    ],
     trees: [],
     bumpers: [],
     boostPads: [
@@ -216,15 +225,15 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       { x: 4.2, z: 0.4, halfW: 0.95, halfD: 2.5, dirX: -0.32, dirZ: 0.95, force: 16.5 },
       { x: 0.0, z: -1.4, halfW: 1.05, halfD: 1.5, dirX: 0, dirZ: 1, force: 15.0 },
     ],
-    starThresholds: [7, 11, 15],
+    starThresholds: [10, 16, 22],
   },
 
-  // 第 6 关：金绒嘉年华 — 中央微雪丘 + 双弹弹柱 + 4 只黄羊狂欢，16 只羊（12 白 + 4 黄，满分 24 分）
+  // 第 6 关：金绒嘉年华 — 中央微雪丘 + 双弹弹柱 + 4 金羊 + 2 捣蛋黑羊狂欢，16 只羊
   6: {
     id: 6,
     name: '金绒嘉年华',
     shortLabel: '6 · 金绒嘉年华',
-    hint: '终极狂欢！4 只金绒领头羊满场飞滑，暴击 +3 ✦！',
+    hint: '终极狂欢！4 金羊 + 2 捣蛋黑羊，把握最后 8 秒 2× 翻盘！',
     herderHome: [0, -5.6],
     hasRiver: false,
     hasSlope: false,
@@ -250,6 +259,10 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
       ],
       [0, 1, 2, 3],
     ),
+    troublemakers: [
+      [-2.4, 2.1],
+      [2.4, 2.1],
+    ],
     trees: [],
     bumpers: [
       { x: -3.2, z: -0.6, radius: 0.72 },
@@ -258,7 +271,7 @@ export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
     boostPads: [
       { x: 0.0, z: 2.4, halfW: 1.1, halfD: 1.25, dirX: 0, dirZ: 1, force: 14.5 },
     ],
-    starThresholds: [8, 13, 18],
+    starThresholds: [12, 19, 26],
   },
 }
 

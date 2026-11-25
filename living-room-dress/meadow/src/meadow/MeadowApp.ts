@@ -7,16 +7,21 @@ import {
   buzz,
   flyStarsToHud,
   playBaa,
+  playBellPickup,
   playBoostWhoosh,
   playBump,
   playBumperBoing,
   playDash,
+  playGoldenJuke,
   playPenned,
+  playRushFanfare,
   playSheepSlide,
   playSkateStep,
   playStarRankUp,
   playStartWhistle,
+  playStrikeBonus,
   playTick,
+  playTroublemakerPenalty,
   playWallBoing,
   popAtScreen,
   stepBgm,
@@ -39,9 +44,20 @@ import {
   type LevelId,
 } from './levels'
 import { felt } from './materials'
-import { createCornerPens, kickPen, resetPens, setPenStarTier, stepPens, type PenRig } from './pen'
 import {
+  createCornerPens,
+  kickPen,
+  kickPenDanger,
+  resetPens,
+  setPenRushMode,
+  setPenStarTier,
+  stepPens,
+  type PenRig,
+} from './pen'
+import {
+  applyScorePenalty,
   bounceInArena,
+  computeGateScoreDelta,
   createSkaterState,
   DEFAULT_SKATER_PARAMS,
   resolveElasticBump,
@@ -56,7 +72,22 @@ import {
   stepHerder as playHerder,
   type HerderState,
 } from './herder'
-import { createSheep, resetSheep, SHEEP_FEAR, stepSheep, type SheepState } from './sheep'
+import {
+  checkBellPickup,
+  createBellPowerup,
+  hideBell,
+  spawnBell,
+  stepBell,
+  type BellPowerupRig,
+} from './powerups'
+import {
+  createSheep,
+  FEVER_FEAR,
+  resetSheep,
+  SHEEP_FEAR,
+  stepSheep,
+  type SheepState,
+} from './sheep'
 import { readHostContext, settleMeadowRound, type HostContext } from './storeBridge'
 import {
   clearTrails,
@@ -76,6 +107,8 @@ const SHEEP_PAIR_DIST = 0.86
 const BUMP_COOLDOWN = 0.22
 const COMBO_WINDOW = 2.4
 const STICK_MAX_OFFSET = 36
+const FEVER_DURATION = 4.5
+const RUSH_SECONDS = 8
 const BEST_STARS_KEY = 'eggbabe_meadow_best_stars_v1'
 
 function loadBestStars(): Record<string, number> {
@@ -109,6 +142,7 @@ export class MeadowApp {
     fillMat: THREE.MeshBasicMaterial
     ringMat: THREE.MeshBasicMaterial
   }
+  private bell: BellPowerupRig
   private clouds: THREE.Group
   private pens: PenRig
   private islandRig: IslandRig | null = null
@@ -127,7 +161,7 @@ export class MeadowApp {
   private hostCtx: HostContext
   private bestStars: Record<string, number> = loadBestStars()
 
-  // Live scoring, star rank-up & juice
+  // Live scoring, star rank-up, Fever, Rush & Billiard Strike juice
   private penOccupancy = [0]
   private roundScore = 0
   private displayedScore = 0
@@ -135,10 +169,18 @@ export class MeadowApp {
   private comboCount = 0
   private comboTimer = 0
   private cameraShake = 0
+  private hitstopTimer = 0
+  private feverTimer = 0
+  private rushTriggered = false
+  private meteorSpawned = false
+  private bellSpawnsLeft: number[] = [17, 9]
+  private lastBlockPop = 0
   private skidMarkTimer = 0
   private skidSprayTimer = 0
   private sheepTrailTimer = 0
   private herderOnBoost = false
+  private previewBell = false
+  private previewRush = false
 
   // Unified pointer + keyboard visual joystick state
   private pointerStickX = 0
@@ -211,13 +253,15 @@ export class MeadowApp {
     this.standaloneStarEl = document.getElementById('standalone-star-pill')
     this.levelButtons = document.querySelectorAll<HTMLButtonElement>('[data-level-pick]')
 
-    // Optional ?level=1..6 query param for direct level jump & verification
+    // Optional ?level=1..6 query param (plus ?bell=1 / ?rush=1 preview helpers for verification)
     try {
       const qs = new URLSearchParams(window.location.search)
       const qLvl = Number(qs.get('level'))
       if (qLvl >= 1 && qLvl <= LEVEL_COUNT) {
         this.level = qLvl as LevelId
       }
+      this.previewBell = qs.get('bell') === '1'
+      this.previewRush = qs.get('rush') === '1'
     } catch {
       /* ignore */
     }
@@ -310,6 +354,16 @@ export class MeadowApp {
     this.herdRange.group.position.set(hx, groundHeight(this.level, hx, hz), hz)
     this.scene.add(this.herdRange.group)
 
+    this.bell = createBellPowerup()
+    this.scene.add(this.bell.group)
+    if (this.previewBell) {
+      spawnBell(this.bell, this.level, hx, hz)
+    }
+    if (this.previewRush) {
+      this.remaining = RUSH_SECONDS
+      this.triggerFinalRush()
+    }
+
     this.paintHostMeta()
     this.bindUnifiedStick()
     this.bindDashButton()
@@ -350,7 +404,7 @@ export class MeadowApp {
     this.scene.add(this.trees)
   }
 
-  /** Rebuilds the exact sheep flock for the current level (6 -> 8 -> 10 -> 12 -> 14 -> 16) */
+  /** Rebuilds scoreable sheep (6 -> 16) plus Level 2-6 Troublemaker Black Sheep */
   private rebuildSheep() {
     for (const s of this.sheep) {
       this.scene.remove(s.group)
@@ -359,13 +413,60 @@ export class MeadowApp {
     this.sheep = []
     const layout = sheepLayout(this.level)
     for (const spec of layout) {
-      const state = createSheep(spec.isGolden)
+      const state = createSheep(spec.isGolden ? 'golden' : 'white')
       state.homeX = spec.x
       state.homeZ = spec.z
       state.group.scale.setScalar(spec.isGolden ? 1.24 : 1.15)
       resetSheep(state, this.level)
       this.sheep.push(state)
       this.scene.add(state.group)
+    }
+    const cfg = levelConfig(this.level)
+    for (const [tx, tz] of cfg.troublemakers) {
+      const bad = createSheep('troublemaker')
+      bad.homeX = tx
+      bad.homeZ = tz
+      bad.group.scale.setScalar(1.2)
+      resetSheep(bad, this.level)
+      this.sheep.push(bad)
+      this.scene.add(bad.group)
+    }
+  }
+
+  /** Spawns 1 surprise Meteor Golden Sheep during Final 8s Golden Rush if few sheep remain! */
+  private spawnMeteorGoldenSheep() {
+    if (this.meteorSpawned) return
+    this.meteorSpawned = true
+    const mx = (Math.random() - 0.5) * 3.2
+    const mz = -3.4
+    const meteor = createSheep('golden')
+    meteor.homeX = mx
+    meteor.homeZ = mz
+    meteor.group.scale.setScalar(1.3)
+    resetSheep(meteor, this.level)
+    meteor.velocity.set((Math.random() - 0.5) * 3.2, 3.8)
+    meteor.mode = 'slide'
+    meteor.sliding = true
+    meteor.slideCarry = 1.2
+    this.sheep.push(meteor)
+    this.scene.add(meteor.group)
+    const gy = groundHeight(this.level, mx, mz)
+    spawnPenBurst(this.scene, mx, gy, mz, true)
+    const pos = this.projectToScreen(mx, gy + 1.0, mz)
+    popAtScreen(pos.x, pos.y, '🌠 流星金羊空降！', 'gold')
+  }
+
+  private triggerFinalRush() {
+    if (this.rushTriggered) return
+    this.rushTriggered = true
+    setPenRushMode(this.pens, true)
+    this.timePill?.classList.add('is-rush')
+    playRushFanfare()
+    const pos = this.projectToScreen(0, 1.8, 1.2)
+    popAtScreen(pos.x, pos.y, '✨ 最后 8 秒 · 得分 2×！', 'rush')
+    const remainingGoal = this.goalSheepCount() - this.pennedCount()
+    if (remainingGoal < 4) {
+      this.spawnMeteorGoldenSheep()
     }
   }
 
@@ -486,12 +587,26 @@ export class MeadowApp {
     const world = this.screenInputToWorld(input.x, input.y)
     const dirX = Math.hypot(world.x, world.z) > 0.15 ? world.x : this.lastInputWorldX
     const dirZ = Math.hypot(world.x, world.z) > 0.15 ? world.z : this.lastInputWorldZ
-    const ok = triggerSkaterDash(this.skater, dirX, dirZ, DEFAULT_SKATER_PARAMS)
+    const dashParams =
+      this.feverTimer > 0
+        ? { ...DEFAULT_SKATER_PARAMS, dashCooldown: 0.65, dashSpeed: 9.4 }
+        : DEFAULT_SKATER_PARAMS
+    const ok = triggerSkaterDash(this.skater, dirX, dirZ, dashParams)
     if (!ok) return
     playDash()
     buzz(14)
     const pos = this.herder.group.position
-    spawnIceSpray(this.scene, pos.x, pos.y, pos.z, -dirX, -dirZ, 0.9, 6, 0xfff8e2)
+    spawnIceSpray(
+      this.scene,
+      pos.x,
+      pos.y,
+      pos.z,
+      -dirX,
+      -dirZ,
+      0.9,
+      6,
+      this.feverTimer > 0 ? 0xffdf78 : 0xfff8e2,
+    )
     this.dashBtnEl?.classList.remove('is-triggered')
     void this.dashBtnEl?.offsetWidth
     this.dashBtnEl?.classList.add('is-triggered')
@@ -750,8 +865,16 @@ export class MeadowApp {
       }
     }
 
-    const targetRing = res.skidding ? 0.38 : res.speed > 0.6 ? 0.24 : 0.08
-    const targetFill = res.skidding ? 0.09 : res.speed > 0.6 ? 0.05 : 0.015
+    const feverOn = this.feverTimer > 0
+    const targetScale = feverOn ? FEVER_FEAR / SHEEP_FEAR : 1
+    const curScale = this.herdRange.group.scale.x
+    const nextScale = curScale + (targetScale - curScale) * Math.min(1, dt * 8)
+    this.herdRange.group.scale.set(nextScale, 1, nextScale)
+    this.herdRange.ringMat.color.setHex(feverOn ? 0xf6c234 : 0xfffcf2)
+    this.herdRange.fillMat.color.setHex(feverOn ? 0xffdf7a : 0xffffff)
+
+    const targetRing = feverOn ? 0.58 : res.skidding ? 0.42 : res.speed > 0.6 ? 0.28 : 0.14
+    const targetFill = feverOn ? 0.14 : res.skidding ? 0.09 : res.speed > 0.6 ? 0.05 : 0.02
     this.herdRange.ringMat.opacity += (targetRing - this.herdRange.ringMat.opacity) * Math.min(1, dt * 7)
     this.herdRange.fillMat.opacity += (targetFill - this.herdRange.fillMat.opacity) * Math.min(1, dt * 7)
   }
@@ -759,7 +882,7 @@ export class MeadowApp {
   private collideHerderWithSheep(s: SheepState, hx: number, hz: number) {
     if (s.mode === 'penned' || s.bumpCooldown > 0) return
     const dashing = this.skater.dashTimer > 0
-    const extraPush = dashing ? 4.8 : 2.8
+    const extraPush = dashing ? 5.6 : 3.0
     const hit = resolveElasticBump(
       hx,
       hz,
@@ -772,7 +895,7 @@ export class MeadowApp {
       TOUCH,
       2.6,
       1.0,
-      0.94,
+      0.95,
       extraPush,
     )
     if (!hit.collided) return
@@ -788,23 +911,37 @@ export class MeadowApp {
     s.group.position.y = groundHeight(this.level, s.group.position.x, s.group.position.z)
 
     const launchSpd = Math.hypot(hit.bVel.x, hit.bVel.z)
-    const maxLaunch = dashing ? 9.2 : 7.2
+    const maxLaunch = dashing ? 10.2 : 7.6
     const scale = launchSpd > maxLaunch ? maxLaunch / launchSpd : 1
     s.velocity.set(hit.bVel.x * scale, hit.bVel.z * scale)
-    s.slideCarry = dashing ? 1.35 : 0.95
+    s.slideCarry = dashing ? 1.45 : 1.0
     s.mode = 'slide'
     s.sliding = true
     s.bumpCooldown = BUMP_COOLDOWN
 
+    // Mark sheep as high-energy cue ball for Billiard Chain Strikes!
+    if (dashing && !s.isTroublemaker) {
+      s.strikeTimer = 1.75
+      s.chainHits = 0
+      this.hitstopTimer = Math.max(this.hitstopTimer, 0.045)
+    }
+
+    // Celebrate deflecting a Troublemaker Black Sheep away from the South gate!
+    if (s.isTroublemaker && s.group.position.z > 1.8 && performance.now() - this.lastBlockPop > 900) {
+      this.lastBlockPop = performance.now()
+      const sp = this.projectToScreen(s.group.position.x, s.group.position.y + 0.9, s.group.position.z)
+      popAtScreen(sp.x, sp.y, '🛡️ 挡住捣蛋羊！', 'strike')
+    }
+
     this.skater.vx = hit.aVel.x
     this.skater.vz = hit.aVel.z
 
-    spawnImpact(this.scene, (s.group.position.x + hx) / 2, (s.group.position.z + hz) / 2, hit.nx, hit.nz, dashing ? 1.05 : 0.85)
-    spawnIceSpray(this.scene, s.group.position.x, s.group.position.y, s.group.position.z, hit.nx, hit.nz, 0.8, 4)
+    spawnImpact(this.scene, (s.group.position.x + hx) / 2, (s.group.position.z + hz) / 2, hit.nx, hit.nz, dashing ? 1.1 : 0.85)
+    spawnIceSpray(this.scene, s.group.position.x, s.group.position.y, s.group.position.z, hit.nx, hit.nz, 0.85, dashing ? 6 : 4)
     playBump(hit.impactSpeed / 4.0, false)
     playSheepSlide()
     if (dashing || hit.impactSpeed > 3.0) {
-      this.cameraShake = Math.max(this.cameraShake, dashing ? 0.16 : 0.09)
+      this.cameraShake = Math.max(this.cameraShake, dashing ? 0.17 : 0.09)
       buzz(dashing ? 22 : 12)
     }
   }
@@ -828,7 +965,7 @@ export class MeadowApp {
           SHEEP_PAIR_DIST,
           1.0,
           1.0,
-          0.88,
+          0.92,
           0,
         )
         if (!hit.collided) continue
@@ -843,16 +980,33 @@ export class MeadowApp {
         if (hit.impactSpeed > 1.35) {
           a.mode = 'slide'
           b.mode = 'slide'
-          a.slideCarry = Math.max(a.slideCarry, 0.72)
-          b.slideCarry = Math.max(b.slideCarry, 0.82)
-          playBump(hit.impactSpeed / 3.8, true)
+          a.slideCarry = Math.max(a.slideCarry, 0.78)
+          b.slideCarry = Math.max(b.slideCarry, 0.88)
+
+          // Billiard Strike chain propagation!
+          const strikeActive = (a.strikeTimer > 0 || b.strikeTimer > 0) && !a.isTroublemaker && !b.isTroublemaker
+          if (strikeActive) {
+            const target = a.strikeTimer > 0 ? b : a
+            target.strikeTimer = 1.65
+            target.chainHits = Math.max(1, target.chainHits + 1)
+            a.strikeTimer = Math.max(a.strikeTimer, 1.35)
+            b.strikeTimer = Math.max(b.strikeTimer, 1.35)
+            playStrikeBonus()
+            const mx = (a.group.position.x + b.group.position.x) / 2
+            const mz = (a.group.position.z + b.group.position.z) / 2
+            const sp = this.projectToScreen(mx, groundHeight(this.level, mx, mz) + 0.85, mz)
+            popAtScreen(sp.x, sp.y, '🎱 连撞!', 'strike')
+          } else {
+            playBump(hit.impactSpeed / 3.8, true)
+          }
+
           spawnImpact(
             this.scene,
             (a.group.position.x + b.group.position.x) / 2,
             (a.group.position.z + b.group.position.z) / 2,
             hit.nx,
             hit.nz,
-            0.65,
+            strikeActive ? 0.9 : 0.65,
           )
         }
       }
@@ -901,15 +1055,24 @@ export class MeadowApp {
     this.comboCount = 0
     this.comboTimer = 0
     this.cameraShake = 0
+    this.hitstopTimer = 0
+    this.feverTimer = 0
+    this.rushTriggered = false
+    this.meteorSpawned = false
+    this.bellSpawnsLeft = [17, 9]
     this.herderOnBoost = false
     this.releaseStick()
     this.keys.clear()
     this.placeHerderHome()
     resetHerder(this.herder)
-    this.timePill?.classList.remove('urgent', 'pop')
+    hideBell(this.bell)
+    this.herdRange.group.scale.set(1, 1, 1)
+    this.herdRange.ringMat.color.setHex(0xfffcf2)
+    this.herdRange.fillMat.color.setHex(0xffffff)
+    this.timePill?.classList.remove('urgent', 'pop', 'is-rush')
     this.countPill?.classList.remove('pop')
-    this.scorePill?.classList.remove('pop')
-    for (const s of this.sheep) resetSheep(s, this.level)
+    this.scorePill?.classList.remove('pop', 'is-fever')
+    this.rebuildSheep()
     this.baaWait = 2.4
     clearImpacts()
     clearTrails()
@@ -928,8 +1091,12 @@ export class MeadowApp {
     this.updateHud()
   }
 
+  private goalSheepCount() {
+    return this.sheep.filter((s) => !s.isTroublemaker).length
+  }
+
   private pennedCount() {
-    return this.sheep.filter((s) => s.mode === 'penned').length
+    return this.sheep.filter((s) => !s.isTroublemaker && s.mode === 'penned').length
   }
 
   private finish() {
@@ -938,9 +1105,10 @@ export class MeadowApp {
     updateSkidSound(0)
     this.releaseStick()
     this.keys.clear()
+    hideBell(this.bell)
 
     const n = this.pennedCount()
-    const totalSheep = this.sheep.length
+    const totalSheep = this.goalSheepCount()
     const maxPts = maxLevelScore(this.level)
     const tierStars = computeStarTier(this.level, this.roundScore)
     const prevBest = Number(this.bestStars[String(this.level)] || 0)
@@ -1004,11 +1172,16 @@ export class MeadowApp {
     const s = sec % 60
     const cfg = levelConfig(this.level)
     if (this.timeEl) this.timeEl.textContent = `${m}:${s.toString().padStart(2, '0')}`
-    if (this.countEl) this.countEl.textContent = `${this.pennedCount()}/${this.sheep.length}`
+    if (this.countEl) this.countEl.textContent = `${this.pennedCount()}/${this.goalSheepCount()}`
     if (this.liveScoreEl) this.liveScoreEl.textContent = `✦ ${this.displayedScore}`
-    if (this.levelEl) this.levelEl.textContent = `第${this.level}关 · ${cfg.name}`
+    if (this.levelEl) {
+      this.levelEl.textContent = this.rushTriggered
+        ? `第${this.level}关 · 2× 冲刺`
+        : `第${this.level}关 · ${cfg.name}`
+    }
     const urgent = this.started && !this.over && !this.paused && sec <= 5 && sec >= 1
     this.timePill?.classList.toggle('urgent', urgent)
+    this.scorePill?.classList.toggle('is-fever', this.feverTimer > 0)
     if (sec !== this.shownSecond) {
       if (urgent) {
         this.pulse(this.timePill)
@@ -1021,7 +1194,6 @@ export class MeadowApp {
   gotoLevel(level: LevelId) {
     this.level = level
     this.mountTerrain()
-    this.rebuildSheep()
     this.restart()
   }
 
@@ -1037,38 +1209,86 @@ export class MeadowApp {
     stepFeltClouds(this.clouds, t)
     stepTrees(this.trees, t)
     stepIsland(this.islandRig, dt, t)
+    stepBell(this.bell, dt)
 
     if (!this.paused) {
       if (this.comboTimer > 0) {
         this.comboTimer = Math.max(0, this.comboTimer - dt)
         if (this.comboTimer === 0) this.comboCount = 0
       }
-
-      if (!this.over) {
-        if (this.started) {
-          this.remaining = Math.max(0, this.remaining - dt)
-          stepBgm(dt, true, this.remaining <= 5)
-        }
-        this.stepHerder(dt, t)
+      if (this.feverTimer > 0) {
+        this.feverTimer = Math.max(0, this.feverTimer - dt)
       }
 
-      if (!this.over) {
+      // 45ms crisp arcade hitstop on dash-shoves
+      if (this.hitstopTimer > 0) {
+        this.hitstopTimer = Math.max(0, this.hitstopTimer - dt)
+      } else if (!this.over) {
+        if (this.started) {
+          this.remaining = Math.max(0, this.remaining - dt)
+          stepBgm(dt, true, this.rushTriggered || this.remaining <= RUSH_SECONDS)
+
+          // Spawn Golden Herder Bell power-up at 17s & 9s remaining
+          if (this.bellSpawnsLeft.length > 0 && this.remaining <= this.bellSpawnsLeft[0]!) {
+            this.bellSpawnsLeft.shift()
+            if (!this.bell.active) {
+              spawnBell(
+                this.bell,
+                this.level,
+                this.herder.group.position.x,
+                this.herder.group.position.z,
+              )
+            }
+          }
+
+          // Final 8s 2x Golden Rush!
+          if (!this.rushTriggered && this.remaining <= RUSH_SECONDS) {
+            this.triggerFinalRush()
+          }
+        }
+        this.stepHerder(dt, t)
+
         const hx = this.herder.group.position.x
         const hz = this.herder.group.position.z
         this.herdRange.group.position.set(hx, groundHeight(this.level, hx, hz), hz)
+
+        // Check Golden Herder Bell pickup -> 4.5s Golden Bell Fever!
+        if (checkBellPickup(this.bell, hx, hz)) {
+          this.feverTimer = FEVER_DURATION
+          playBellPickup()
+          buzz([18, 25, 18])
+          const gy = groundHeight(this.level, hx, hz)
+          spawnPenBurst(this.scene, hx, gy, hz, true)
+          const sp = this.projectToScreen(hx, gy + 1.15, hz)
+          popAtScreen(sp.x, sp.y, '🔔 铃铛 Fever！滑冲加倍', 'bell')
+          this.pulse(this.scorePill)
+        }
+
         this.baaWait -= dt
-        const activeCount = this.sheep.filter((s) => s.mode !== 'penned').length
+        const activeCount = this.sheep.filter((s) => !s.isTroublemaker && s.mode !== 'penned').length
         const wantIdle = activeCount > 0 && this.baaWait <= 0
         this.sheepTrailTimer -= dt
         const emitSheepTrail = this.sheepTrailTimer <= 0
         if (emitSheepTrail) this.sheepTrailTimer = 0.06
+        const activeFear = this.feverTimer > 0 ? FEVER_FEAR : SHEEP_FEAR
 
         for (const s of this.sheep) {
-          const event = stepSheep(s, dt, t, hx, hz, this.level, (penIdx) => {
-            const cur = this.penOccupancy[penIdx] || 0
-            this.penOccupancy[penIdx] = cur + 1
-            return cur
-          })
+          const event = stepSheep(
+            s,
+            dt,
+            t,
+            hx,
+            hz,
+            this.level,
+            (penIdx) => {
+              const cur = this.penOccupancy[penIdx] || 0
+              this.penOccupancy[penIdx] = cur + 1
+              return cur
+            },
+            activeFear,
+            this.skater.vx,
+            this.skater.vz,
+          )
 
           // Crisp wide frost slide ribbon behind every belly-sliding sheep!
           if (s.sliding && emitSheepTrail) {
@@ -1098,6 +1318,12 @@ export class MeadowApp {
               2,
               event.isGolden ? 0xfff0b2 : 0xffffff,
             )
+          } else if (event?.kind === 'juke') {
+            if (this.started) playGoldenJuke()
+            const gy = groundHeight(this.level, event.x, event.z)
+            spawnIceSpray(this.scene, event.x, gy, event.z, -event.nx, -event.nz, 0.72, 4, 0xffe88c)
+            const sp = this.projectToScreen(event.x, gy + 0.85, event.z)
+            popAtScreen(sp.x, sp.y, '⚡ 闪避!', 'gold')
           } else if (event?.kind === 'wallBounce') {
             if (this.started) playWallBoing()
             spawnIceSpray(
@@ -1117,29 +1343,61 @@ export class MeadowApp {
           } else if (event?.kind === 'fence') {
             spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, 0.7)
             if (this.started) playWallBoing()
+          } else if (event?.kind === 'troublemakerPen') {
+            this.roundScore = applyScorePenalty(this.roundScore, 2)
+            this.displayedScore = Math.min(this.displayedScore, this.roundScore)
+            this.comboCount = 0
+            this.comboTimer = 0
+
+            const gy = groundHeight(this.level, event.x, event.z)
+            kickPenDanger(this.pens)
+            playTroublemakerPenalty()
+            spawnImpact(this.scene, event.x, event.z, 0, -1, 1.05)
+            const screenPos = this.projectToScreen(event.x, gy + 0.95, event.z)
+            popAtScreen(screenPos.x, screenPos.y, '-2 ✦ 捣蛋羊混进来了！', 'penalty')
+            this.syncHudStarRank(false)
+            if (this.liveScoreEl) this.liveScoreEl.textContent = `✦ ${this.displayedScore}`
+            this.pulse(this.scorePill)
+            this.cameraShake = Math.max(this.cameraShake, 0.22)
+            buzz([30, 40, 30])
           } else if (event?.kind === 'penned') {
-            const pts = event.isGolden ? 3 : 1
+            const delta = computeGateScoreDelta(
+              event.isGolden,
+              this.rushTriggered,
+              Boolean(event.hasChainBonus),
+            )
+            const pts = delta.total
             this.roundScore += pts
             this.comboCount++
             this.comboTimer = COMBO_WINDOW
 
             const gy = groundHeight(this.level, event.x, event.z)
             spawnImpact(this.scene, event.x, event.z, event.nx, event.nz, event.isGolden ? 1.15 : 0.9)
-            spawnPenBurst(this.scene, event.x, gy, event.z, event.isGolden)
-            kickPen(this.pens, event.penIndex, event.isGolden)
+            spawnPenBurst(this.scene, event.x, gy, event.z, event.isGolden || this.rushTriggered)
+            kickPen(this.pens, event.penIndex, event.isGolden || this.rushTriggered)
 
-            // Instant on-gate +1 ✦ / +3 ✦ 👑 popup + flying star orbs to top-right HUD!
+            // Instant on-gate popup (2x rush, billiard chain strike, golden crown, or combo)
             const screenPos = this.projectToScreen(event.x, gy + 0.9, event.z)
-            if (event.isGolden) {
-              popAtScreen(screenPos.x, screenPos.y, '+3 ✦ 👑', 'gold')
+            if (delta.chainBonus > 0) {
+              popAtScreen(screenPos.x, screenPos.y, `🎱 桌球连撞 +${pts} ✦！`, 'strike')
+            } else if (event.isGolden) {
+              popAtScreen(
+                screenPos.x,
+                screenPos.y,
+                this.rushTriggered ? `+${pts} ✦ 👑 2×` : '+3 ✦ 👑',
+                'gold',
+              )
+            } else if (this.rushTriggered) {
+              popAtScreen(screenPos.x, screenPos.y, `+${pts} ✦ 2×`, 'rush')
             } else if (this.comboCount >= 2) {
-              popAtScreen(screenPos.x, screenPos.y, `+1 ✦ ×${this.comboCount}`, 'combo')
+              popAtScreen(screenPos.x, screenPos.y, `+${pts} ✦ ×${this.comboCount}`, 'combo')
             } else {
-              popAtScreen(screenPos.x, screenPos.y, '+1 ✦', 'normal')
+              popAtScreen(screenPos.x, screenPos.y, `+${pts} ✦`, 'normal')
             }
 
-            flyStarsToHud(screenPos.x, screenPos.y, pts, event.isGolden, () => {
-              this.displayedScore = Math.min(this.roundScore, this.displayedScore + 1)
+            const orbCount = Math.min(4, pts)
+            flyStarsToHud(screenPos.x, screenPos.y, orbCount, event.isGolden || this.rushTriggered, () => {
+              this.displayedScore = Math.min(this.roundScore, this.displayedScore + Math.ceil(pts / orbCount))
               if (this.liveScoreEl) this.liveScoreEl.textContent = `✦ ${this.displayedScore}`
               this.pulse(this.scorePill)
             })
@@ -1147,7 +1405,13 @@ export class MeadowApp {
             this.syncHudStarRank(true)
             this.pulse(this.countPill)
 
-            const last = this.pennedCount() === this.sheep.length
+            // If player clears almost everyone during Final Rush, drop a Meteor Golden Sheep!
+            const remainingGoal = this.goalSheepCount() - this.pennedCount()
+            if (this.rushTriggered && remainingGoal === 0 && !this.meteorSpawned) {
+              this.spawnMeteorGoldenSheep()
+            }
+
+            const last = this.pennedCount() === this.goalSheepCount()
             playPenned(this.comboCount, event.isGolden, last)
             this.cameraShake = Math.max(this.cameraShake, event.isGolden ? 0.2 : 0.11)
             buzz(last ? [16, 30, 28] : event.isGolden ? [16, 20, 24] : 16)
@@ -1162,7 +1426,7 @@ export class MeadowApp {
           playBaa('idle')
           this.baaWait = 3.2 + Math.random() * 3.4
         }
-        if (this.started && (this.remaining <= 0 || this.pennedCount() === this.sheep.length)) {
+        if (this.started && (this.remaining <= 0 || this.pennedCount() === this.goalSheepCount())) {
           this.displayedScore = this.roundScore
           this.finish()
         } else {

@@ -151,7 +151,10 @@ export type PenRig = {
   shake: number[]
   lanternMats: THREE.MeshStandardMaterial[]
   lanternFlash: number
+  dangerFlash: number
   starTier: number
+  rushMode: boolean
+  rushPhase: number
 }
 
 /** Single grand South-Center Sheep Gate & Straw Pen (holds up to 16 visible sheep!). */
@@ -173,14 +176,14 @@ export function createCornerPens(): PenRig {
   addGateThresholdMat(pen)
 
   const bowl = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.3, 0.34, 0.11, 16),
+    new THREE.CylinderGeometry(0.28, 0.32, 0.11, 16),
     ceramic(0xf4ede0, 0.34),
   )
-  bowl.position.set(GATE_HALF_W - 0.5, 0.06, GATE_BACK_Z - 0.44)
+  bowl.position.set(GATE_HALF_W - 0.44, 0.06, GATE_BACK_Z - 0.42)
   bowl.castShadow = true
   pen.add(bowl)
   const water = new THREE.Mesh(
-    new THREE.CircleGeometry(0.22, 16),
+    new THREE.CircleGeometry(0.2, 16),
     ceramic(0x9ccbc4, 0.18),
   )
   water.rotation.x = -Math.PI / 2
@@ -209,7 +212,17 @@ export function createCornerPens(): PenRig {
   addPlanter(pen, GATE_HALF_W + 0.42, GATE_MOUTH_Z + 0.18)
 
   root.add(pen)
-  return { root, groups: [pen], shake: [0], lanternMats, lanternFlash: 0, starTier: 0 }
+  return {
+    root,
+    groups: [pen],
+    shake: [0],
+    lanternMats,
+    lanternFlash: 0,
+    dangerFlash: 0,
+    starTier: 0,
+    rushMode: false,
+    rushPhase: 0,
+  }
 }
 
 /** Joyful spring bounce & glowing lantern pulse when a sheep jumps inside. */
@@ -219,11 +232,21 @@ export function kickPen(rig: PenRig, index = 0, isGolden = false) {
   rig.lanternFlash = isGolden ? 1.5 : 0.95
 }
 
+/** Warning red flash + jolt when a troublemaker black sheep sneaks through the gate. */
+export function kickPenDanger(rig: PenRig) {
+  rig.shake[0] = 0.28
+  rig.dangerFlash = 1.4
+}
+
 export function setPenStarTier(rig: PenRig, tier: number) {
   if (tier > rig.starTier) {
     rig.lanternFlash = Math.max(rig.lanternFlash, 1.65)
   }
   rig.starTier = tier
+}
+
+export function setPenRushMode(rig: PenRig, on: boolean) {
+  rig.rushMode = on
 }
 
 export function stepPens(rig: PenRig, dt: number, _level: LevelId = 1) {
@@ -235,9 +258,18 @@ export function stepPens(rig: PenRig, dt: number, _level: LevelId = 1) {
     rig.groups[i].position.set(0, k * 0.45, k * 0.85)
   }
   rig.lanternFlash = Math.max(0, rig.lanternFlash - dt * 2.4)
-  const baseGlow = 0.4 + rig.starTier * 0.26
-  const intensity = baseGlow + rig.lanternFlash
+  rig.dangerFlash = Math.max(0, rig.dangerFlash - dt * 2.1)
+  rig.rushPhase += dt * 7.5
+
+  const rushPulse = rig.rushMode ? 0.42 + Math.sin(rig.rushPhase) * 0.28 : 0
+  const baseGlow = 0.4 + rig.starTier * 0.26 + rushPulse
+  const intensity = baseGlow + rig.lanternFlash + rig.dangerFlash * 0.9
   for (const m of rig.lanternMats) {
+    if (rig.dangerFlash > 0.05) {
+      m.emissive.setHex(0xe5483b)
+    } else {
+      m.emissive.setHex(rig.rushMode ? 0xffbb24 : 0xffc84a)
+    }
     m.emissiveIntensity = intensity
   }
 }
@@ -248,23 +280,27 @@ export function resetPens(rig: PenRig, _level: LevelId = 1) {
     rig.groups[i].position.set(0, 0, 0)
   }
   rig.lanternFlash = 0
+  rig.dangerFlash = 0
   rig.starTier = 0
+  rig.rushMode = false
+  rig.rushPhase = 0
   for (const m of rig.lanternMats) {
+    m.emissive.setHex(0xffc84a)
     m.emissiveIntensity = 0.4
   }
 }
 
 /** Returns 0 if (x, z) has entered the single South-Center gate mouth, else -1. */
 export function penIndexAt(x: number, z: number, reach = 0) {
-  const halfW = GATE_HALF_W - 0.12
-  const mouthZ = GATE_MOUTH_Z - reach * 0.48
+  const halfW = GATE_HALF_W - 0.1
+  const mouthZ = GATE_MOUTH_Z - reach * 0.42
   if (Math.abs(x) < halfW && z > mouthZ && z < GATE_BACK_Z + 0.25) {
     return 0
   }
   return -1
 }
 
-/** Guides fleeing sheep gently toward the single South-Center gate mouth when pushed southward. */
+/** Subtle gate-mouth guidance (greatly reduced from 0.84 -> 0.26 so real aim & shoves matter!). */
 export function herdTarget(x: number, z: number, awayX: number, awayZ: number) {
   const mouthX = 0
   const mouthZ = GATE_MOUTH_Z + 0.25
@@ -275,9 +311,9 @@ export function herdTarget(x: number, z: number, awayX: number, awayZ: number) {
   const dz = mouthZ - z
   const dist = Math.hypot(dx, dz) || 1
   const align = (dx / dist) * ax + (dz / dist) * az
-  const near = Math.max(0, 1 - dist / 6.8)
-  const aimed = align > 0.05
-  const weight = Math.min(0.84, (aimed ? 0.34 : 0.08) + near * (aimed ? 0.46 : 0.14))
+  const near = Math.max(0, 1 - dist / 4.2)
+  const aimed = align > 0.35
+  const weight = Math.min(0.26, (aimed ? 0.1 : 0.02) + near * (aimed ? 0.16 : 0.04))
   return { x: mouthX, z: mouthZ, weight }
 }
 
@@ -285,24 +321,24 @@ export function isInsideCornerPen(x: number, z: number) {
   return penIndexAt(x, z, 0) >= 0
 }
 
-/** Assigns one of 16 cozy staggered straw spots inside the single grand South-Center pen. */
+/** Assigns one of 16 cozy staggered straw spots inside the single South-Center pen (GATE_HALF_W = 1.95). */
 export function assignSinglePenSpot(slotIndex: number): [number, number] {
   const spots: [number, number][] = [
     [0.0, 6.42],
-    [-0.86, 6.38],
-    [0.86, 6.38],
-    [-1.68, 6.45],
-    [1.68, 6.45],
-    [-0.44, 7.05],
-    [0.44, 7.05],
-    [-1.28, 7.12],
-    [1.24, 7.12],
-    [-1.78, 5.92],
-    [1.72, 5.92],
-    [-0.92, 5.94],
-    [0.92, 5.94],
+    [-0.72, 6.38],
+    [0.72, 6.38],
+    [-1.4, 6.45],
+    [1.4, 6.45],
+    [-0.36, 7.05],
+    [0.36, 7.05],
+    [-1.08, 7.12],
+    [1.06, 7.12],
+    [-1.46, 5.92],
+    [1.42, 5.92],
+    [-0.76, 5.94],
+    [0.76, 5.94],
     [0.0, 5.98],
-    [-1.84, 7.22],
+    [-1.48, 7.22],
     [0.0, 7.3],
   ]
   return spots[slotIndex % spots.length]
