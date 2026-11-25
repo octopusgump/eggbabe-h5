@@ -185,6 +185,13 @@ test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and
   assert.equal(appJs.includes("亲密"), false, "app.js must not contain any 亲密 UI text");
   assert.equal(appJs.includes("升到 Lv."), false, "app.js must not contain any 升到 Lv. toast");
   assert.equal(appJs.includes("+5 EXP"), false, "app.js must not contain +5 EXP text");
+
+  // 7. Frontend hunger/hygiene progress bars removed; diegetic #hungry-layer & #dirty-layer mounted
+  assert.equal(html.includes('id="hud-care-mini"'), false, "HUD care mini bars must be removed from frontend");
+  assert.equal(html.includes('class="profile-bars"'), false, "profile hunger/hygiene bars must be removed from frontend");
+  assert.ok(html.includes('id="hungry-layer"'), "diegetic #hungry-layer must be mounted");
+  assert.ok(html.includes('id="btn-hungry-thought"'), "clickable hungry thought bubble must be mounted");
+  assert.ok(html.includes('id="btn-dirty-hint"'), "clickable dirty bath hint bubble must be mounted");
 });
 
 

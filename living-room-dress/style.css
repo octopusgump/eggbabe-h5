@@ -1879,34 +1879,149 @@ button:active {
   50% { opacity: 0.96; transform: translate3d(4px, -10px, 0) scale(1.08) rotate(5deg); }
 }
 
+/* 很臭（脏兮兮）与很饿（咕噜噜）拟真治愈态表现层 */
+.dirty-layer,
+.hungry-layer {
+  position: absolute;
+  z-index: 9;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.page.is-pet-dirty:not(.is-bathing) .gl-pet {
+  filter: saturate(0.84) brightness(0.94) sepia(0.08);
+}
 .stink-wisp {
   position: absolute;
-  width: 12px;
-  height: 28px;
-  border-left: 2.5px solid rgba(138, 168, 92, 0.65);
-  border-radius: 50%;
-  animation: wisp-rise 2.2s ease-in-out infinite;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(84, 98, 56, 0.16));
+  animation: wisp-rise 2.6s ease-in-out infinite;
 }
-.stink-2 { animation-delay: 0.9s; }
+.stink-wisp svg { display: block; }
+.stink-2 { animation-delay: 0.85s; }
+.stink-3 { animation-delay: 1.65s; }
 @keyframes wisp-rise {
-  0% { opacity: 0; transform: translateY(8px) scaleX(0.9); }
-  45% { opacity: 0.78; }
-  100% { opacity: 0; transform: translateY(-24px) scaleX(1.1); }
+  0% { opacity: 0; transform: translate(-50%, -35%) scale(0.85); }
+  40% { opacity: 0.88; }
+  100% { opacity: 0; transform: translate(-50%, -105%) scale(1.08); }
 }
 .tiny-fly {
   position: absolute;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #3B4236;
-  box-shadow: -3px -2px 0 -1px rgba(255, 255, 255, 0.75), 3px -2px 0 -1px rgba(255, 255, 255, 0.75);
-  animation: fly-orbit 2.8s ease-in-out infinite alternate;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(42, 46, 36, 0.2));
+  animation: fly-orbit 3.1s ease-in-out infinite alternate;
 }
-.fly-b { animation-duration: 3.4s; animation-direction: alternate-reverse; }
+.tiny-fly svg { display: block; }
+.fly-b { animation-duration: 3.7s; animation-direction: alternate-reverse; }
 @keyframes fly-orbit {
-  0% { transform: translate(-18px, -6px); }
-  50% { transform: translate(16px, -18px); }
-  100% { transform: translate(22px, 4px); }
+  0% { transform: translate(-20px, -6px) rotate(-10deg); }
+  50% { transform: translate(14px, -20px) rotate(12deg); }
+  100% { transform: translate(22px, 4px) rotate(-6deg); }
+}
+
+.care-cue-bubble {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: rgba(253, 249, 240, 0.95);
+  border: 1.5px solid rgba(154, 168, 122, 0.44);
+  color: #546140;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(64, 72, 46, 0.16);
+  animation: cue-float 2.7s ease-in-out infinite;
+}
+.care-cue-bubble:active {
+  transform: translate(-50%, -50%) scale(0.95);
+}
+@keyframes cue-float {
+  0%, 100% { transform: translate(-50%, -50%); }
+  50% { transform: translate(-50%, calc(-50% - 5px)); }
+}
+
+/* 很饿：肚子咕噜噜声波 + 头顶云朵想吃思绪泡 */
+.hungry-rumble {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: none;
+  animation: hungry-rumble-pulse 2.8s ease-in-out infinite;
+}
+.hungry-rumble__text {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(253, 248, 238, 0.92);
+  border: 1px solid rgba(224, 148, 88, 0.34);
+  color: #C87338;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 3px 8px rgba(130, 74, 34, 0.14);
+}
+.hungry-rumble__arc {
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(180, 102, 44, 0.18));
+}
+@keyframes hungry-rumble-pulse {
+  0%, 58%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.86); }
+  66% { opacity: 0.96; transform: translate(calc(-50% - 2px), -50%) scale(1.04); }
+  74% { opacity: 0.98; transform: translate(calc(-50% + 2px), -50%) scale(1.06); }
+  82% { opacity: 0.92; transform: translate(calc(-50% - 1px), -50%) scale(1.02); }
+  94% { opacity: 0; transform: translate(-50%, -54%) scale(0.94); }
+}
+
+.hungry-thought-bubble {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: pointer;
+  width: 52px;
+  height: 46px;
+  border-radius: 26px 26px 24px 24px;
+  background: rgba(253, 249, 241, 0.96);
+  border: 1.5px solid rgba(186, 152, 114, 0.36);
+  box-shadow: 0 6px 16px rgba(74, 52, 30, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cue-float 2.9s ease-in-out 0.3s infinite;
+}
+.hungry-thought-bubble:active {
+  transform: translate(-50%, -50%) scale(0.94);
+}
+.hungry-thought-bubble__img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  display: block;
+}
+.hungry-thought-bubble__dot {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(253, 249, 241, 0.96);
+  border: 1.2px solid rgba(186, 152, 114, 0.34);
+  pointer-events: none;
+}
+.hungry-thought-bubble__dot--1 {
+  width: 9px;
+  height: 9px;
+  left: 6px;
+  bottom: -9px;
+}
+.hungry-thought-bubble__dot--2 {
+  width: 5.5px;
+  height: 5.5px;
+  left: -1px;
+  bottom: -16px;
 }
 
 .soap-bubble {
