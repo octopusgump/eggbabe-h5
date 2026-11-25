@@ -4,7 +4,7 @@ import { blobShadow, clay } from './materials'
 
 type TreeSpec = { x: number; z: number; scale?: number }
 
-const SPECS: TreeSpec[] = [
+const BASE_SPECS: TreeSpec[] = [
   { x: -5.8, z: 3.6, scale: 1.05 },
   { x: -1.6, z: 5.8, scale: 0.92 },
   { x: 5.6, z: 2.2, scale: 0.95 },
@@ -13,13 +13,14 @@ const SPECS: TreeSpec[] = [
   { x: -4.4, z: -5.4, scale: 0.88 },
 ]
 
-const GREEN = [0x7ed86c, 0x94e484, 0x6ccc58]
+const LEVEL3_EXTRA: TreeSpec[] = [
+  { x: -0.2, z: 3.35, scale: 1.02 },
+  { x: 2.4, z: 5.4, scale: 0.86 },
+]
 
-function canopy(
-  parent: THREE.Group,
-  colors: number[],
-  s: number,
-) {
+const GREEN = [0x8eb365, 0xa2c478, 0x7da154]
+
+function canopy(parent: THREE.Group, colors: number[], s: number) {
   const blobs: [number, number, number, number, number][] = [
     [0, 0.95, 0, 0.58, 0],
     [-0.28, 0.78, 0.12, 0.46, 1],
@@ -44,7 +45,7 @@ function tree(spec: TreeSpec, level: LevelId): THREE.Group {
   const s = spec.scale ?? 1
   const trunk = new THREE.Mesh(
     new THREE.CylinderGeometry(0.09 * s, 0.13 * s, 0.55 * s, 10),
-    clay(0x8d5a34),
+    clay(0x8c6239),
   )
   trunk.position.y = 0.28 * s
   trunk.castShadow = true
@@ -61,6 +62,7 @@ function tree(spec: TreeSpec, level: LevelId): THREE.Group {
 
 export function createTrees(level: LevelId = 1): THREE.Group {
   const root = new THREE.Group()
-  for (const spec of SPECS) root.add(tree(spec, level))
+  const specs = level === 3 ? [...BASE_SPECS, ...LEVEL3_EXTRA] : BASE_SPECS
+  for (const spec of specs) root.add(tree(spec, level))
   return root
 }

@@ -105,7 +105,7 @@ export function popStar() {
   if (!host) return
   const star = document.createElement('div')
   star.className = 'pop-star'
-  star.textContent = '⭐ +1'
+  star.textContent = '✦ +1'
   host.appendChild(star)
   star.addEventListener('animationend', () => star.remove())
 }

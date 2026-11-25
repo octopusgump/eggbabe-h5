@@ -5585,13 +5585,13 @@
       native: true
     },
     {
-      id: "meadow-breeze",
-      name: "小院牧歌",
-      tag: "微风接花 · +8✦",
-      desc: "在晴日小院接住随风飘落的桂花瓣，轻松放松赚星星",
-      thumb: "./living-room-dress/ui/tb_activity.png",
+      id: "danbaobao-meadow",
+      name: "蛋宝宝牧场",
+      tag: "3D 赶小羊 · +12✦",
+      desc: "陪伙伴在 3D 粘土浮岛草场 25 秒快节奏赶小羊进圈，赢取星星与陪伴经验",
+      thumb: sharedUrl("assets/shared/png/meadow/thumb_meadow.png"),
       containThumb: true,
-      native: true
+      url: "./living-room-dress/meadow/site/"
     },
     {
       id: "haixinke-bottle-game",
@@ -5759,6 +5759,11 @@
     } else if (data.type === "eggbabe:listen-nav") {
       closeActivityPlayer();
       showSceneFeedback("伙伴已把你说的小事记在心里 ✦", "system");
+    } else if (data.type === "eggbabe:meadow-complete") {
+      syncFromExternalStoreUpdate();
+    } else if (data.type === "eggbabe:meadow-nav") {
+      closeActivityPlayer();
+      showSceneFeedback("从蛋宝宝牧场回来啦 ✦", "system");
     }
   });
 

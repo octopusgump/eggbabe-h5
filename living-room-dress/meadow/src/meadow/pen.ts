@@ -26,7 +26,7 @@ function layRail(parent: THREE.Group, x1: number, z1: number, x2: number, z2: nu
   const dx = x2 - x1
   const dz = z2 - z1
   const len = Math.hypot(dx, dz) || 1
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, len, 8), clay(0xd8c09a))
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, len, 8), clay(0xd5ba92))
   mesh.position.set((x1 + x2) / 2, 0.3, (z1 + z2) / 2)
   mesh.quaternion.setFromUnitVectors(
     new THREE.Vector3(0, 1, 0),
@@ -41,7 +41,7 @@ function picket(parent: THREE.Group, x: number, z: number, tall = false) {
   const top = tall ? 0.1 : 0.07
   const mesh = new THREE.Mesh(
     new THREE.CylinderGeometry(top, top + 0.02, h, 10),
-    clay(tall ? 0xc4a06a : 0xe0c7a2),
+    clay(tall ? 0xc69c6d : 0xdcc49e),
   )
   mesh.position.set(x, h / 2, z)
   mesh.castShadow = true
@@ -66,17 +66,17 @@ export function createCornerPens(): PenRig {
     const sz = Math.sign(cz)
     const pen = new THREE.Group()
 
-    const yard = new THREE.Mesh(roundedPad(ARM * 1.05, 0.42), clay(0xf4f1d4))
+    const yard = new THREE.Mesh(roundedPad(ARM * 1.05, 0.42), clay(0xf3efe0))
     yard.rotation.x = -Math.PI / 2
     yard.position.set(cx - sx * ARM * 0.46, 0.025, cz - sz * ARM * 0.46)
     yard.receiveShadow = true
     pen.add(yard)
 
-    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.08, 12), clay(0xe7d7b4))
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.08, 12), clay(0xe6d8be))
     bowl.position.set(cx - sx * ARM * 0.28, 0.05, cz - sz * ARM * 0.28)
     bowl.castShadow = true
     pen.add(bowl)
-    const water = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), clay(0xb7d7c8))
+    const water = new THREE.Mesh(new THREE.CircleGeometry(0.2, 12), clay(0xa9cbc3))
     water.rotation.x = -Math.PI / 2
     water.position.set(bowl.position.x, 0.095, bowl.position.z)
     pen.add(water)

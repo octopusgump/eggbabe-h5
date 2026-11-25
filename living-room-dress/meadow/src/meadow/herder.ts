@@ -1,20 +1,28 @@
 import * as THREE from 'three'
 import { blobShadow, clay } from './materials'
+import type { PetId } from './storeBridge'
 
 /**
- * Clay herder skinned to a humanoid skeleton.
+ * EggBabe clay companion herder (Yutu / Koi) skinned to a humanoid skeleton.
  * Playback follows the official three.js sample: every clip stays active,
  * weights blend with crossFadeTo.
- * https://github.com/mrdoob/three.js/blob/dev/examples/webgl_animation_skinning_blending.html
  * Local +X is the face.
  */
 
-const SKIN = 0xf6d2b4
-const HAIR = 0x3a2a22
-const SHIRT = 0xf4f1ea
-const PANTS = 0x4e6a48
-const SHOE = 0x6d4a32
-const EYE = 0x2a241f
+const YUTU_FUR = 0xfaf7f0
+const YUTU_EAR_IN = 0xeadfd2
+const YUTU_EYE = 0x2a1e17
+const YUTU_NOSE = 0x7a8a94
+const YUTU_SHIRT = 0xf4f1ea
+const YUTU_OVERALL = 0x9db65b
+const YUTU_SHOE = 0x8c6239
+
+const KOI_BODY = 0xfff7ec
+const KOI_CORAL = 0xe6957c
+const KOI_FIN = 0xf4b9ae
+const KOI_VEST = 0x54632c
+const KOI_PANTS = 0x7b9248
+const KOI_EYE = 0x261d17
 
 export type HerderState = {
   group: THREE.Group
@@ -25,6 +33,7 @@ export type HerderState = {
   current: THREE.AnimationAction
   leftArm: THREE.Bone
   rightArm: THREE.Bone
+  petId: PetId
 }
 
 function joint(name: string, parent: THREE.Object3D, x: number, y: number, z: number) {
@@ -121,10 +130,14 @@ function skinPart(
   sx = 1,
   sy = 1,
   sz = 1,
+  rx = 0,
+  ry = 0,
+  rz = 0,
 ) {
+  const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz))
   const local = new THREE.Matrix4().compose(
     new THREE.Vector3(x, y, z),
-    new THREE.Quaternion(),
+    quat,
     new THREE.Vector3(sx, sy, sz),
   )
   geometry.applyMatrix4(bone.matrixWorld.clone().multiply(local))
@@ -146,7 +159,6 @@ function skinPart(
   return mesh
 }
 
-/** Same weight setup as the three.js skinning example: all clips play, one has weight 1. */
 function setWeight(action: THREE.AnimationAction, weight: number) {
   action.enabled = true
   action.setEffectiveTimeScale(1)
@@ -166,9 +178,9 @@ function leg(hips: THREE.Bone, side: 'left' | 'right', z: number) {
   return { upper, lower, foot }
 }
 
-export function createHerder(): HerderState {
+export function createHerder(petId: PetId = 'yutu'): HerderState {
   const group = new THREE.Group()
-  group.name = 'herder'
+  group.name = `herder_${petId}`
 
   const hips = joint('hips', group, 0, 0.78, 0)
   const spine = joint('spine', hips, 0, 0.06, 0)
@@ -195,26 +207,74 @@ export function createHerder(): HerderState {
     sx = 1,
     sy = 1,
     sz = 1,
-  ) => skinPart(group, skeleton, bone, geometry, color, x, y, z, sx, sy, sz)
+    rx = 0,
+    ry = 0,
+    rz = 0,
+  ) => skinPart(group, skeleton, bone, geometry, color, x, y, z, sx, sy, sz, rx, ry, rz)
 
-  part(spine, new THREE.CapsuleGeometry(0.15, 0.28, 6, 12), SHIRT, 0.02, 0.2, 0)
-  part(head, new THREE.SphereGeometry(0.16, 20, 16), SKIN, 0, 0.02, 0)
-  part(head, new THREE.SphereGeometry(0.15, 16, 12), HAIR, -0.03, 0.1, 0, 1.05, 0.72, 1.05)
-  part(head, new THREE.SphereGeometry(0.028, 10, 8), EYE, 0.13, 0.04, 0.055)
-  part(head, new THREE.SphereGeometry(0.028, 10, 8), EYE, 0.13, 0.04, -0.055)
-  part(head, new THREE.SphereGeometry(0.03, 8, 6), SKIN, 0.15, -0.01, 0, 1, 0.7, 0.8)
+  if (petId === 'yutu') {
+    // 玉兔：奶白绒毛、干净竖立长兔耳、深棕圆眼、灰蓝小鼻（严禁粉色腮红）
+    part(spine, new THREE.CapsuleGeometry(0.16, 0.26, 6, 12), YUTU_SHIRT, 0.02, 0.2, 0)
+    part(spine, new THREE.CapsuleGeometry(0.165, 0.16, 6, 12), YUTU_OVERALL, 0.02, 0.12, 0)
+    // 小毛球兔尾
+    part(hips, new THREE.SphereGeometry(0.08, 12, 10), YUTU_FUR, -0.16, 0.06, 0)
 
-  part(leftArm.upper, new THREE.CapsuleGeometry(0.05, 0.2, 4, 8), SHIRT, 0, -0.12, 0)
-  part(leftArm.lower, new THREE.CapsuleGeometry(0.042, 0.18, 4, 8), SKIN, 0, -0.12, 0)
-  part(leftArm.lower, new THREE.SphereGeometry(0.048, 10, 8), SKIN, 0.02, -0.24, 0)
-  part(rightArm.upper, new THREE.CapsuleGeometry(0.05, 0.2, 4, 8), SHIRT, 0, -0.12, 0)
-  part(rightArm.lower, new THREE.CapsuleGeometry(0.042, 0.18, 4, 8), SKIN, 0, -0.12, 0)
-  part(rightArm.lower, new THREE.SphereGeometry(0.048, 10, 8), SKIN, 0.02, -0.24, 0)
+    // 圆润兔头
+    part(head, new THREE.SphereGeometry(0.175, 20, 16), YUTU_FUR, 0, 0.03, 0, 1.02, 0.96, 1.08)
+    // 双竖立长兔耳（干净完整露在外面）
+    for (const side of [-1, 1]) {
+      part(head, new THREE.CapsuleGeometry(0.044, 0.24, 6, 10), YUTU_FUR, -0.02, 0.29, side * 0.072, 0.85, 1.05, 1, side * 0.08, 0, -0.06)
+      part(head, new THREE.CapsuleGeometry(0.024, 0.17, 5, 8), YUTU_EAR_IN, 0.008, 0.28, side * 0.072, 0.6, 0.95, 0.8, side * 0.08, 0, -0.06)
+    }
+    // 大圆深棕眼 + 灰蓝倒三角感小鼻
+    part(head, new THREE.SphereGeometry(0.032, 10, 8), YUTU_EYE, 0.145, 0.048, 0.064)
+    part(head, new THREE.SphereGeometry(0.032, 10, 8), YUTU_EYE, 0.145, 0.048, -0.064)
+    part(head, new THREE.SphereGeometry(0.024, 8, 6), YUTU_NOSE, 0.168, 0.005, 0, 0.85, 0.72, 1.15)
 
-  for (const limb of [leftLeg, rightLeg]) {
-    part(limb.upper, new THREE.CapsuleGeometry(0.07, 0.26, 4, 8), PANTS, 0, -0.16, 0)
-    part(limb.lower, new THREE.CapsuleGeometry(0.055, 0.24, 4, 8), PANTS, 0, -0.14, 0)
-    part(limb.foot, new THREE.SphereGeometry(0.07, 12, 8), SHOE, 0.05, -0.02, 0, 1.35, 0.65, 0.85)
+    // 双臂与双腿
+    part(leftArm.upper, new THREE.CapsuleGeometry(0.052, 0.19, 4, 8), YUTU_SHIRT, 0, -0.11, 0)
+    part(leftArm.lower, new THREE.CapsuleGeometry(0.044, 0.17, 4, 8), YUTU_FUR, 0, -0.11, 0)
+    part(leftArm.lower, new THREE.SphereGeometry(0.05, 10, 8), YUTU_FUR, 0.02, -0.23, 0)
+    part(rightArm.upper, new THREE.CapsuleGeometry(0.052, 0.19, 4, 8), YUTU_SHIRT, 0, -0.11, 0)
+    part(rightArm.lower, new THREE.CapsuleGeometry(0.044, 0.17, 4, 8), YUTU_FUR, 0, -0.11, 0)
+    part(rightArm.lower, new THREE.SphereGeometry(0.05, 10, 8), YUTU_FUR, 0.02, -0.23, 0)
+
+    for (const limb of [leftLeg, rightLeg]) {
+      part(limb.upper, new THREE.CapsuleGeometry(0.072, 0.25, 4, 8), YUTU_OVERALL, 0, -0.16, 0)
+      part(limb.lower, new THREE.CapsuleGeometry(0.056, 0.23, 4, 8), YUTU_FUR, 0, -0.14, 0)
+      part(limb.foot, new THREE.SphereGeometry(0.072, 12, 8), YUTU_SHOE, 0.05, -0.02, 0, 1.32, 0.65, 0.86)
+    }
+  } else {
+    // 锦鲤：暖杏奶白圆润小身 + 柔珊瑚头冠鱼鳍 + 背后小鱼尾披风
+    part(spine, new THREE.CapsuleGeometry(0.16, 0.26, 6, 12), KOI_BODY, 0.02, 0.2, 0)
+    part(spine, new THREE.CapsuleGeometry(0.168, 0.15, 6, 12), KOI_VEST, 0.02, 0.16, 0)
+    // 背后柔珊瑚锦鲤小尾饰
+    part(hips, new THREE.ConeGeometry(0.11, 0.22, 8), KOI_CORAL, -0.19, 0.08, 0, 0.7, 1, 1.15, 0, 0, Math.PI / 2.2)
+
+    part(head, new THREE.SphereGeometry(0.17, 20, 16), KOI_BODY, 0, 0.03, 0, 1.04, 0.96, 1.04)
+    // 头顶锦鲤红斑与小冠鳍
+    part(head, new THREE.SphereGeometry(0.095, 14, 12), KOI_CORAL, 0.02, 0.145, 0, 1.15, 0.55, 0.95)
+    part(head, new THREE.ConeGeometry(0.055, 0.14, 8), KOI_FIN, -0.06, 0.21, 0, 1.2, 1, 0.45, 0, 0, 0.35)
+    // 两侧小侧鳍
+    for (const side of [-1, 1]) {
+      part(head, new THREE.SphereGeometry(0.048, 10, 8), KOI_FIN, -0.02, 0.04, side * 0.16, 0.9, 0.65, 0.45)
+    }
+    // 温润黑豆眼
+    part(head, new THREE.SphereGeometry(0.03, 10, 8), KOI_EYE, 0.145, 0.045, 0.062)
+    part(head, new THREE.SphereGeometry(0.03, 10, 8), KOI_EYE, 0.145, 0.045, -0.062)
+
+    part(leftArm.upper, new THREE.CapsuleGeometry(0.05, 0.19, 4, 8), KOI_CORAL, 0, -0.11, 0)
+    part(leftArm.lower, new THREE.CapsuleGeometry(0.044, 0.17, 4, 8), KOI_BODY, 0, -0.11, 0)
+    part(leftArm.lower, new THREE.SphereGeometry(0.05, 10, 8), KOI_BODY, 0.02, -0.23, 0)
+    part(rightArm.upper, new THREE.CapsuleGeometry(0.05, 0.19, 4, 8), KOI_CORAL, 0, -0.11, 0)
+    part(rightArm.lower, new THREE.CapsuleGeometry(0.044, 0.17, 4, 8), KOI_BODY, 0, -0.11, 0)
+    part(rightArm.lower, new THREE.SphereGeometry(0.05, 10, 8), KOI_BODY, 0.02, -0.23, 0)
+
+    for (const limb of [leftLeg, rightLeg]) {
+      part(limb.upper, new THREE.CapsuleGeometry(0.072, 0.25, 4, 8), KOI_PANTS, 0, -0.16, 0)
+      part(limb.lower, new THREE.CapsuleGeometry(0.056, 0.23, 4, 8), KOI_BODY, 0, -0.14, 0)
+      part(limb.foot, new THREE.SphereGeometry(0.072, 12, 8), YUTU_SHOE, 0.05, -0.02, 0, 1.32, 0.65, 0.86)
+    }
   }
 
   const shade = blobShadow(0.42, 0.28, 0.9)
@@ -240,6 +300,7 @@ export function createHerder(): HerderState {
     current: idle,
     leftArm: leftArm.upper,
     rightArm: rightArm.upper,
+    petId,
   }
 }
 

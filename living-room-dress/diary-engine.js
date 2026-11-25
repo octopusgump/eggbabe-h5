@@ -48,7 +48,8 @@
     listen_qa: "听你说",
     bakery_tap: "暖炉烘焙拍",
     treasure_memory: "寻宝翻翻乐",
-    meadow_breeze: "小院牧歌"
+    meadow_breeze: "小院牧歌",
+    danbaobao_meadow: "蛋宝宝牧场"
   });
 
   // 缺席回归时的零愧疚「等门小涂鸦」（严禁任何指责/卖惨文案）
