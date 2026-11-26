@@ -17,7 +17,7 @@
 
   const FEATURES = Object.freeze({
     settings: Object.freeze({
-      styles: [],
+      styles: ["./living-room-dress/settings-panel.css"],
       scripts: ["./living-room-dress/settings-panel.js"],
       readyCheck: () => typeof globalThis !== "undefined" && !!globalThis.EggBabeSettingsPanel
     }),
@@ -38,18 +38,13 @@
     }),
     rooms: Object.freeze({
       styles: [],
-      scripts: ["./living-room-dress/p5-rooms-and-games.js"],
-      readyCheck: () => typeof globalThis !== "undefined" && !!globalThis.EggBabeP5Data
-    }),
-    wardrobe: Object.freeze({
-      styles: [],
-      scripts: ["./living-room-dress/wardrobe-module.js"],
-      readyCheck: () => typeof globalThis !== "undefined" && !!globalThis.EggBabeWardrobeModule
-    }),
-    activities: Object.freeze({
-      styles: [],
-      scripts: ["./living-room-dress/activities-module.js"],
-      readyCheck: () => typeof globalThis !== "undefined" && !!globalThis.EggBabeActivitiesModule
+      scripts: [
+        "./living-room-dress/p5-rooms-and-games.js",
+        "./living-room-dress/native-minigames-ui.js"
+      ],
+      readyCheck: () => typeof globalThis !== "undefined"
+        && !!globalThis.EggBabeP5Data
+        && !!globalThis.EggBabeNativeMinigames
     })
   });
 

@@ -8,11 +8,11 @@ const require = createRequire(import.meta.url);
 const REPO = path.resolve(import.meta.dirname, "../..");
 const Loader = require(path.join(REPO, "living-room-dress/module-loader.js"));
 
-test("Phase 1 distributed loader keeps non-first-screen modules out of sync index.html and maps valid assets", () => {
+test("Phase 1 & Phase 2 distributed loader keeps non-first-screen modules & CSS out of sync index.html and maps valid assets", () => {
   const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
   assert.match(html, /living-room-dress\/module-loader\.js/);
 
-  for (const name of ["settings", "holo", "diary", "rooms"]) {
+  for (const name of Object.keys(Loader.FEATURES)) {
     const def = Loader.FEATURES[name];
     assert.ok(def, `missing feature definition: ${name}`);
     for (const rel of [...def.styles, ...def.scripts]) {
@@ -21,6 +21,8 @@ test("Phase 1 distributed loader keeps non-first-screen modules out of sync inde
       assert.equal(html.includes(rel), false, `non-first-screen asset must not load synchronously in index.html: ${rel}`);
     }
   }
+  assert.ok(Loader.FEATURES.settings.styles.includes("./living-room-dress/settings-panel.css"));
+  assert.ok(Loader.FEATURES.rooms.scripts.includes("./living-room-dress/native-minigames-ui.js"));
 });
 
 test("wall-polaroid never renders before decoded, hidden stage sprites use data-src, and global image guard marks states", () => {
