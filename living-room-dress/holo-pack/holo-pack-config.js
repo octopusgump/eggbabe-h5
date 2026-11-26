@@ -158,15 +158,35 @@
     return prefix + p.replace(/^\/+/, "");
   }
 
-  function extractShortTrait(item) {
+  const KEEPSAKE_ABILITIES = Object.freeze({
+    shared: {
+      name: "祈愿共鸣",
+      desc: "摆入多宝格可切换玉兔与锦鲤双视角记忆"
+    },
+    yutu: {
+      name: "月光私藏",
+      desc: "陈列在原木多宝格，点亮书架微缩展位"
+    },
+    koi: {
+      name: "锦鲤好运",
+      desc: "摆上多宝格，为起居室添一缕顺心好运"
+    },
+    daily: {
+      name: "拾光印记",
+      desc: "收入多宝收藏格，留存旅途与居家片段"
+    }
+  });
+
+  function extractShortStory(item, maxLen) {
     const raw = (item.stories && (item.stories.yutu || item.stories.koi)) || item.story || item.sourceHint || "";
     const cleaned = String(raw).replace(/\s+/g, " ").trim();
-    if (cleaned.length <= 22) return cleaned;
-    return cleaned.slice(0, 21) + "…";
+    const limit = maxLen || 38;
+    if (cleaned.length <= limit) return cleaned;
+    return cleaned.slice(0, limit - 1) + "…";
   }
 
   /**
-   * 将 catalog.json 的 41 件小物件映射为全息卡池
+   * 将 catalog.json 的 41 件小物件映射为全息卡池（每张卡均含「功能 + 一段故事」）
    */
   function buildKeepsakeCardPool(catalog, assetPrefix) {
     const list = catalog && Array.isArray(catalog.keepsakes) ? catalog.keepsakes : [];
@@ -175,13 +195,15 @@
       const catKey = CATEGORY_THEMES[ks.category] ? ks.category : "daily";
       const theme = CATEGORY_THEMES[catKey];
       const tier = TIER_META[theme.rarity];
+      const ability = KEEPSAKE_ABILITIES[catKey] || KEEPSAKE_ABILITIES.daily;
       return {
         id: ks.id,
         name: ks.name,
         category: catKey,
         categoryLabel: ks.categoryLabel || theme.tag,
         tag: ks.categoryLabel || theme.tag,
-        trait: extractShortTrait(ks),
+        ability: ability,
+        trait: extractShortStory(ks, 36),
         story: ks.story || (ks.stories && (ks.stories.yutu || ks.stories.koi)) || "",
         stories: ks.stories || null,
         sourceHint: ks.sourceHint || "",
@@ -384,17 +406,45 @@
       { id: "bond", label: "陪伴", color: "#9DB65B", lit: totalDays >= 1 }
     ];
 
+    const ability = isYutu
+      ? {
+          name: "月光安抚",
+          desc: "轻触发动，收下一句长耳冷幽默安慰",
+          ctaLabel: "🌙 发动 · 月光安抚",
+          triggers: [
+            "长耳朵替你把今天的吵闹声音全滤掉一半啦。",
+            "别急着把所有事做完，连月亮每个月都只圆一次。",
+            "我把软木垫最暖的那块留给你，先歇三分钟再说。"
+          ]
+        }
+      : {
+          name: "锦鲤好运",
+          desc: "轻触发动，为今天添一缕顺心小确幸",
+          ctaLabel: "✨ 发动 · 锦鲤好运",
+          triggers: [
+            "今天路过的红灯，大概会刚好在你走近前变绿。",
+            "我甩了一下尾巴，把卡壳的小烦恼顺手拍远了点。",
+            "好运不一定要很大件，刚好合胃口的一顿饭也算。"
+          ]
+        };
+
+    const cardStory = isYutu
+      ? `穿着「${outfitName}」的它在月光与窗台间慢悠悠转了一圈，把没说完的温柔悄悄叠进长耳朵里。`
+      : `换上「${outfitName}」后它觉得自己今天运气好得不行，决定先在桌角陪你把这一天过顺溜。`;
+
     return {
       kind: "entity-egg",
       petId,
       name: petStore.name || (isYutu ? "糯米团子" : "锦小鲤"),
       prototypeLabel: isYutu ? "玉兔原型" : "锦鲤原型",
-      tag: isYutu ? "YT · 实体蛋" : "KOI · 实体蛋",
+      tag: `${isYutu ? "玉兔" : "锦鲤"} · 第 ${totalDays} 天`,
       trait: `身穿 · ${outfitName}`,
+      ability: ability,
+      story: cardStory,
       serial: publicId,
       rarity: isYutu ? "secret" : "ultra",
       rarityMark: "✦",
-      rarityLabel: "一蛋一份 · 典藏",
+      rarityLabel: "专属典藏",
       image: outfitImage,
       frameBg: isYutu
         ? "linear-gradient(150deg, #F8F3E4 0%, #D9E5C7 42%, #9DB65B 100%)"

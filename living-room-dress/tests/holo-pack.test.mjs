@@ -119,6 +119,8 @@ test("buildEntityEggCardData produces complete 3D holographic identity cards for
     assert.equal(card.kind, "entity-egg");
     assert.equal(card.petId, petId);
     assert.ok(card.image.endsWith(".png"), `expected PNG outfit image, got ${card.image}`);
+    assert.ok(card.ability && card.ability.name && card.ability.desc && Array.isArray(card.ability.triggers), "entity egg card must define interactive ability");
+    assert.ok(card.story && card.story.length >= 12, "entity egg card must include a story");
     assert.equal(card.backMeta.totalDays, 14);
     assert.equal(card.backMeta.publicId, store.user.publicId);
     assert.equal(Array.isArray(card.backMeta.orbs), true);

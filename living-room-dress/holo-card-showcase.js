@@ -168,7 +168,6 @@
             title="${escapeHtml(orb.label)}"
           >
             <i class="eb-tcg-orb__gem"></i>
-            <span class="eb-tcg-orb__label">${escapeHtml(orb.label)}</span>
           </span>
         `;
       }).join("");
@@ -230,11 +229,17 @@
       `;
     }
 
+    const ability = card.ability || { name: "陪伴共鸣", desc: "轻触翻转查看背后的心情与故事" };
+    const frontStory = card.story || card.trait || "";
+    const hasAbilityTrigger = !!(isEntity && ability.triggers && ability.triggers.length);
+
     host.innerHTML = `
       <div class="eb-holo-modal__top">
         <span class="eb-holo-modal__eyebrow">${escapeHtml(eyebrowText)}</span>
         <button id="eb-holo-close-btn" class="eb-holo-modal__close" type="button" aria-label="关闭全息卡">×</button>
       </div>
+
+      <div id="eb-holo-ability-toast" class="eb-holo-ability-toast" hidden aria-live="polite"></div>
 
       <div id="eb-holo-stage" class="eb-holo-stage">
         <div
@@ -258,7 +263,11 @@
                 <b class="eb-holo-card__name">${escapeHtml(card.name)}</b>
                 <span class="eb-holo-card__tag">${escapeHtml(card.tag)}</span>
               </div>
-              <p class="eb-holo-card__trait">${escapeHtml(card.trait || "")}</p>
+              <div class="eb-holo-card__ability">
+                <span class="eb-holo-card__ability-badge">✦ ${escapeHtml(ability.name)}</span>
+                <span class="eb-holo-card__ability-desc">${escapeHtml(ability.desc)}</span>
+              </div>
+              <p class="eb-holo-card__story">${escapeHtml(frontStory)}</p>
               <div class="eb-holo-card__foot">
                 <span class="eb-holo-card__serial">${escapeHtml(serialText)}</span>
                 <span class="eb-holo-card__rarity">${escapeHtml(card.rarityMark || "✦")} ${escapeHtml(card.rarityLabel || "")}</span>
@@ -275,11 +284,12 @@
         </div>
       </div>
 
-      <p class="eb-holo-modal__hint">滑动倾斜赏玩全息折射 · 轻触卡牌翻转背面档案</p>
+      <p class="eb-holo-modal__hint">滑动倾斜赏玩全息折射 · 轻触卡牌翻转背面状态</p>
 
       <div class="eb-holo-modal__actions">
+        ${hasAbilityTrigger ? `<button id="eb-holo-ability-btn" class="eb-holo-btn eb-holo-btn--primary" type="button">${escapeHtml(ability.ctaLabel || `✦ 发动 · ${ability.name}`)}</button>` : ""}
         <button id="eb-holo-flip-btn" class="eb-holo-btn" type="button">↻ 翻转背面</button>
-        ${activeBackAction ? `<button id="eb-holo-curio-btn" class="eb-holo-btn eb-holo-btn--primary" type="button">🪵 前往多宝收藏格</button>` : ""}
+        ${activeBackAction ? `<button id="eb-holo-curio-btn" class="eb-holo-btn${hasAbilityTrigger ? "" : " eb-holo-btn--primary"}" type="button">🪵 前往多宝收藏格</button>` : ""}
       </div>
     `;
 
@@ -287,6 +297,26 @@
     frontEl = host.querySelector("#eb-holo-front");
     const stageEl = host.querySelector("#eb-holo-stage");
     const flipBtn = host.querySelector("#eb-holo-flip-btn");
+    const abilityBtn = host.querySelector("#eb-holo-ability-btn");
+    const abilityToast = host.querySelector("#eb-holo-ability-toast");
+
+    let abilityIdx = 0;
+    let toastTimer = null;
+    if (abilityBtn && hasAbilityTrigger && abilityToast) {
+      abilityBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (typeof options.onTap === "function") options.onTap();
+        const line = ability.triggers[abilityIdx % ability.triggers.length];
+        abilityIdx += 1;
+        abilityToast.textContent = `${ability.name}：${line}`;
+        abilityToast.hidden = false;
+        currentRy += flipped ? -24 : 24;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          if (abilityToast) abilityToast.hidden = true;
+        }, 3200);
+      });
+    }
 
     const toggleFlip = () => {
       flipped = !flipped;
