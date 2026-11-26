@@ -16,7 +16,7 @@ test("floating #room-clock is removed and unified cozy room + nighttime sleep pa
   assert.equal(html.includes('id="mod-wall-art"'), false, "cluttered #mod-wall-art cutout must be removed");
   assert.equal(html.includes('id="mod-bed-blanket"'), false, "daytime blanket overlay must be removed");
   assert.equal(html.includes('id="hit-bed-blanket"'), false, "daytime blanket hotspot must be removed");
-  assert.ok(html.includes("cozy_room_day.png"), "default panorama must point to unified cozy_room_day.png");
+  assert.ok(html.includes("cozy_room_day.jpg"), "default panorama must point to unified 2K cozy_room_day.jpg");
   assert.ok(html.includes('id="bedside-cat-clock"'), "bedside Black Cat Sheriff clock must be mounted");
   assert.ok(html.includes('id="clock-modal-overlay"'), "Flip clock modal must exist");
   assert.ok(html.includes('id="pet-sleep-sprite"'), "nighttime tucked sleeping sprite layer must exist");
@@ -28,11 +28,11 @@ test("floating #room-clock is removed and unified cozy room + nighttime sleep pa
   assert.ok(html.includes('id="hit-cat-clock"'), "cat clock hotspot must exist");
 });
 
-test("all final cozy room assets (day, night, nightLit, yutu/koi sleep, 2 sill props) and clock assets exist as compressed PNGs with zero .webp or legacy modular references", () => {
+test("all final cozy room assets (2K TrueColor JPG panoramas, 32-bit PNG sleep patches, 2 sill props) and clock assets exist with zero .webp or legacy modular references", () => {
   const expectedPngs = [
-    "living-room-dress/panoramas/cozy_room_day.png",
-    "living-room-dress/panoramas/cozy_room_night.png",
-    "living-room-dress/panoramas/cozy_room_night_lit.png",
+    "living-room-dress/panoramas/cozy_room_day.jpg",
+    "living-room-dress/panoramas/cozy_room_night.jpg",
+    "living-room-dress/panoramas/cozy_room_night_lit.jpg",
     "living-room-dress/modules/yutu_bed_sleep.png",
     "living-room-dress/modules/koi_bed_sleep.png",
     "living-room-dress/props/sill_sunny_plant.png",
@@ -44,11 +44,16 @@ test("all final cozy room assets (day, night, nightLit, yutu/koi sleep, 2 sill p
     "living-room-dress/props/clock_black_cat_scene.png"
   ];
   const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const JPG_SIG = Buffer.from([0xff, 0xd8, 0xff]);
   for (const rel of expectedPngs) {
     const abs = path.join(REPO, rel);
     assert.ok(fs.existsSync(abs), `missing asset ${rel}`);
     const buf = fs.readFileSync(abs);
-    assert.deepEqual(buf.subarray(0, 8), PNG_SIG, `${rel} must be a valid PNG`);
+    if (rel.endsWith(".jpg")) {
+      assert.deepEqual(buf.subarray(0, 3), JPG_SIG, `${rel} must be a valid JPEG`);
+    } else {
+      assert.deepEqual(buf.subarray(0, 8), PNG_SIG, `${rel} must be a valid PNG`);
+    }
   }
 
   // Verify clock asset bundle < 180 KB per PRD §3.3(1)
@@ -148,7 +153,7 @@ test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and
   assert.ok(appJs.includes('promptPatToWake("feed")'), "feed must be guarded when sleeping");
   assert.ok(appJs.includes('promptPatToWake("bath")'), "bath must be guarded when sleeping");
   assert.ok(appJs.includes('promptPatToWake("wardrobe")'), "wardrobe must be guarded when sleeping");
-  assert.ok(appJs.includes('nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.png"'), "nightLit panorama must be configured");
+  assert.ok(appJs.includes('nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.jpg"'), "nightLit panorama must be configured");
 
   // 2. Unified rooms & backgrounds inside bottom-right toolbox; top pill hidden; wardrobe bg tab removed
   assert.ok(html.includes('id="tb-btn-spaces"'), "toolbox must contain unified 房间背景 entry");
@@ -157,11 +162,11 @@ test("sleep pat-to-wake guard (blocks feed/bath/wardrobe, allows activities) and
   assert.ok(html.includes('id="room-switcher-pill" class="room-switcher-pill" type="button" hidden'), "top room-switcher-pill must be hidden to avoid topbar overlap");
   assert.equal(html.includes('id="tab-wardrobe-bgs"'), false, "duplicate wardrobe background tab must be removed");
 
-  // 3. Every room in ROOMS_CATALOG must point to an existing PNG (no broken thumbnails)
+  // 3. Every room in ROOMS_CATALOG must point to an existing PNG/JPG (zero .webp, no broken thumbnails)
   for (const room of P5Data.ROOMS_CATALOG) {
     const abs = path.join(REPO, room.bgFile);
-    assert.ok(fs.existsSync(abs), `missing room thumbnail PNG: ${room.bgFile}`);
-    assert.ok(room.bgFile.endsWith(".png"), `room thumbnail must be PNG: ${room.bgFile}`);
+    assert.ok(fs.existsSync(abs), `missing room thumbnail asset: ${room.bgFile}`);
+    assert.ok(/\.(png|jpg)$/i.test(room.bgFile), `room thumbnail must be PNG or JPG (zero .webp): ${room.bgFile}`);
   }
 
   // 4. Clock 25-min focus timer removed; legacy 唤回桌面 removed; dedicated tb_bg_3d.png exists
