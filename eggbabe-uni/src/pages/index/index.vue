@@ -24,9 +24,6 @@
             <!-- #ifdef MP-WEIXIN -->
             <button class="act-btn share-btn" open-type="share">分享</button>
             <!-- #endif -->
-            <!-- #ifdef H5 -->
-            <button class="act-btn share-btn" @tap="onShareH5">分享</button>
-            <!-- #endif -->
           </view>
         </view>
 
@@ -346,7 +343,6 @@ import {
   playLevelUp,
   playPop
 } from "../../engine/sfx";
-import { renderWidgetSnapshotDataUrl } from "../../engine/wallpaperExporter";
 
 const initial = getDefaultCatalog();
 const catalog = reactive({
@@ -658,90 +654,9 @@ function onTapLvBadge() {
   }
 }
 
-let widgetSyncTimer = null;
-
-function applyShareQuery(params) {
-  if (!params) return;
-  const qPet = params.pet;
-  if (qPet && catalog.pets[qPet]) {
-    petId.value = qPet;
-  }
-  const qBg = params.bg;
-  if (qBg && catalog.backgrounds.some((b) => b.id === qBg)) {
-    currentBgId.value = qBg;
-  }
-  const targetPet = catalog.pets[petId.value];
-  const worn = wornByPet[petId.value];
-  if (targetPet && worn) {
-    if (targetPet.mode === "sets" && params.set) {
-      if (targetPet.items.some((it) => it.id === params.set)) {
-        worn.set = params.set;
-      }
-    } else if (targetPet.mode === "accessories") {
-      if (params.head && targetPet.items.some((it) => it.id === params.head)) {
-        worn.head = params.head;
-      }
-      if (params.neck && targetPet.items.some((it) => it.id === params.neck)) {
-        worn.neck = params.neck;
-      }
-    }
-  }
-}
-
-function getCurrentOutfitLabel() {
-  const pet = currentPet.value;
-  const worn = wornByPet[pet.id];
-  if (!pet || !worn) return "";
-  if (pet.mode === "sets") {
-    const it = pet.items.find((x) => x.id === worn.set);
-    return it ? it.label : "";
-  }
-  const labels = [worn.head, worn.neck]
-    .map((id) => pet.items.find((x) => x.id === id))
-    .filter(Boolean)
-    .map((x) => x.label);
-  return labels.join(" · ");
-}
-
-function scheduleWidgetSync() {
-  // #ifdef H5
-  if (
-    typeof window === "undefined" ||
-    !window.EggbabeNative ||
-    typeof window.EggbabeNative.isNative !== "function" ||
-    !window.EggbabeNative.isNative()
-  ) {
-    return;
-  }
-  if (widgetSyncTimer) clearTimeout(widgetSyncTimer);
-  widgetSyncTimer = setTimeout(async () => {
-    try {
-      const pet = currentPet.value;
-      const worn = wornByPet[pet.id];
-      const care = petCare.value;
-      const snapshotBase64 = await renderWidgetSnapshotDataUrl({ pet, worn });
-      await window.EggbabeNative.syncWidgetState({
-        petId: pet.id,
-        petName: pet.label,
-        outfitName: getCurrentOutfitLabel(),
-        moodText: speechText.value || "等你来贴贴~",
-        hunger: Math.round(care.hunger),
-        hygiene: Math.round(care.hygiene),
-        snapshotBase64
-      });
-    } catch (e) {
-      // ignore widget sync errors
-    }
-  }, 450);
-  // #endif
-}
-
 onLoad((query) => {
-  if (query) {
-    if (query.demo === "dirty" || query.demo === "hungry") {
-      applyDemoPreset(query.demo, false);
-    }
-    applyShareQuery(query);
+  if (query && (query.demo === "dirty" || query.demo === "hungry")) {
+    applyDemoPreset(query.demo, false);
   }
 });
 
@@ -751,31 +666,20 @@ onMounted(() => {
   // #ifdef H5
   try {
     const sp = new URLSearchParams(window.location.search || "");
-    let hsp = null;
-    if (window.location.hash && window.location.hash.indexOf("?") >= 0) {
-      hsp = new URLSearchParams(window.location.hash.split("?")[1]);
+    let demo = sp.get("demo");
+    if (!demo && window.location.hash && window.location.hash.indexOf("?") >= 0) {
+      const hsp = new URLSearchParams(window.location.hash.split("?")[1]);
+      demo = hsp.get("demo");
     }
-    const getParam = (k) => sp.get(k) || (hsp ? hsp.get(k) : null);
-    const demo = getParam("demo");
     if (demo === "dirty" || demo === "hungry") {
       applyDemoPreset(demo, false);
     }
-    applyShareQuery({
-      pet: getParam("pet"),
-      bg: getParam("bg"),
-      set: getParam("set"),
-      head: getParam("head"),
-      neck: getParam("neck")
-    });
   } catch (e) {
     // ignore URL parsing errors
   }
   // #endif
 
-  nextTick(() => {
-    initStage();
-    scheduleWidgetSync();
-  });
+  nextTick(initStage);
 
   fetchRemoteCatalog().then((remote) => {
     if (!remote || remote.version === catalog.version) return;
@@ -803,7 +707,6 @@ onUnmounted(() => {
   }
   if (speechTimer) clearTimeout(speechTimer);
   if (decayTimer) clearInterval(decayTimer);
-  if (widgetSyncTimer) clearTimeout(widgetSyncTimer);
   // #ifdef H5
   window.removeEventListener("resize", refreshStageRectH5);
   window.removeEventListener("mousemove", onWindowMouseMove);
@@ -823,14 +726,12 @@ function onSwitchPet(nextPet) {
   if (stage) {
     stage.setPet(catalog.pets[nextPet], wornByPet[nextPet]);
   }
-  scheduleWidgetSync();
 }
 
 function onSelectBg(bg) {
   if (!bg || bg.id === currentBgId.value) return;
   currentBgId.value = bg.id;
   playPop();
-  haptic("light");
 }
 
 function onTapItem(item) {
@@ -857,7 +758,6 @@ function onTapItem(item) {
   }
   playPop();
   haptic("light");
-  scheduleWidgetSync();
 }
 
 /* ==================== 喂食逻辑（点击飞入 & 拖拽投喂） ==================== */
@@ -890,7 +790,6 @@ function consumeSnack(snack) {
     }, 360);
   }
   showSpeech(res.speech, 3200);
-  scheduleWidgetSync();
 }
 
 function launchFlyingSnack(snack) {
@@ -1220,85 +1119,14 @@ function onMouseUp() {
   // #endif
 }
 
-function buildShareQuery() {
-  const params = [];
-  params.push(`pet=${encodeURIComponent(petId.value)}`);
-  if (currentBgId.value) {
-    params.push(`bg=${encodeURIComponent(currentBgId.value)}`);
-  }
-  const pet = currentPet.value;
-  const worn = wornByPet[pet.id];
-  if (pet && worn) {
-    if (pet.mode === "sets" && worn.set) {
-      params.push(`set=${encodeURIComponent(worn.set)}`);
-    } else if (pet.mode === "accessories") {
-      if (worn.head) params.push(`head=${encodeURIComponent(worn.head)}`);
-      if (worn.neck) params.push(`neck=${encodeURIComponent(worn.neck)}`);
-    }
-  }
-  return params.join("&");
-}
-
-async function onShareH5() {
-  // #ifdef H5
-  playPop();
-  haptic("light");
-  const query = buildShareQuery();
-  const outfit = getCurrentOutfitLabel();
-  const title = outfit
-    ? `快看我的${currentPet.value.label}蛋宝宝「${outfit}」穿搭！`
-    : `我的Lv.${petCare.value.level} ${currentPet.value.label}蛋宝宝等你来贴贴！`;
-  const baseUrl =
-    typeof window !== "undefined" && /^https?:/i.test(window.location.origin)
-      ? `${window.location.origin}${window.location.pathname}`
-      : "https://octopusgump.github.io/eggbabe-h5/eggbabe-uni/site/";
-  const shareUrl = `${baseUrl}?${query}`;
-
-  if (
-    typeof window !== "undefined" &&
-    window.EggbabeNative &&
-    typeof window.EggbabeNative.isNative === "function" &&
-    window.EggbabeNative.isNative()
-  ) {
-    const ok = await window.EggbabeNative.share({
-      title: "蛋宝宝装扮屋",
-      text: title,
-      url: shareUrl
-    });
-    if (ok) return;
-  }
-
-  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-    try {
-      await navigator.share({ title: "蛋宝宝装扮屋", text: title, url: shareUrl });
-      return;
-    } catch (e) {
-      // fallback to clipboard
-    }
-  }
-
-  try {
-    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(shareUrl);
-      pushFloatToast("已复制同款穿搭链接！");
-      return;
-    }
-  } catch (e) {
-    // ignore clipboard error
-  }
-  pushFloatToast("复制地址栏即可分享同款穿搭~");
-  // #endif
-}
-
 onShareAppMessage(() => ({
   title: `我的Lv.${petCare.value.level} ${currentPet.value.label}蛋宝宝等你来喂零食、搓泡泡！`,
-  path: `/pages/index/index?${buildShareQuery()}`,
+  path: "/pages/index/index",
   imageUrl: currentBg.value.url
 }));
 
 onShareTimeline(() => ({
   title: `蛋宝宝陪伴屋 · Lv.${petCare.value.level} ${currentPet.value.label}`,
-  query: buildShareQuery(),
   imageUrl: currentBg.value.url
 }));
 </script>

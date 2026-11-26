@@ -84,16 +84,6 @@ export function haptic(type = "light") {
     }
     // #endif
     // #ifdef H5
-    if (
-      typeof window !== "undefined" &&
-      window.EggbabeNative &&
-      typeof window.EggbabeNative.isNative === "function" &&
-      window.EggbabeNative.isNative() &&
-      typeof window.EggbabeNative.haptic === "function"
-    ) {
-      window.EggbabeNative.haptic(type);
-      return;
-    }
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
       const ms = type === "heavy" ? 28 : type === "medium" ? 18 : 10;
       navigator.vibrate(ms);
