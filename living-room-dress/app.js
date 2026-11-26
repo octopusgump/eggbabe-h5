@@ -592,14 +592,6 @@
   const btnCurioArrangeEl = $("btn-curio-arrange");
   const curioArrangeHintEl = $("curio-arrange-hint");
   const curioShelfGridEl = $("curio-shelf-grid");
-  const curioCatalogTitleEl = $("curio-catalog-title");
-  const curioProgressBadgeEl = $("curio-progress-badge");
-  const curioCatalogEmptyEl = $("curio-catalog-empty");
-  const curioCatalogGridEl = $("curio-catalog-grid");
-  const curioPaginationEl = $("curio-pagination");
-  const btnCurioPrevPageEl = $("btn-curio-prev-page");
-  const btnCurioNextPageEl = $("btn-curio-next-page");
-  const curioPageIndicatorEl = $("curio-page-indicator");
   const curioPickerOverlayEl = $("curio-picker-overlay");
   const curioPickerTitleEl = $("curio-picker-title");
   const curioPickerListEl = $("curio-picker-list");
@@ -3961,9 +3953,7 @@
   let curioArrangeMode = false;
   let curioSelectedSlotIdx = -1;
   let curioPickerTargetSlot = -1;
-  let curioCategory = "all";
-  let curioPage = 1;
-  const CURIO_PAGE_SIZE = 12;
+  const SHELF_SLOT_COUNT = (Store && Store.SHELF_SLOT_COUNT) || 50;
 
   function getAllCatalogKeepsakes() {
     if (catalog && Array.isArray(catalog.keepsakes) && catalog.keepsakes.length > 0) {
@@ -3990,10 +3980,8 @@
   }
 
   function ensureShelfSlots() {
-    if (!Array.isArray(crossStore.curioCabinet.shelfSlots) || crossStore.curioCabinet.shelfSlots.length !== 12) {
-      const slots = new Array(12).fill(null);
-      state.keepsakes.slice(0, 12).forEach((id, i) => { slots[i] = id; });
-      crossStore.curioCabinet.shelfSlots = slots;
+    if (!Array.isArray(crossStore.curioCabinet.shelfSlots) || crossStore.curioCabinet.shelfSlots.length !== SHELF_SLOT_COUNT) {
+      crossStore.curioCabinet.shelfSlots = Store.buildShelfSlots(state.keepsakes, crossStore.curioCabinet.shelfSlots);
     }
     return crossStore.curioCabinet.shelfSlots;
   }
@@ -4022,13 +4010,13 @@
   function renderCurioShelf() {
     const slots = ensureShelfSlots();
     const placedCount = slots.filter(Boolean).length;
-    curioPlacedCountEl.textContent = `已摆 ${placedCount}/12 格`;
+    curioPlacedCountEl.textContent = `已摆 ${placedCount}/${SHELF_SLOT_COUNT} 格`;
     btnCurioArrangeEl.textContent = curioArrangeMode ? "✓ 完成摆放" : "✨ 摆放收藏品";
     btnCurioArrangeEl.classList.toggle("is-active", curioArrangeMode);
     curioArrangeHintEl.hidden = !curioArrangeMode;
 
     curioShelfGridEl.innerHTML = "";
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < SHELF_SLOT_COUNT; i++) {
       const kid = slots[i];
       const item = kid ? getKeepsakeById(kid) : null;
       const cell = document.createElement("button");
@@ -4039,7 +4027,7 @@
       if (item) {
         cell.setAttribute("aria-label", `第 ${i + 1} 格：${item.name}`);
         cell.innerHTML =
-          `<span class="oak-slot__figure"><img class="oak-slot__img" src="${sharedUrl(item.img)}" alt="${item.name}" /></span>` +
+          `<span class="oak-slot__figure"><img class="oak-slot__img" src="${sharedUrl(item.img)}" alt="${item.name}" loading="lazy" /></span>` +
           `<span class="oak-slot__plate">${item.name}</span>`;
       } else {
         cell.setAttribute("aria-label", `第 ${i + 1} 格：空木格，点击摆入收藏品`);
@@ -4082,7 +4070,6 @@
         curioSelectedSlotIdx = -1;
         persistState();
         renderCurioShelf();
-        renderCurioCatalog();
         showSceneFeedback("已调换多宝格陈列位置", "system");
       }
       return;
@@ -4136,7 +4123,6 @@
     slots[targetIdx] = keepsakeId;
     persistState();
     renderCurioShelf();
-    renderCurioCatalog();
     showSceneFeedback("已摆进暖橡木多宝格", "system");
   }
 
@@ -4152,69 +4138,6 @@
     keepsakeClueOverlayEl.hidden = false;
   }
 
-  function renderCurioCatalog() {
-    const allItems = getAllCatalogKeepsakes();
-    const unlockedSet = new Set(state.keepsakes);
-    const slots = ensureShelfSlots();
-    const placedSet = new Set(slots.filter(Boolean));
-    const isOrdinary = crossStore.profileMode === "wx-mp-ordinary";
-
-    const unlockedCount = allItems.filter((k) => unlockedSet.has(k.id)).length;
-    curioCatalogTitleEl.textContent = isOrdinary ? "已留存的小物件" : "收藏图鉴 · 全部小物件";
-    curioProgressBadgeEl.textContent = isOrdinary
-      ? `已留存 ${unlockedCount} 件`
-      : `已收集 ${unlockedCount} / ${allItems.length}`;
-
-    document.querySelectorAll("[data-curio-cat]").forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.curioCat === curioCategory);
-    });
-
-    let filtered = curioCategory === "all"
-      ? allItems
-      : allItems.filter((k) => k.category === curioCategory);
-
-    if (isOrdinary) {
-      filtered = filtered.filter((k) => unlockedSet.has(k.id));
-    }
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / CURIO_PAGE_SIZE));
-    if (curioPage > totalPages) curioPage = totalPages;
-    if (curioPage < 1) curioPage = 1;
-
-    const start = (curioPage - 1) * CURIO_PAGE_SIZE;
-    const pageItems = filtered.slice(start, start + CURIO_PAGE_SIZE);
-
-    curioCatalogGridEl.innerHTML = "";
-    curioCatalogEmptyEl.hidden = pageItems.length > 0;
-    curioPaginationEl.hidden = filtered.length <= CURIO_PAGE_SIZE;
-    curioPageIndicatorEl.textContent = `第 ${curioPage} / ${totalPages} 页`;
-    btnCurioPrevPageEl.disabled = curioPage <= 1;
-    btnCurioNextPageEl.disabled = curioPage >= totalPages;
-
-    pageItems.forEach((ks) => {
-      const unlocked = unlockedSet.has(ks.id);
-      const placed = placedSet.has(ks.id);
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "curio-item-card" + (unlocked ? "" : " curio-item-card--locked");
-      card.dataset.keepsakeId = ks.id;
-      const imgUrl = sharedUrl(unlocked ? ks.img : ks.lineImg);
-      const badgeHtml = unlocked
-        ? (placed ? `<span class="curio-item-card__badge">已入柜</span>` : "")
-        : `<span class="curio-item-card__q">?</span>`;
-      card.innerHTML =
-        badgeHtml +
-        `<span class="curio-item-card__media"><img class="curio-item-card__img" src="${imgUrl}" alt="${ks.name}" loading="lazy" /></span>` +
-        `<span class="curio-item-card__name">${ks.name}</span>`;
-      card.addEventListener("click", () => {
-        sfx.tap();
-        if (unlocked) openDetailView("keepsake", ks);
-        else openKeepsakeClue(ks);
-      });
-      curioCatalogGridEl.appendChild(card);
-    });
-  }
-
   async function renderAlbumGrid() {
     document.querySelectorAll("[data-album-tab]").forEach((t) => t.classList.toggle("keepsake-tab--active", t.dataset.albumTab === currentAlbumTab));
     const lookbookViewEl = $("lookbook-album-view");
@@ -4228,7 +4151,6 @@
       keepsakeEmptyEl.hidden = true;
       keepsakeGridEl.hidden = true;
       renderCurioShelf();
-      renderCurioCatalog();
     } else if (currentAlbumTab === "album") {
       keepsakeEmptyEl.hidden = true;
       keepsakeGridEl.hidden = true;
@@ -4329,20 +4251,6 @@
     curioSelectedSlotIdx = -1;
     renderCurioShelf();
   });
-  document.querySelectorAll("[data-curio-cat]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      sfx.tap();
-      curioCategory = btn.dataset.curioCat || "all";
-      curioPage = 1;
-      renderCurioCatalog();
-    });
-  });
-  btnCurioPrevPageEl.addEventListener("click", () => {
-    if (curioPage > 1) { sfx.tap(); curioPage -= 1; renderCurioCatalog(); }
-  });
-  btnCurioNextPageEl.addEventListener("click", () => {
-    sfx.tap(); curioPage += 1; renderCurioCatalog();
-  });
   $("btn-close-curio-picker").addEventListener("click", () => { sfx.tap(); curioPickerOverlayEl.hidden = true; });
   curioPickerOverlayEl.addEventListener("click", (ev) => {
     if (ev.target === curioPickerOverlayEl) { sfx.tap(); curioPickerOverlayEl.hidden = true; }
@@ -4354,7 +4262,6 @@
       slots[curioPickerTargetSlot] = null;
       persistState();
       renderCurioShelf();
-      renderCurioCatalog();
       showSceneFeedback("已从当前木格移下", "system");
     }
     curioPickerOverlayEl.hidden = true;
@@ -4379,7 +4286,7 @@
       return;
     }
     const emptyIdx = slots.indexOf(null);
-    const targetIdx = emptyIdx >= 0 ? emptyIdx : 11;
+    const targetIdx = emptyIdx >= 0 ? emptyIdx : SHELF_SLOT_COUNT - 1;
     placeKeepsakeInSlot(activeDetailKeepsake.id, targetIdx);
     renderDetailKeepsakeStory();
   });

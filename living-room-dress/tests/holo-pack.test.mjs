@@ -144,3 +144,34 @@ test("index.html, app.js, and settings-panel.js wire Option C dual integration p
 
   assert.match(settingsJs, /onOpenHoloCard/);
 });
+
+test("curio oak cabinet has 50 wooden slots, migrates 12-slot saves losslessly, auto-slots sequentially, and removes 收藏图鉴", () => {
+  assert.equal(Store.SHELF_SLOT_COUNT, 50);
+  const store = Store.createDefaultState({ now: Date.UTC(2026, 10, 25, 4, 0, 0) });
+  assert.equal(store.curioCabinet.shelfSlots.length, 50);
+  assert.equal(store.curioCabinet.shelfSlots[0], "short_pencil");
+  assert.equal(store.curioCabinet.shelfSlots[1], null);
+
+  // Sequential auto-slotting into empty wooden slots
+  const r1 = Store.settleHoloPackCard(store, "k_a01_prayer_stick", { now: Date.UTC(2026, 10, 25, 5, 0, 0), petId: "yutu" });
+  const r2 = Store.settleHoloPackCard(store, "k_a02_bronze_coin", { now: Date.UTC(2026, 10, 25, 5, 1, 0), petId: "yutu" });
+  assert.equal(r1.placedSlot, 1);
+  assert.equal(r2.placedSlot, 2);
+  assert.equal(store.curioCabinet.shelfSlots[1], "k_a01_prayer_stick");
+  assert.equal(store.curioCabinet.shelfSlots[2], "k_a02_bronze_coin");
+
+  // Lossless upgrade from legacy 12-slot shelf to 50 slots
+  const legacy12 = ["short_pencil", null, "k_a01_prayer_stick", null, null, null, null, null, null, null, null, null];
+  const upgraded = Store.buildShelfSlots(["short_pencil", "k_a01_prayer_stick", "k_a02_bronze_coin"], legacy12);
+  assert.equal(upgraded.length, 50);
+  assert.equal(upgraded[0], "short_pencil");
+  assert.equal(upgraded[2], "k_a01_prayer_stick");
+  assert.equal(upgraded[1], "k_a02_bronze_coin");
+
+  // 收藏图鉴 section completely removed from index.html
+  const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
+  assert.ok(!html.includes("curio-catalog-section"), "curio-catalog-section must be removed from index.html");
+  assert.ok(!html.includes("收藏图鉴"), "收藏图鉴 text must be removed from index.html");
+  assert.ok(html.includes("已摆 1/50 格"), "index.html must show 50 wooden slots");
+});
+

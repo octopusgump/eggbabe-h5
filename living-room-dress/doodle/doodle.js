@@ -677,11 +677,12 @@
     const todayKey = Store.getUtc8DateKey();
     const petId = store.activePetId === "yutu" ? "yutu" : "koi";
 
+    const shelfSlotCount = (Store && Store.SHELF_SLOT_COUNT) || 50;
     if (!store.curioCabinet) {
-      store.curioCabinet = { unlockedIds: [], deferredUnlockedIds: [], unlockedMeta: {}, shelfSlots: new Array(12).fill(null) };
+      store.curioCabinet = { unlockedIds: [], deferredUnlockedIds: [], unlockedMeta: {}, shelfSlots: new Array(shelfSlotCount).fill(null) };
     }
     if (!Array.isArray(store.curioCabinet.unlockedIds)) store.curioCabinet.unlockedIds = [];
-    if (!Array.isArray(store.curioCabinet.shelfSlots) || store.curioCabinet.shelfSlots.length !== 12) {
+    if (!Array.isArray(store.curioCabinet.shelfSlots) || store.curioCabinet.shelfSlots.length !== shelfSlotCount) {
       store.curioCabinet.shelfSlots = Store.buildShelfSlots(store.curioCabinet.unlockedIds, store.curioCabinet.shelfSlots);
     }
 
@@ -761,7 +762,7 @@
     if (newlyUnlocked) {
       unlockStatusPillEl.textContent = placedSlotIdx >= 0
         ? `✨ 新解锁！已自动摆入收藏格第 ${placedSlotIdx + 1} 格`
-        : "✨ 新解锁！已收入收藏图鉴";
+        : "✨ 新解锁！已收入多宝收藏格";
     } else {
       unlockStatusPillEl.textContent = awardedStars > 0
         ? "🎨 重温临摹完成 · 获赠陪伴星星"

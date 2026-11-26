@@ -598,14 +598,25 @@
     return setId;
   }
 
+  const SHELF_SLOT_COUNT = 50;
+
   function buildShelfSlots(unlockedIds, existingSlots) {
-    const slots = Array.isArray(existingSlots) && existingSlots.length === 12
-      ? existingSlots.slice(0, 12)
-      : new Array(12).fill(null);
-    const placed = new Set(slots.filter(Boolean));
-    for (let i = 0; i < unlockedIds.length; i++) {
-      const id = unlockedIds[i];
-      if (placed.has(id)) continue;
+    const slots = new Array(SHELF_SLOT_COUNT).fill(null);
+    const placed = new Set();
+    if (Array.isArray(existingSlots)) {
+      const limit = Math.min(existingSlots.length, SHELF_SLOT_COUNT);
+      for (let i = 0; i < limit; i++) {
+        const id = existingSlots[i];
+        if (id && !placed.has(id)) {
+          slots[i] = id;
+          placed.add(id);
+        }
+      }
+    }
+    const list = Array.isArray(unlockedIds) ? unlockedIds : [];
+    for (let i = 0; i < list.length; i++) {
+      const id = list[i];
+      if (!id || placed.has(id)) continue;
       const emptyIdx = slots.indexOf(null);
       if (emptyIdx < 0) break;
       slots[emptyIdx] = id;
@@ -1247,7 +1258,7 @@
       store.curioCabinet = createDefaultState({ now }).curioCabinet;
     }
     if (!Array.isArray(store.curioCabinet.unlockedIds)) store.curioCabinet.unlockedIds = [];
-    if (!Array.isArray(store.curioCabinet.shelfSlots) || store.curioCabinet.shelfSlots.length !== 12) {
+    if (!Array.isArray(store.curioCabinet.shelfSlots) || store.curioCabinet.shelfSlots.length !== SHELF_SLOT_COUNT) {
       store.curioCabinet.shelfSlots = buildShelfSlots(store.curioCabinet.unlockedIds, store.curioCabinet.shelfSlots);
     }
     if (!store.curioCabinet.unlockedMeta || typeof store.curioCabinet.unlockedMeta !== "object") {
@@ -1522,6 +1533,11 @@
       if (!Array.isArray(existing.curioCabinet.deferredUnlockedIds)) {
         existing.curioCabinet.deferredUnlockedIds = [];
       }
+      const needsShelfUpgrade = !Array.isArray(existing.curioCabinet.shelfSlots)
+        || existing.curioCabinet.shelfSlots.length !== SHELF_SLOT_COUNT;
+      if (needsShelfUpgrade) {
+        existing.curioCabinet.shelfSlots = buildShelfSlots(existing.curioCabinet.unlockedIds, existing.curioCabinet.shelfSlots);
+      }
       const needsSettingsBackfill = !existing.settings
         || typeof existing.settings.ageRange !== "string"
         || existing.settings.ageRangeUpdatedAt === undefined
@@ -1530,7 +1546,7 @@
         || !Array.isArray(existing.settings.inviteCodes);
       ensureModularAndClockDefaults(existing, options);
       pruneDailyEventLog(existing.dailyEventLog, MAX_DAILY_LOG_DAYS);
-      if (needsSettingsBackfill) {
+      if (needsSettingsBackfill || needsShelfUpgrade) {
         storeAdapter.setJSON(STORAGE_KEY, existing);
       }
       return { store: existing, migrated: false };
@@ -1673,6 +1689,7 @@
     MOOD_TYPES,
     MOOD_DISPLAY_LABEL_OVERRIDES,
     KEEPSAKE_ALIAS_MAP,
+    SHELF_SLOT_COUNT,
     buildShelfSlots,
     getMoodDisplay,
     computeDailyMood,
