@@ -139,8 +139,8 @@
   position: absolute;
   left: 6.4%;
   right: 6.4%;
-  top: 4.8%;
-  height: 58.6%;
+  top: 4.5%;
+  height: 49.5%;
   z-index: 1;
   border-radius: 3.2cqw;
   overflow: hidden;
@@ -193,7 +193,7 @@
 }
 
 .eb-holo-card.rarity-common .eb-holo-card__holo {
-  inset: 4.8% 6.4% 36.6%;
+  inset: 4.5% 6.4% 46%;
   border-radius: 3.2cqw;
   mask: var(--eb-holo-glitter) 0 0 / 112px 112px;
   opacity: calc(0.34 + var(--hyp) * 0.42);
@@ -218,14 +218,15 @@
   position: absolute;
   left: 6.4%;
   right: 6.4%;
-  top: 65.4%;
-  bottom: 4.8%;
+  top: 56%;
+  bottom: 4.5%;
   z-index: 3;
-  padding: 3.8cqw 4.6cqw 3.4cqw;
+  padding: 3.4cqw 4.2cqw 3cqw;
   border-radius: 3.2cqw;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 1.8cqw;
   background: var(--card-plaque-bg);
   border: 1px solid color-mix(in srgb, currentColor 14%, rgba(255, 255, 255, 0.45));
   box-shadow: 0 4px 12px -4px rgba(24, 18, 10, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.45);
@@ -239,7 +240,7 @@
 }
 
 .eb-holo-card__name {
-  font: 700 7.4cqw / 1.08 "PingFang SC", sans-serif;
+  font: 700 6.8cqw / 1.08 "PingFang SC", sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -247,20 +248,68 @@
 
 .eb-holo-card__tag {
   flex-shrink: 0;
-  padding: 1.3cqw 2.5cqw;
+  padding: 1.2cqw 2.4cqw;
   border-radius: 99px;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   background: color-mix(in srgb, currentColor 7%, transparent);
-  font: 600 3.2cqw / 1 "PingFang SC", sans-serif;
+  font: 600 3cqw / 1 "PingFang SC", sans-serif;
 }
 
-.eb-holo-card__trait {
-  margin: 0;
-  font: 500 3.7cqw / 1.3 "PingFang SC", sans-serif;
-  opacity: 0.78;
+.eb-holo-card__ability {
+  display: flex;
+  align-items: baseline;
+  gap: 2cqw;
+  padding: 1.8cqw 2.4cqw;
+  border-radius: 2.2cqw;
+  background: color-mix(in srgb, currentColor 6%, rgba(255, 255, 255, 0.5));
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.eb-holo-card__ability-badge {
+  flex-shrink: 0;
+  font: 700 3.2cqw / 1.1 "PingFang SC", sans-serif;
+  color: #54632c;
+}
+
+.eb-holo-card__ability-desc {
+  font: 500 3.1cqw / 1.25 "PingFang SC", sans-serif;
+  opacity: 0.84;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.eb-holo-card__story {
+  margin: 0;
+  font: 400 3.3cqw / 1.42 "PingFang SC", sans-serif;
+  font-style: italic;
+  opacity: 0.78;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.eb-holo-ability-toast {
+  position: fixed;
+  top: max(62px, calc(env(safe-area-inset-top) + 52px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  max-width: min(330px, calc(100vw - 32px));
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(252, 248, 236, 0.96);
+  border: 1px solid rgba(214, 178, 92, 0.65);
+  color: #1c2418;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.45);
+}
+
+.eb-holo-ability-toast[hidden] {
+  display: none;
 }
 
 .eb-holo-card__foot {
@@ -301,9 +350,9 @@
 
 .eb-holo-card__pop {
   position: absolute;
-  left: 12%;
-  width: 76%;
-  top: 7.5%;
+  left: 16%;
+  width: 68%;
+  top: 5%;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -361,41 +410,151 @@
   background: linear-gradient(90deg, transparent, rgba(235, 219, 168, 0.56), transparent);
 }
 
-.eb-holo-back__meta {
+/* TCG 典藏卡背纹章（借鉴万智牌五色法球环 + 宝可梦中心徽章 + 游戏王旋涡星轨） */
+.eb-tcg-filigree {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: #e8cf8b;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.eb-tcg-head,
+.eb-tcg-emblem,
+.eb-tcg-status-row,
+.eb-holo-back__story,
+.eb-holo-back__foot {
+  position: relative;
+  z-index: 1;
+}
+
+.eb-tcg-emblem {
+  position: relative;
+  width: 66cqw;
+  height: 66cqw;
+  margin: 1cqw auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2.6cqw;
-  margin: 2cqw 0;
+  place-items: center;
 }
 
-.eb-holo-back__cell {
-  padding: 2.6cqw 3.2cqw;
-  border-radius: 2.6cqw;
+.eb-tcg-emblem__ring {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 1px dashed rgba(235, 219, 168, 0.34);
+  box-shadow:
+    0 0 28px -4px color-mix(in srgb, var(--mood-accent, #e8c97a) 44%, transparent),
+    inset 0 0 24px -6px color-mix(in srgb, var(--mood-accent, #e8c97a) 32%, transparent);
+}
+
+.eb-tcg-core {
+  width: 48%;
+  height: 48%;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8cqw;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 252, 240, 0.34), rgba(20, 36, 22, 0.92) 72%),
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--mood-accent, #e8c97a) 38%, transparent), transparent 76%);
+  border: 1.5px solid color-mix(in srgb, var(--mood-accent, #e8c97a) 78%, #fff6dc);
+  box-shadow:
+    0 0 22px -2px color-mix(in srgb, var(--mood-accent, #e8c97a) 62%, transparent),
+    inset 0 1px 4px rgba(255, 255, 255, 0.35);
+}
+
+.eb-tcg-core__icon {
+  font-size: 10.5cqw;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.eb-tcg-core__kicker {
+  font: 600 2.7cqw / 1 "PingFang SC", sans-serif;
+  letter-spacing: 0.1em;
+  color: rgba(244, 234, 210, 0.72);
+}
+
+.eb-tcg-core__mood {
+  font: 700 4.8cqw / 1.05 "PingFang SC", sans-serif;
+  color: #fffbf0;
+}
+
+.eb-tcg-orb {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1cqw;
+}
+
+.eb-tcg-orb__gem {
+  width: 5.4cqw;
+  height: 5.4cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), rgba(40, 52, 42, 0.85) 75%);
+  border: 1px solid rgba(235, 219, 168, 0.34);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2);
+  opacity: 0.48;
+}
+
+.eb-tcg-orb.is-lit .eb-tcg-orb__gem {
+  opacity: 1;
+  background: radial-gradient(circle at 32% 28%, #ffffff 0%, var(--orb-color, #e8c97a) 48%, rgba(26, 36, 24, 0.75) 100%);
+  border-color: rgba(255, 250, 232, 0.85);
+  box-shadow:
+    0 0 10px 1px color-mix(in srgb, var(--orb-color, #e8c97a) 72%, transparent),
+    inset 0 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+.eb-tcg-orb__label {
+  font: 600 2.6cqw / 1 "PingFang SC", sans-serif;
+  color: rgba(244, 234, 210, 0.76);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+}
+
+.eb-tcg-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2.2cqw;
+}
+
+.eb-tcg-pill {
+  padding: 1.8cqw 3.4cqw;
+  border-radius: 999px;
+  background: rgba(232, 207, 139, 0.14);
+  border: 1px solid rgba(235, 219, 168, 0.34);
+  color: #fff5d9;
+  font: 600 3.3cqw / 1 "PingFang SC", sans-serif;
+}
+
+.eb-tcg-pill--soft {
   background: rgba(255, 252, 244, 0.07);
-  border: 1px solid rgba(235, 219, 168, 0.2);
-}
-
-.eb-holo-back__label {
-  display: block;
-  font: 500 2.9cqw / 1.2 "PingFang SC", sans-serif;
-  color: rgba(244, 234, 210, 0.62);
-}
-
-.eb-holo-back__val {
-  display: block;
-  margin-top: 1cqw;
-  font: 700 3.9cqw / 1.2 "PingFang SC", sans-serif;
-  color: #fffaf0;
+  border-color: rgba(235, 219, 168, 0.22);
+  color: rgba(244, 234, 210, 0.86);
 }
 
 .eb-holo-back__story {
-  margin: 2cqw 0;
-  padding: 3.6cqw 4cqw;
+  margin: 1.5cqw 0;
+  padding: 3.2cqw 4cqw;
   border-radius: 3cqw;
-  background: rgba(255, 252, 244, 0.08);
-  border: 1px solid rgba(235, 219, 168, 0.2);
-  font: 400 3.9cqw / 1.62 "PingFang SC", sans-serif;
+  background: rgba(255, 252, 244, 0.07);
+  border: 1px solid rgba(235, 219, 168, 0.22);
+  font: 400 3.7cqw / 1.55 "PingFang SC", sans-serif;
   color: #f9f3e4;
+}
+
+.eb-holo-back__story--quote {
+  text-align: center;
+  font-style: italic;
 }
 
 .eb-holo-back__foot {

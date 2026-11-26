@@ -931,6 +931,7 @@
   function buildCardMarkup(cardDef) {
     const ordinary = isOrdinaryMode();
     const serialText = ordinary ? "蛋宝宝留存" : `NO. ${cardDef.serial}`;
+    const ability = cardDef.ability || { name: "拾光印记", desc: "可摆入原木多宝收藏格" };
     const edges = '<i class="card-edge"></i><i class="card-edge"></i><i class="card-edge"></i>';
     return (
       edges +
@@ -945,6 +946,10 @@
       `<div class="card-head-row">` +
       `<b class="card-title">${escapeHtml(cardDef.name)}</b>` +
       `<span class="card-tag">${escapeHtml(cardDef.tag)}</span>` +
+      `</div>` +
+      `<div class="card-ability">` +
+      `<span class="card-ability__badge">✦ ${escapeHtml(ability.name)}</span>` +
+      `<span class="card-ability__desc">${escapeHtml(ability.desc)}</span>` +
       `</div>` +
       `<p class="card-trait">${escapeHtml(cardDef.trait)}</p>` +
       `<div class="card-foot-row">` +
