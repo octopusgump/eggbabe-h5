@@ -134,9 +134,11 @@ test("index.html, app.js, and settings-panel.js wire Option C dual integration p
   const appJs = fs.readFileSync(path.join(REPO, "living-room-dress/app.js"), "utf8");
   const settingsJs = fs.readFileSync(path.join(REPO, "living-room-dress/settings-panel.js"), "utf8");
 
-  assert.match(html, /holo-card-showcase\.css/);
-  assert.match(html, /holo-pack\/holo-pack-config\.js/);
-  assert.match(html, /holo-card-showcase\.js/);
+  const loaderJs = fs.readFileSync(path.join(REPO, "living-room-dress/module-loader.js"), "utf8");
+  assert.match(html, /module-loader\.js/);
+  assert.match(loaderJs, /holo-card-showcase\.css/);
+  assert.match(loaderJs, /holo-pack\/holo-pack-config\.js/);
+  assert.match(loaderJs, /holo-card-showcase\.js/);
   assert.match(html, /id="btn-curio-open-pack"/);
   assert.match(html, /id="btn-detail-holo-view"/);
   assert.match(html, /data-album-tab="holocards"/);
