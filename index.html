@@ -611,14 +611,14 @@
           <div id="holocards-album-grid" class="holocards-album-grid"></div>
         </div>
 
-        <!-- P2 木质博古收藏格 + 41 件分页图鉴（在 keepsakes 页签显示） -->
+        <!-- P2 木质博古收藏格（50 格暖橡木多宝柜，在 keepsakes 页签显示） -->
         <div id="curio-cabinet-view" class="curio-cabinet-view" hidden>
-          <!-- 上半区：真·可交互 3×4 (12 格) 暖橡木多宝柜 -->
+          <!-- 50 格暖橡木多宝柜 -->
           <section class="curio-shelf-section" aria-label="我的多宝收藏格">
             <div class="curio-shelf-head">
               <div class="curio-shelf-head__left">
                 <span class="curio-shelf-head__title">🪵 我的多宝收藏格</span>
-                <span id="curio-placed-count" class="curio-shelf-head__sub">已摆 1/12 格</span>
+                <span id="curio-placed-count" class="curio-shelf-head__sub">已摆 1/50 格</span>
               </div>
               <div class="curio-shelf-head__actions">
                 <button id="btn-curio-open-pack" class="curio-arrange-btn curio-arrange-btn--pack" type="button">🎁 拆拾物礼袋</button>
@@ -627,41 +627,12 @@
             </div>
             <p id="curio-arrange-hint" class="curio-arrange-hint" hidden>点选任意木格可摆入、替换，或连续点选两格互换位置</p>
 
-            <div class="oak-cabinet" role="region" aria-label="暖橡木 3×4 多宝格">
+            <div class="oak-cabinet" role="region" aria-label="暖橡木 50 格多宝柜">
               <span class="oak-cabinet__corner oak-cabinet__corner--tl" aria-hidden="true"></span>
               <span class="oak-cabinet__corner oak-cabinet__corner--tr" aria-hidden="true"></span>
               <span class="oak-cabinet__corner oak-cabinet__corner--bl" aria-hidden="true"></span>
               <span class="oak-cabinet__corner oak-cabinet__corner--br" aria-hidden="true"></span>
               <div id="curio-shelf-grid" class="oak-cabinet__grid"></div>
-            </div>
-          </section>
-
-          <!-- 下半区：41 件分类图鉴（4 页 × 12 格） -->
-          <section class="curio-catalog-section" aria-label="收藏图鉴">
-            <div class="curio-catalog-head">
-              <span id="curio-catalog-title" class="curio-catalog-head__title">收藏图鉴 · 全部小物件</span>
-              <span id="curio-progress-badge" class="curio-progress-badge">已收集 1 / 41</span>
-            </div>
-
-            <div id="curio-category-tabs" class="curio-cat-tabs" role="tablist" aria-label="藏品分类">
-              <button class="curio-cat-pill is-active" type="button" data-curio-cat="all">全部</button>
-              <button class="curio-cat-pill" type="button" data-curio-cat="shared">祈愿共有</button>
-              <button class="curio-cat-pill" type="button" data-curio-cat="yutu">玉兔专属</button>
-              <button class="curio-cat-pill" type="button" data-curio-cat="koi">锦鲤专属</button>
-              <button class="curio-cat-pill" type="button" data-curio-cat="daily">旅途日常</button>
-            </div>
-
-            <div id="curio-catalog-empty" class="keepsake-empty curio-catalog-empty" hidden>
-              <div class="keepsake-empty__ring" aria-hidden="true"></div>
-              <p class="keepsake-empty__text">去和它待一会儿吧</p>
-            </div>
-
-            <div id="curio-catalog-grid" class="curio-catalog-grid"></div>
-
-            <div id="curio-pagination" class="curio-pagination">
-              <button id="btn-curio-prev-page" class="curio-page-btn" type="button" aria-label="上一页">‹</button>
-              <span id="curio-page-indicator" class="curio-page-indicator">第 1 / 4 页</span>
-              <button id="btn-curio-next-page" class="curio-page-btn" type="button" aria-label="下一页">›</button>
             </div>
           </section>
         </div>
