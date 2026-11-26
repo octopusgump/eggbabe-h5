@@ -104,26 +104,41 @@ export function haptic(type = "light") {
   }
 }
 
-/** Q 弹两连咀嚼吧唧声 */
-export function playMunch() {
-  playTone(320, 540, 0.09, "triangle", 0.15, 0);
-  playTone(540, 260, 0.08, "sine", 0.12, 0.08);
-  playTone(340, 580, 0.09, "triangle", 0.15, 0.24);
-  playTone(580, 290, 0.09, "sine", 0.12, 0.32);
+/** 区分玉兔（小门牙快啃+鼻音）与锦鲤（圆嘴慢嚼+气泡）的咀嚼声 */
+export function playMunch(snackId = "carrot", petId = "koi") {
+  const isYutu = petId === "yutu";
+  const isSoft = snackId === "berry_mochi" || snackId === "osmanthus_cake" || snackId === "osmanthus_pancake";
+  const isCandy = snackId === "star_candy";
+  const wave = isSoft ? "sine" : isCandy ? "sine" : "triangle";
+  const baseF = isCandy ? 980 : isSoft ? 260 : 340;
+  if (isYutu) {
+    [0, 0.09, 0.18, 0.27].forEach((d, i) => {
+      playTone(baseF + (i % 2) * 45, isSoft ? 175 : baseF * 1.45, 0.065, wave, 0.13, d);
+    });
+    playTone(480, 690, 0.12, "triangle", 0.11, 0.40);
+  } else {
+    [0, 0.15, 0.30].forEach((d, i) => {
+      playTone(baseF + i * 25, isSoft ? 160 : baseF * 1.55, 0.085, wave, 0.14, d);
+    });
+    playTone(360, 680, 0.11, "sine", 0.12, 0.45);
+  }
 }
 
-/** 清脆泡泡啵啵音（可随搓澡进度略微升调） */
-export function playBubble(progress = 0) {
-  const base = 460 + Math.min(100, progress) * 3.8 + Math.random() * 70;
-  playTone(base, base * 1.65, 0.09, "sine", 0.11, 0);
+/** 随手速与搓澡进度升调的双宠泡泡/柔泡音 */
+export function playBubble(progress = 0, petId = "koi", effort = 0.4) {
+  const isYutu = petId === "yutu";
+  const eff = Math.max(0.08, Math.min(1, Number(effort) || 0.4));
+  const base = (isYutu ? 380 : 480) + Math.min(100, progress) * 3.6 + eff * 120 + Math.random() * 55;
+  playTone(base, base * (isYutu ? 1.42 : 1.72), isYutu ? 0.075 : 0.085, isYutu ? "triangle" : "sine", 0.09 + eff * 0.04, 0);
 }
 
-/** 轻柔冲水哗啦声 */
-export function playSplash() {
+/** 双宠区分版冲水收尾（玉兔温水抖毛 vs 锦鲤清亮跃浪） */
+export function playSplash(petId = "koi") {
   const ctx = getCtx();
   if (!ctx) return;
+  const isYutu = petId === "yutu";
   try {
-    const dur = 0.55;
+    const dur = isYutu ? 0.48 : 0.55;
     const sampleRate = ctx.sampleRate;
     const buf = ctx.createBuffer(1, Math.floor(sampleRate * dur), sampleRate);
     const data = buf.getChannelData(0);
@@ -134,20 +149,44 @@ export function playSplash() {
     src.buffer = buf;
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(900, ctx.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(2200, ctx.currentTime + dur * 0.5);
-    filter.frequency.exponentialRampToValueAtTime(750, ctx.currentTime + dur);
-    filter.Q.value = 1.6;
+    filter.frequency.setValueAtTime(isYutu ? 750 : 980, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(isYutu ? 1650 : 2450, ctx.currentTime + dur * 0.5);
+    filter.frequency.exponentialRampToValueAtTime(isYutu ? 680 : 820, ctx.currentTime + dur);
+    filter.Q.value = isYutu ? 1.3 : 1.7;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.001, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.14, ctx.currentTime + 0.08);
+    gain.gain.linearRampToValueAtTime(0.13, ctx.currentTime + 0.07);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     src.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
     src.start();
+    if (isYutu) {
+      playTone(520, 740, 0.14, "triangle", 0.11, 0.36);
+    } else {
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playTone(f, f * 1.18, 0.09, "sine", 0.10, 0.18 + i * 0.07));
+    }
   } catch (e) {
     // ignore
+  }
+}
+
+/** 双宠区分版脚步与跳跃 */
+export function playStep(petId = "koi", isLeft = true) {
+  if (petId === "yutu") {
+    playTone(isLeft ? 215 : 242, isLeft ? 132 : 148, 0.04, "triangle", 0.09, 0);
+  } else {
+    playTone(isLeft ? 195 : 215, isLeft ? 305 : 330, 0.048, "sine", 0.09, 0);
+  }
+}
+
+export function playJump(petId = "koi") {
+  if (petId === "yutu") {
+    playTone(295, 590, 0.14, "triangle", 0.12, 0);
+    playTone(175, 115, 0.08, "triangle", 0.10, 0.72);
+  } else {
+    playTone(255, 685, 0.15, "sine", 0.12, 0);
+    playTone(250, 165, 0.13, "sine", 0.11, 0.72);
   }
 }
 
