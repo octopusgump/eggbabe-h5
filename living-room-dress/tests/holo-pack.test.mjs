@@ -121,6 +121,9 @@ test("buildEntityEggCardData produces complete 3D holographic identity cards for
     assert.ok(card.image.endsWith(".png"), `expected PNG outfit image, got ${card.image}`);
     assert.equal(card.backMeta.totalDays, 14);
     assert.equal(card.backMeta.publicId, store.user.publicId);
+    assert.equal(Array.isArray(card.backMeta.orbs), true);
+    assert.equal(card.backMeta.orbs.length, 5);
+    assert.ok(card.backMeta.moodIcon && card.backMeta.moodLabel && card.backMeta.statusLabel && card.backMeta.personaLabel);
   }
 });
 

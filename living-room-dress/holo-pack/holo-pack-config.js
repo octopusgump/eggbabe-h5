@@ -339,12 +339,50 @@
     const isYutu = petId === "yutu";
     const companion = store.companion || {};
     const user = store.user || {};
+    const care = options.care || petStore.care || { hunger: 70, hygiene: 75 };
     const totalDays = Math.max(1, Number(companion.totalCompanionDays || companion.companionDays || 1));
     const firstMetAt = companion.firstMetAt || "2026-11-24";
     const publicId = user.publicId || "EB-000000";
     const unlockedCount = store.curioCabinet && Array.isArray(store.curioCabinet.unlockedIds)
       ? store.curioCabinet.unlockedIds.length
       : 0;
+
+    const MOOD_ACCENTS = {
+      JOY: "#F3C85F",
+      CALM: "#9DB65B",
+      EXCITEMENT: "#F2995E",
+      CURIOSITY: "#7BBFD4",
+      CARE: "#F4B9AE",
+      ANXIETY: "#B7A6DC",
+      FRUSTRATION: "#C9987B",
+      FATIGUE: "#D9B47C"
+    };
+
+    const moodInfo = options.moodInfo || {};
+    const moodKey = moodInfo.moodKey || (petStore.dailyMood && petStore.dailyMood.moodKey) || "JOY";
+    const moodIcon = moodInfo.icon || "😊";
+    const moodLabel = moodInfo.label || "愉快";
+    const moodAccent = MOOD_ACCENTS[moodKey] || "#E8C97A";
+
+    const hunger = typeof care.hunger === "number" ? care.hunger : 70;
+    const hygiene = typeof care.hygiene === "number" ? care.hygiene : 75;
+    let statusLabel = options.statusLabel || "";
+    if (!statusLabel) {
+      if (hunger < 30) statusLabel = "肚子咕噜中";
+      else if (hygiene < 30) statusLabel = "想洗香香";
+      else statusLabel = "桌边陪伴中";
+    }
+
+    const personaLabel = options.personaLabel || (isYutu ? "嘴硬心软冷幽默" : "慢半拍温柔派");
+
+    // 借鉴万智牌五色法球环：5 颗实时陪伴状态法球（无冰冷数字条）
+    const orbs = [
+      { id: "energy", label: "元气", color: "#F5C45E", lit: hunger >= 35 },
+      { id: "clean", label: "舒心", color: "#87CBE0", lit: hygiene >= 35 },
+      { id: "mood", label: "心情", color: moodAccent, lit: !moodInfo.overriddenByCare },
+      { id: "outfit", label: "穿搭", color: "#F4B9AE", lit: !!equippedId },
+      { id: "bond", label: "陪伴", color: "#9DB65B", lit: totalDays >= 1 }
+    ];
 
     return {
       kind: "entity-egg",
@@ -368,17 +406,24 @@
         ? "radial-gradient(84% 62% at 50% 24%, rgba(255, 252, 236, 0.94) 0%, rgba(186, 214, 146, 0.45) 48%, transparent 78%), linear-gradient(170deg, #DCE7CA 0%, #8CA66B 62%, #3D5233 100%)"
         : "radial-gradient(84% 62% at 50% 24%, rgba(255, 248, 224, 0.94) 0%, rgba(244, 185, 134, 0.48) 48%, transparent 78%), linear-gradient(170deg, #F4CFA0 0%, #C67C4E 60%, #5B2E22 100%)",
       backMeta: {
-        eyebrow: "MY EGG · 实体蛋纪念档案",
+        eyebrow: "EGGBABE · 陪伴纹章",
         publicId,
         firstMetAt,
         totalDays,
         outfitName,
         ownerNickname: user.nickname || "蛋宝好友",
         unlockedCount,
-        moodQuote: options.moodQuote || (isYutu
+        moodKey,
+        moodIcon,
+        moodLabel,
+        moodAccent,
+        statusLabel,
+        personaLabel,
+        orbs,
+        moodQuote: options.moodQuote || (moodInfo.text ? `“${moodInfo.text}”` : (isYutu
           ? "“长耳朵听见风声的时候，就想和你靠在一起发会儿呆。”"
-          : "“我想了想，觉得遇到你的那天运气特别好。”"),
-        batchNote: "一蛋一份 · 身份与陪伴纪念"
+          : "“我想了想，觉得遇到你的那天运气特别好。”")),
+        batchNote: `EGGBABE · 陪伴第 ${totalDays} 天`
       }
     };
   }

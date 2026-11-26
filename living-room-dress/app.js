@@ -3473,24 +3473,8 @@
           openKeepsakeAlbum("keepsakes");
         },
         onOpenHoloCard: (petId) => {
-          const pid = petId === "yutu" ? "yutu" : "koi";
           if (window.EggBabeHoloCardShowcase) {
-            const setId = (crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].equippedSetId) || "";
-            const moodInfo = Store.computeDailyMood(Store.getUtc8DateKey(), pid, careAll[pid]);
-            window.EggBabeHoloCardShowcase.openEntityEggCard({
-              petId: pid,
-              store: crossStore,
-              catalog: catalog,
-              assetPrefix: "./",
-              outfitName: getSetName(pid, setId),
-              moodQuote: moodInfo && moodInfo.text ? `“${moodInfo.text}”` : "",
-              isOrdinary: crossStore.profileMode === "wx-mp-ordinary",
-              onTap: () => sfx.tap(),
-              onOpenCurio: () => {
-                activeDetailStoryPet = pid;
-                openKeepsakeAlbum("keepsakes");
-              }
-            });
+            openEntityEggHoloCard(petId, { showCurioBtn: true });
           } else {
             openKeepsakeAlbum("keepsakes");
           }
@@ -4225,13 +4209,37 @@
     const options = opts || {};
     if (!window.EggBabeHoloCardShowcase) return;
     const setId = (crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].equippedSetId) || "";
-    const moodInfo = Store.computeDailyMood(Store.getUtc8DateKey(), pid, careAll[pid]);
+    const petCare = careAll[pid] || { hunger: 70, hygiene: 75 };
+    const moodInfo = Store.computeDailyMood(Store.getUtc8DateKey(), pid, petCare);
+
+    let statusLabel = "桌边陪伴中";
+    if (petCare.hunger < 30) {
+      statusLabel = "肚子咕噜中";
+    } else if (petCare.hygiene < 30) {
+      statusLabel = "想洗香香";
+    } else if (pid === state.petId) {
+      if (isNightSleepingNow() || state.roomState === "sleep") {
+        statusLabel = "盖被安睡中";
+      } else if (state.roomState && state.roomState !== "free_stand" && ROOM_STATES[state.roomState]) {
+        statusLabel = ROOM_STATES[state.roomState].label + "中";
+      }
+    }
+
+    const personaDef = Voice && typeof Voice.getPersonaDef === "function"
+      ? Voice.getPersonaDef(getPetPersonaId(pid))
+      : null;
+    const personaLabel = (personaDef && personaDef.name) || (pid === "yutu" ? "嘴硬心软冷幽默" : "慢半拍温柔派");
+
     window.EggBabeHoloCardShowcase.openEntityEggCard({
       petId: pid,
       store: crossStore,
       catalog: catalog,
       assetPrefix: "./",
       outfitName: getSetName(pid, setId),
+      care: petCare,
+      moodInfo: moodInfo,
+      statusLabel: statusLabel,
+      personaLabel: personaLabel,
       moodQuote: moodInfo && moodInfo.text ? `“${moodInfo.text}”` : "",
       isOrdinary: crossStore.profileMode === "wx-mp-ordinary",
       onTap: () => sfx.tap(),
