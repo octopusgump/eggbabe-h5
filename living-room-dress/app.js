@@ -58,6 +58,7 @@
   const DiaryEngine = window.EggBabeDiaryEngine;
   const P5Data = window.EggBabeP5Data;
   const Voice = window.EggBabeVoice;
+  const DeskNav = window.EggBabeDeskNav;
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -396,6 +397,11 @@
     clockTick: (even) => {
       playTone(even ? 1080 : 880, even ? 780 : 640, 0.024, 0.016, "triangle");
       playTone(even ? 96 : 88, 72, 0.16, 0.012, "sine");
+    },
+    step: (isLeft) => {
+      // 柔和的木桌小绒爪脚步声（左右脚微差音高）
+      playTone(isLeft ? 215 : 248, isLeft ? 128 : 146, 0.044, 0.024, "triangle");
+      playTone(isLeft ? 480 : 525, isLeft ? 310 : 340, 0.026, 0.008, "sine");
     }
   };
 
@@ -1856,9 +1862,9 @@
   }
 
   /* ---------- 13. 网格形变、四情绪节拍粒子与全姿态状态机 ---------- */
-  const KEYS = ["hopY", "rot", "sx", "sy", "breath", "headRot", "headTx", "headTy", "earL", "earR", "lean", "wClosed", "wDoze", "shS", "shO"];
+  const KEYS = ["hopY", "rot", "sx", "sy", "breath", "headRot", "headTx", "headTy", "earL", "earR", "lean", "wClosed", "wDoze", "shS", "shO", "shShiftX", "legL", "legR", "armL", "armR", "walkDir"];
   function makePose(o) {
-    const p = { hopY: 0, rot: 0, sx: 1, sy: 1, breath: 0, headRot: 0, headTx: 0, headTy: 0, earL: 0, earR: 0, lean: 0, wClosed: 0, wDoze: 0, shS: 1, shO: 1 };
+    const p = { hopY: 0, rot: 0, sx: 1, sy: 1, breath: 0, headRot: 0, headTx: 0, headTy: 0, earL: 0, earR: 0, lean: 0, wClosed: 0, wDoze: 0, shS: 1, shO: 1, shShiftX: 0, legL: 0, legR: 0, armL: 0, armR: 0, walkDir: 0 };
     if (o) for (const k in o) if (Object.prototype.hasOwnProperty.call(o, k)) p[k] = o[k];
     return p;
   }
@@ -1872,42 +1878,84 @@
   }
 
   function deformVertex(cfg, x, y, p, eL, eR) {
+    const isYutu = cfg.id === "yutu";
     const h = cfg.head;
     const hd = Math.sqrt(Math.pow((x - h.x) / h.rx, 2) + Math.pow((y - h.y) / h.ry, 2));
-    const earTop = cfg.id === "yutu" ? cfg.earL.y + 82 : cfg.earL.y + 24;
-    const earBot = cfg.id === "yutu" ? cfg.earL.y - 18 : cfg.earL.y - 70;
+    const earTop = isYutu ? cfg.earL.y + 82 : cfg.earL.y + 24;
+    const earBot = isYutu ? cfg.earL.y - 18 : cfg.earL.y - 70;
     const out = sstep(0.9, 1.04, hd) * sstep(earTop, earBot, y);
     if (out > 0) {
       const side = sstep(cfg.cx - 30, cfg.cx + 30, x);
       const piv = side < 0.5 ? cfg.earL : cfg.earR;
-      const span = cfg.id === "yutu" ? 330 : 80;
+      const span = isYutu ? 330 : 80;
       const along = clamp((piv.y - y) / span, 0, 1);
       const ang = lerp(eL, eR, side) * out * (0.55 + 0.45 * along) * (cfg.earAmp || 1);
       const r = rot2d(x, y, piv.x, piv.y, ang); x = r[0]; y = r[1];
     }
-    const bSpan = cfg.id === "yutu" ? 140 : h.ry * 0.9;
+
+    // 走路时外侧小手/袖口反向轻摆（严格避开躯干与面部）
+    if (p.armL || p.armR) {
+      const armY = isYutu
+        ? sstep(cfg.neck.y - 12, cfg.neck.y + 55, y) * (1 - sstep(cfg.neck.y + 225, cfg.neck.y + 295, y))
+        : sstep(h.y + 10, h.y + 80, y) * (1 - sstep(cfg.neck.y - 15, cfg.neck.y + 45, y));
+      const armSide = sstep(isYutu ? 140 : 170, isYutu ? 215 : 235, Math.abs(x - cfg.cx));
+      const wArm = armY * armSide;
+      if (wArm > 0.001) {
+        const isRightArm = x >= cfg.cx;
+        const aVal = isRightArm ? p.armR : p.armL;
+        const shX = cfg.cx + (isRightArm ? 1 : -1) * (isYutu ? 130 : 155);
+        const shY = isYutu ? cfg.neck.y + 45 : cfg.bodyY - 15;
+        const rA = rot2d(x, y, shX, shY, (isRightArm ? -1 : 1) * aVal * 9.5 * wArm);
+        x = rA[0];
+        y = rA[1] - aVal * 9 * wArm;
+      }
+    }
+
+    const bSpan = isYutu ? 140 : h.ry * 0.9;
     x += (x - cfg.cx) * p.breath * Math.exp(-Math.pow((y - cfg.bodyY) / bSpan, 2));
 
-    const wBody = cfg.id === "yutu" ? sstep(cfg.neck.y - 68, cfg.neck.y + 72, y) : sstep(cfg.neck.y - 70, cfg.neck.y + 24, y);
+    const wBody = isYutu ? sstep(cfg.neck.y - 68, cfg.neck.y + 72, y) : sstep(cfg.neck.y - 70, cfg.neck.y + 24, y);
     const neckY = cfg.feetY + (cfg.neck.y - cfg.feetY) * p.sy;
-    const feetPin = cfg.id === "yutu" ? sstep(cfg.feetY - 145, cfg.feetY - 25, y) : sstep(cfg.feetY - 130, cfg.feetY - 12, y);
+    const feetPin = isYutu ? sstep(cfg.feetY - 145, cfg.feetY - 25, y) : sstep(cfg.feetY - 130, cfg.feetY - 12, y);
     const kx = lerp(p.sx, 1 + (p.sx - 1) * 0.12, 1 - wBody);
     x = cfg.cx + (x - cfg.cx) * lerp(kx, 1 + (kx - 1) * 0.4, feetPin);
     y = lerp(y + (neckY - cfg.neck.y), cfg.feetY + (y - cfg.feetY) * p.sy, wBody);
 
-    const wh = cfg.id === "yutu" ? sstep(cfg.neck.y + 152, cfg.neck.y - 48, y) : sstep(cfg.neck.y + 36, cfg.neck.y - 80, y);
+    // 走路时左右脚交替抬迈与轻微蹬地（平滑中线过渡，长裙套装零撕裂）
+    if (p.legL || p.legR) {
+      const legMask = isYutu
+        ? sstep(cfg.feetY - 165, cfg.feetY - 52, y)
+        : sstep(cfg.feetY - 178, cfg.feetY - 72, y);
+      if (legMask > 0.001) {
+        const sideR = sstep(cfg.cx - (isYutu ? 48 : 32), cfg.cx + (isYutu ? 48 : 32), x);
+        const offCenter = sstep(4, isYutu ? 46 : 26, Math.abs(x - cfg.cx));
+        const wLeg = legMask * offCenter;
+        const lVal = lerp(p.legL, p.legR, sideR);
+        const lift = Math.max(0, lVal);
+        const plant = Math.max(0, -lVal);
+        const hipX = cfg.cx + (sideR < 0.5 ? -1 : 1) * (isYutu ? 88 : 82);
+        const hipY = cfg.feetY - (isYutu ? 155 : 165);
+        const footDeg = (lift * (sideR < 0.5 ? 7.5 : -7.5) + lVal * (p.walkDir || 0) * -6.5) * wLeg;
+        const rL = rot2d(x, y, hipX, hipY, footDeg);
+        x = rL[0] + (lVal * (p.walkDir || 0) * (isYutu ? 20 : 18) + lift * (sideR < 0.5 ? -5 : 5)) * wLeg;
+        y = rL[1] + (-lift * (isYutu ? 40 : 36) + plant * 4.5) * wLeg;
+      }
+    }
+
+    const wh = isYutu ? sstep(cfg.neck.y + 152, cfg.neck.y - 48, y) : sstep(cfg.neck.y + 36, cfg.neck.y - 80, y);
     if (wh > 0) {
       const r = rot2d(x, y, cfg.neck.x, neckY, p.headRot * wh);
       x = r[0] + p.headTx * wh; y = r[1] + p.headTy * wh;
     }
-    const leanAmp = cfg.id === "yutu" ? 20 : 16;
-    const leanTop = cfg.id === "yutu" ? cfg.neck.y - 108 : h.y;
+    const leanAmp = isYutu ? 20 : 16;
+    const leanTop = isYutu ? cfg.neck.y - 108 : h.y;
     x += p.lean * leanAmp * sstep(cfg.feetY, leanTop, y);
     return [x, y];
   }
 
   let petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
-  let hopMove = null;
+  let walkMove = null;
+  let walkPhaseDist = 0;
   const spring = { r: 0, vr: 0, y: 0, vy: 0, t: -1 };
   let animMode = "idle", modeT0 = performance.now(), nextBlinkAt = modeT0 + 2200, sleepAt = modeT0 + 7500;
   let lastPose = makePose(), blendFrom = null, blendUntil = 0, petLean = 0, scrubLean = 0;
@@ -1942,7 +1990,8 @@
 
   function deskDepthScale(y) {
     if (isFittingOpen || isCustomBgActive()) return 1.04;
-    return lerp(0.88, 1.05, clamp((y - 1020) / 360, 0, 1));
+    // 覆盖完整木桌纵深：后排书本/窗台前 (y=865 -> 0.79) 到前桌沿 (y=1625 -> 1.13)
+    return lerp(0.79, 1.13, clamp((y - 865) / 760, 0, 1));
   }
   function isWebGLActive() {
     return isFittingOpen || state.roomState === "free_stand";
@@ -2198,17 +2247,91 @@
   }
 
   function computePose(rt, now) {
-    if (hopMove) {
-      const u = clamp((now - hopMove.t0) / hopMove.dur, 0, 1);
-      petPos.x = lerp(hopMove.x0, hopMove.x1, easeInOut(u));
-      petPos.y = lerp(hopMove.y0, hopMove.y1, easeInOut(u));
-      const arc = Math.sin(u * Math.PI);
-      const p = makePose({
-        hopY: -arc * 108, sx: lerp(1.04, 0.95, arc), sy: lerp(0.96, 1.05, arc),
-        rot: clamp((hopMove.x1 - hopMove.x0) * 0.018, -5, 5) * arc,
-        shS: lerp(1, 0.74, arc), shO: lerp(1, 0.56, arc)
-      });
-      if (u >= 1) { hopMove = null; startAnim("idle", now); }
+    if (walkMove) {
+      const dt = clamp((now - walkMove.lastNow) / 1000, 0, 0.05);
+      walkMove.lastNow = now;
+      const totalLen = walkMove.sampler.totalLen;
+
+      if (REDUCED_MOTION) {
+        const u = clamp((now - walkMove.t0) / Math.max(200, totalLen * 0.35), 0, 1);
+        const st = walkMove.sampler.sample(totalLen * easeInOut(u));
+        petPos.x = st.x;
+        petPos.y = st.y;
+        if (dirtyLayerEl && !dirtyLayerEl.hidden) positionDirtyFx();
+        if (hungryLayerEl && !hungryLayerEl.hidden) positionHungryFx();
+        if (u >= 1) {
+          walkMove = null;
+          startAnim("idle", now);
+        }
+        return makePose({});
+      }
+
+      const depthS = deskDepthScale(petPos.y);
+      const targetSpeed = 315 * depthS;
+      const remaining = Math.max(0, totalLen - walkMove.dist);
+      const brakeZone = Math.min(92, totalLen * 0.35);
+      const brakeK = brakeZone > 1 ? clamp(remaining / brakeZone, 0.28, 1) : 1;
+      const desiredSpeed = targetSpeed * brakeK;
+      const accelRate = walkMove.speed < desiredSpeed ? 8.5 : 11.0;
+      walkMove.speed += (desiredSpeed - walkMove.speed) * (1 - Math.exp(-accelRate * dt));
+
+      const stepDelta = Math.min(remaining, Math.max(0, walkMove.speed * dt));
+      walkMove.dist += stepDelta;
+      walkPhaseDist += stepDelta;
+
+      const st = walkMove.sampler.sample(walkMove.dist);
+      petPos.x = st.x;
+      petPos.y = st.y;
+
+      // 平滑过渡行走朝向，绕过床角或镜座时自然转体不突兀
+      const dirK = 1 - Math.exp(-9.5 * dt);
+      walkMove.smoothDir += (st.dx - walkMove.smoothDir) * dirK;
+
+      // 起步与停步包络：让迈步与停稳都有柔和过渡
+      const rampIn = clamp(walkMove.dist / Math.min(48, Math.max(18, totalLen * 0.25)), 0, 1);
+      const rampOut = clamp((totalLen - walkMove.dist) / Math.min(58, Math.max(20, totalLen * 0.30)), 0, 1);
+      const env = Math.min(rampIn, rampOut);
+
+      const strideLen = 192 * depthS;
+      const walkRes = DeskNav.computeWalkPoseState(walkPhaseDist, strideLen, walkMove.smoothDir, env);
+
+      // 每踏出半步触地时触发一声轻柔的木桌绒爪脚步声
+      if (walkRes.stepIndex > walkMove.lastStepIdx) {
+        walkMove.lastStepIdx = walkRes.stepIndex;
+        if (env > 0.35) sfx.step(walkRes.stepIndex % 2 === 0);
+      }
+
+      // 走路期间保留自然眨眼
+      let bl = 0;
+      if (now >= nextBlinkAt) {
+        const bu = (now - nextBlinkAt) / 200;
+        if (bu <= 1) bl = bu < 0.25 ? easeOutCubic(bu / 0.25) : bu < 0.5 ? 1 : 1 - easeInOut((bu - 0.5) / 0.5);
+        else nextBlinkAt = now + 2200 + Math.random() * 2500;
+      }
+      walkRes.pose.wDoze = bl;
+
+      // 同步脏污/饥饿跟随特效位置
+      if (dirtyLayerEl && !dirtyLayerEl.hidden) positionDirtyFx();
+      if (hungryLayerEl && !hungryLayerEl.hidden) positionHungryFx();
+
+      // 竖屏/窄屏下走到视口边缘时平滑横向跟镜
+      if (!mousePan && worldTrackEl.offsetWidth > worldScrollEl.clientWidth + 8) {
+        const maxScroll = worldTrackEl.offsetWidth - worldScrollEl.clientWidth;
+        const vpX = geom.ox + petPos.x * geom.panoScale - worldScrollEl.scrollLeft;
+        if (vpX < geom.vw * 0.24 || vpX > geom.vw * 0.76) {
+          const idealScroll = clamp(geom.ox + petPos.x * geom.panoScale - geom.vw * 0.5, 0, maxScroll);
+          worldScrollEl.scrollLeft += (idealScroll - worldScrollEl.scrollLeft) * (1 - Math.exp(-5.5 * dt));
+        }
+      }
+
+      const p = makePose(walkRes.pose);
+      if (walkMove.dist >= totalLen - 0.6) {
+        const endPt = walkMove.sampler.sample(totalLen);
+        petPos.x = endPt.x;
+        petPos.y = endPt.y;
+        walkMove = null;
+        startAnim("idle", now);
+      }
       return p;
     }
 
@@ -2429,9 +2552,11 @@
     if (drewAnyFace) gl.activeTexture(gl.TEXTURE0);
 
     if (!customAnchor) {
-      const baseW = (rt.id === "yutu" ? 315 : 345) * deskDepthScale(petPos.y);
-      panoToBoxStyle(shSoftEl, ax, ay + 12, baseW * p.shS, baseW * 0.34 * p.shS);
-      panoToBoxStyle(shConEl, ax, ay + 6, baseW * 0.56 * p.shS, baseW * 0.18 * p.shS);
+      const ds = deskDepthScale(petPos.y);
+      const baseW = (rt.id === "yutu" ? 315 : 345) * ds;
+      const shX = ax + (p.shShiftX || 0) * ds;
+      panoToBoxStyle(shSoftEl, shX, ay + 12, baseW * p.shS, baseW * 0.34 * p.shS);
+      panoToBoxStyle(shConEl, shX, ay + 6, baseW * 0.56 * p.shS, baseW * 0.18 * p.shS);
       const hideShadow = isNightSleepingNow() || state.roomState !== "free_stand";
       shSoftEl.style.opacity = hideShadow ? "0" : String(0.92 * p.shO);
       shConEl.style.opacity = hideShadow ? "0" : String(0.95 * p.shO);
@@ -2459,24 +2584,26 @@
 
   function positionDirtyFx() {
     if (!dirtyLayerEl) return;
+    const ds = deskDepthScale(petPos.y);
     const wisp1 = dirtyLayerEl.querySelector(".stink-1");
     const wisp2 = dirtyLayerEl.querySelector(".stink-2");
     const wisp3 = dirtyLayerEl.querySelector(".stink-3");
     const flyA = dirtyLayerEl.querySelector(".fly-a");
     const flyB = dirtyLayerEl.querySelector(".fly-b");
-    if (wisp1) panoToBoxStyle(wisp1, petPos.x - 135, petPos.y - 385);
-    if (wisp2) panoToBoxStyle(wisp2, petPos.x + 125, petPos.y - 405);
-    if (wisp3) panoToBoxStyle(wisp3, petPos.x - 10, petPos.y - 475);
-    if (flyA) panoToBoxStyle(flyA, petPos.x - 165, petPos.y - 455);
-    if (flyB) panoToBoxStyle(flyB, petPos.x + 158, petPos.y - 435);
-    if (btnDirtyHintEl) panoToBoxStyle(btnDirtyHintEl, petPos.x - 165, petPos.y - 525);
+    if (wisp1) panoToBoxStyle(wisp1, petPos.x - 135 * ds, petPos.y - 385 * ds);
+    if (wisp2) panoToBoxStyle(wisp2, petPos.x + 125 * ds, petPos.y - 405 * ds);
+    if (wisp3) panoToBoxStyle(wisp3, petPos.x - 10 * ds, petPos.y - 475 * ds);
+    if (flyA) panoToBoxStyle(flyA, petPos.x - 165 * ds, petPos.y - 455 * ds);
+    if (flyB) panoToBoxStyle(flyB, petPos.x + 158 * ds, petPos.y - 435 * ds);
+    if (btnDirtyHintEl) panoToBoxStyle(btnDirtyHintEl, petPos.x - 165 * ds, petPos.y - 525 * ds);
   }
 
   function positionHungryFx() {
     if (!hungryLayerEl) return;
+    const ds = deskDepthScale(petPos.y);
     const rumble = hungryLayerEl.querySelector(".hungry-rumble");
-    if (rumble) panoToBoxStyle(rumble, petPos.x, petPos.y - 165);
-    if (btnHungryThoughtEl) panoToBoxStyle(btnHungryThoughtEl, petPos.x + 185, petPos.y - 515);
+    if (rumble) panoToBoxStyle(rumble, petPos.x, petPos.y - 165 * ds);
+    if (btnHungryThoughtEl) panoToBoxStyle(btnHungryThoughtEl, petPos.x + 185 * ds, petPos.y - 515 * ds);
   }
 
   if (btnDirtyHintEl) {
@@ -2503,6 +2630,10 @@
     }
     careUiMode = careUiMode === nextMode ? "none" : nextMode;
     appEl.classList.toggle("is-bathing", careUiMode === "bath");
+    if (careUiMode !== "none" && walkMove) {
+      walkMove = null;
+      startAnim("idle", performance.now());
+    }
     if (careUiMode !== "none" && state.roomState !== "free_stand") {
       applyRoomState("free_stand", true);
     } else if (careUiMode !== "none") {
@@ -2751,6 +2882,10 @@
     const pad = careUiMode === "bath" ? 75 : 30;
     if (isPanoPointOnPet(pt.x, pt.y, pad)) {
       if (careUiMode === "bath") ev.preventDefault();
+      if (walkMove) {
+        walkMove = null;
+        startAnim("idle", performance.now());
+      }
       petTouch = { x0: ev.clientX, y0: ev.clientY, lastX: ev.clientX, lastY: ev.clientY, pt0: pt, moved: false };
     }
   });
@@ -2861,39 +2996,69 @@
     }
   });
 
+  function getActiveWalkPoly() {
+    return isCustomBgActive() ? DeskNav.CUSTOM_BG_WALK_POLY : DeskNav.DESK_WALK_POLY;
+  }
+
   function clampSafeDeskTarget(px, py) {
-    if (isCustomBgActive()) return { x: clamp(px, 980, 1820), y: clamp(py, 1060, 1320) };
-    let x = clamp(px, 1185, 2120);
-    let y = clamp(py, 1035, 1430);
-    const dx = x - 1815, dy = y - 1095;
-    if (Math.hypot(dx, dy) < 205) {
-      const ang = Math.atan2(dy || 1, dx || -1);
-      x = clamp(1815 + Math.cos(ang) * 210, 1185, 2120);
-      y = clamp(1095 + Math.sin(ang) * 210, 1035, 1430);
+    const poly = getActiveWalkPoly();
+    const res = DeskNav.clampPointToPolygon(px, py, poly);
+    return { x: res.x, y: res.y, clamped: res.clamped, dist: res.dist };
+  }
+
+  function startDeskWalkTo(dst, now) {
+    const poly = getActiveWalkPoly();
+    const pathPts = DeskNav.findDeskPath(petPos, dst, poly);
+    const sampler = DeskNav.buildPathSampler(pathPts);
+    if (sampler.totalLen < 12) {
+      sfx.step(true);
+      startAnim("minihop", now);
+      return;
     }
-    if (x < 1230 && y > 1300) x = 1245;
-    return { x, y };
+    const initSample = sampler.sample(Math.min(20, sampler.totalLen));
+    const depthS = deskDepthScale(petPos.y);
+    const initStride = 192 * depthS;
+    const keepSpeed = walkMove ? Math.min(walkMove.speed, 260 * depthS) : 70 * depthS;
+    const keepDir = walkMove ? walkMove.smoothDir : initSample.dx;
+
+    sleepZzEl.hidden = true;
+    emo.kind = null;
+    blendFrom = Object.assign({}, lastPose);
+    blendUntil = now + 110;
+    animMode = "walk";
+    modeT0 = now;
+    sleepAt = now + 7500;
+
+    walkMove = {
+      sampler,
+      dist: 0,
+      t0: now,
+      lastNow: now,
+      speed: keepSpeed,
+      smoothDir: keepDir,
+      lastStepIdx: Math.floor(((walkPhaseDist / Math.max(55, initStride)) * Math.PI * 2) / Math.PI)
+    };
   }
 
   panoBoxEl.addEventListener("click", (ev) => {
     if (ev.target && ev.target.closest && ev.target.closest("button")) return;
     if ((mousePan && mousePan.moved) || isFittingOpen || careUiMode !== "none" || state.roomState !== "free_stand") return;
+    if (isPetSleepingNow()) return;
     const pt = clientToPano(ev.clientX, ev.clientY);
-    if (isPanoPointOnPet(pt.x, pt.y, 24) || pt.y < 970) return;
+    if (isPanoPointOnPet(pt.x, pt.y, 24)) return;
 
-    const dst = clampSafeDeskTarget(pt.x, pt.y);
-    sfx.hop();
+    const snapped = clampSafeDeskTarget(pt.x, pt.y);
+    // 忽略点击天空/墙面/床垫上方等远离桌面的区域；贴近桌沿的点击自动吸附到最近桌面角落
+    if (snapped.clamped && snapped.dist > DeskNav.DESK_CLICK_SNAP_MARGIN) return;
+
+    const dst = { x: snapped.x, y: snapped.y };
     const rip = document.createElement("span");
     rip.className = "desk-ripple";
     panoToBoxStyle(rip, dst.x, dst.y);
     panoBoxEl.appendChild(rip);
     setTimeout(() => rip.remove(), 600);
 
-    hopMove = {
-      x0: petPos.x, y0: petPos.y, x1: dst.x, y1: dst.y,
-      t0: performance.now(),
-      dur: clamp(280 + Math.hypot(dst.x - petPos.x, dst.y - petPos.y) * 0.42, 300, 620)
-    };
+    startDeskWalkTo(dst, performance.now());
   });
 
   function getLivingRoomModules() {
@@ -3362,9 +3527,9 @@
     appEl.classList.toggle("is-baked-action", def.track === "baked");
     sleepZzEl.hidden = true;
 
+    walkMove = null;
     if (nextKey === "free_stand") {
       petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
-      hopMove = null;
     }
     if (nextKey === "away") state.unreadMail = true;
 
@@ -3380,6 +3545,7 @@
 
   async function switchPet(nextPet) {
     if (!catalog.pets[nextPet]) return;
+    walkMove = null;
     state.petId = nextPet;
     petFxHostEl.innerHTML = "";
     sleepZzEl.hidden = true;
@@ -3521,7 +3687,7 @@
     if (state.roomState !== "free_stand") applyRoomState("free_stand", false);
     isFittingOpen = true;
     petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
-    hopMove = null;
+    walkMove = null;
     sleepZzEl.hidden = true;
 
     await initPet(state.petId);
