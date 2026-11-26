@@ -108,7 +108,8 @@
             if (lockBoard) return;
             const c = deck[Number(btn.dataset.cardI)];
             if (!c || c.open || c.matched) return;
-            sfx.tap();
+            if (sfx.cardFlip) sfx.cardFlip();
+            else sfx.tap();
             c.open = true;
             if (!firstCard) {
               firstCard = c;
@@ -120,6 +121,7 @@
               c.matched = true;
               firstCard = null;
               matchedPairs += 1;
+              if (sfx.cardMatch) sfx.cardMatch();
               renderBoard();
               if (matchedPairs >= 6) {
                 setTimeout(() => finishNativeMinigame("treasure_memory", 10, "寻宝翻翻乐通关！"), 260);
@@ -177,8 +179,15 @@
 
       $("btn-mg-bakery-tap")?.addEventListener("click", () => {
         if (pos >= 36 && pos <= 64) {
-          sfx.star();
           hits += 1;
+          if (hits >= targetHits) {
+            if (sfx.ovenDing) sfx.ovenDing();
+            else sfx.star();
+          } else if (sfx.ovenHit) {
+            sfx.ovenHit();
+          } else {
+            sfx.star();
+          }
           if (statusEl) statusEl.textContent = `火候刚刚好！香喷喷～（${hits} / ${targetHits}）`;
           if (hits >= targetHits) {
             cancelAnimationFrame(rafId);
@@ -219,7 +228,8 @@
         btn.style.left = (12 + Math.random() * 72).toFixed(1) + "%";
         btn.style.top = (14 + Math.random() * 64).toFixed(1) + "%";
         btn.addEventListener("click", () => {
-          sfx.tap();
+          if (sfx.breezeChime) sfx.breezeChime();
+          else sfx.tap();
           caught += 1;
           if (statusEl) statusEl.textContent = `接住了一朵小院桂花！（${caught} / ${goal}）`;
           if (caught >= goal) {

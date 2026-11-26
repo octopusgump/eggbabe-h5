@@ -60,6 +60,7 @@
   let P5Data = window.EggBabeP5Data || null;
   const Voice = window.EggBabeVoice;
   const DeskNav = window.EggBabeDeskNav;
+  const SoundEngine = window.EggBabeSound || null;
 
   if (Loader && typeof Loader.installGlobalImageGuard === "function" && typeof document !== "undefined") {
     Loader.installGlobalImageGuard(document.body);
@@ -392,68 +393,60 @@
     storageAdapter.setJSON(Store.STORAGE_KEY, crossStore);
   }
 
-  /* ---------- 5. Web Audio 轻音效（对齐 sfx.js：含咀嚼、泡泡、冲水、升级） ---------- */
-  let audioCtx = null;
-  function playTone(freq, endFreq, dur, gainVal, type) {
-    if (!state.sfxOn) return;
-    try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === "suspended") audioCtx.resume();
-      const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = type || "sine";
-      osc.frequency.setValueAtTime(freq, now);
-      if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
-      gain.gain.setValueAtTime(gainVal || 0.055, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start(now);
-      osc.stop(now + dur + 0.02);
-    } catch (e) {}
-  }
-  const sfx = {
-    tap: () => playTone(520, 680, 0.065, 0.045, "sine"),
-    hop: () => playTone(330, 590, 0.13, 0.05, "triangle"),
-    munch: () => {
-      playTone(290, 210, 0.08, 0.06, "triangle");
-      setTimeout(() => playTone(340, 240, 0.08, 0.06, "triangle"), 130);
-      setTimeout(() => playTone(520, 760, 0.12, 0.05, "sine"), 270);
-    },
-    bubble: () => playTone(580 + Math.random() * 280, 960 + Math.random() * 260, 0.07, 0.035, "sine"),
-    splash: () => {
-      playTone(440, 880, 0.14, 0.055, "sine");
-      setTimeout(() => playTone(660, 1180, 0.18, 0.055, "sine"), 95);
-    },
-    star: () => {
-      playTone(660, 880, 0.11, 0.05, "sine");
-      setTimeout(() => playTone(880, 1175, 0.16, 0.05, "sine"), 85);
-    },
-    levelUp: () => {
-      [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => playTone(f, f * 1.04, 0.14, 0.055, "triangle"), i * 75));
-    },
-    ratchet: () => {
-      [0, 55, 110].forEach((d, idx) => {
-        setTimeout(() => playTone(920 + idx * 110, 520, 0.045, 0.045, "square"), d);
-      });
-    },
-    lampClick: (on) => {
-      playTone(on ? 460 : 380, on ? 740 : 260, 0.06, 0.045, "triangle");
-    },
-    drawer: () => {
-      playTone(210, 310, 0.11, 0.04, "triangle");
-    },
-    clockTick: (even) => {
-      playTone(even ? 1080 : 880, even ? 780 : 640, 0.024, 0.016, "triangle");
-      playTone(even ? 96 : 88, 72, 0.16, 0.012, "sine");
-    },
-    step: (isLeft) => {
-      // 柔和的木桌小绒爪脚步声（左右脚微差音高）
-      playTone(isLeft ? 215 : 248, isLeft ? 128 : 146, 0.044, 0.024, "triangle");
-      playTone(isLeft ? 480 : 525, isLeft ? 310 : 340, 0.026, 0.008, "sine");
-    }
-  };
+  /* ---------- 5. 融合声学与双宠萌系配音引擎（PlinkFX 模态/元音内核 × 蛋宝宝专属定制） ---------- */
+  const sfx = SoundEngine && typeof SoundEngine.createController === "function"
+    ? SoundEngine.createController({
+        getSfxOn: () => !!state.sfxOn,
+        getPetId: () => state.petId
+      })
+    : {
+        tap: () => {},
+        star: () => {},
+        levelUp: () => {},
+        drawer: () => {},
+        lampClick: () => {},
+        clockOpen: () => {},
+        clockTick: () => {},
+        clockFlip: () => {},
+        clockWindTick: () => {},
+        clockWindStepBurst: () => {},
+        clockWindRelease: () => {},
+        clockShift: () => {},
+        clockLever: () => {},
+        ratchet: () => {},
+        step: () => {},
+        jump: () => {},
+        hop: () => {},
+        minihop: () => {},
+        bounce: () => {},
+        snackPickup: () => {},
+        snackToss: () => {},
+        munch: () => {},
+        hungryRumble: () => {},
+        bathScrub: () => {},
+        bathScrubStop: () => {},
+        bubble: () => {},
+        splash: () => {},
+        bathRinse: () => {},
+        emoteVoice: () => {},
+        petStroke: () => {},
+        sleepPat: () => {},
+        petGreet: () => {},
+        mirrorSparkle: () => {},
+        clothRustle: () => {},
+        chestToggle: () => {},
+        bookClasp: () => {},
+        pageFlip: () => {},
+        pencilWrite: () => {},
+        cameraShutter: () => {},
+        woodSlot: () => {},
+        doorSlide: () => {},
+        cardFlip: () => {},
+        cardMatch: () => {},
+        ovenHit: () => {},
+        ovenDing: () => {},
+        breezeChime: () => {}
+      };
 
   /* ---------- 6. DOM 节点引用 ---------- */
   const $ = (id) => document.getElementById(id);
@@ -588,6 +581,8 @@
   const modalHandMinEl = $("modal-hand-minute");
   const modalHandSecEl = $("modal-hand-second");
   const ipClockTailPivotEl = $("ip-clock-tail-pivot");
+  const clockFidgetKeyEl = $("ip-clock-fidget-key");
+  const clockFidgetSvgEl = $("ip-clock-fidget-svg");
   const btnClockWindupEl = $("btn-clock-windup");
   const ipClockWindupKeyEl = $("ip-clock-windup-key");
   const ipClockWindupLabelEl = $("ip-clock-windup-label");
@@ -1069,10 +1064,11 @@
       ipClockTailPivotEl.style.transform = `rotate(${swingDeg}deg)`;
     }
 
-    // 开启「呼噜滴答」且音效打开时播放轻柔机械滴答 + 呼噜低频
+    // 打开闹钟弹窗期间默认轻声走针滴答；关闭弹窗后按背面「呼噜滴答」拨杆决定是否常驻
     const cw = getClockWidget();
-    if (cw.tickWhiteNoiseOn && state.sfxOn && document.visibilityState === "visible") {
-      sfx.clockTick(ss % 2 === 0);
+    const shouldTickNow = (!clockModalEl.hidden || cw.tickWhiteNoiseOn) && state.sfxOn && document.visibilityState === "visible";
+    if (shouldTickNow) {
+      sfx.clockTick(ss % 2 === 0, !!cw.tickWhiteNoiseOn);
     }
 
     renderBlackCatClockUI();
@@ -1081,7 +1077,7 @@
   function setClockFlipped(nextFlipped) {
     const target = !!nextFlipped;
     if (clockFlipAnimLock) return;
-    sfx.tap();
+    sfx.clockFlip(target);
 
     if (IS_SKYLINE_FALLBACK && !REDUCED_MOTION) {
       clockFlipAnimLock = true;
@@ -1112,10 +1108,11 @@
     ipClockFrontEl.setAttribute("aria-hidden", "false");
     ipClockBackEl.setAttribute("aria-hidden", "true");
     renderBlackCatClockUI();
-    updateBlackCatClockTick();
+    sfx.clockOpen();
 
     const srcRect = bedsideCatClockEl.getBoundingClientRect();
     clockModalEl.hidden = false;
+    updateBlackCatClockTick();
 
     // 600ms FLIP 飞出过渡：从床头顶板平滑飞入屏幕中央
     if (!REDUCED_MOTION && srcRect && srcRect.width > 12) {
@@ -1172,7 +1169,7 @@
       ev.stopPropagation();
       const shift = btn.dataset.clockShift;
       if (!CLOCK_SHIFT_DEFS[shift]) return;
-      sfx.tap();
+      sfx.clockShift(shift);
       const cw = getClockWidget();
       cw.shiftId = shift;
       persistState();
@@ -1181,16 +1178,126 @@
     });
   });
 
+  // 背面②：五角警星纯解压黄铜发条旋钮（支持轻点拧一格 + 按住画圈/滑动连续拧发条 + 松手微回弹）
+  let clockWindTension = 0;
+  let windDragState = null;
+  function applyClockKeyVisualAngle(deg) {
+    clockKeyAngle = deg;
+    if (clockFidgetSvgEl) {
+      clockFidgetSvgEl.style.transform = `rotate(${deg.toFixed(1)}deg)`;
+    }
+  }
+  function nudgeClockTailExcited() {
+    if (REDUCED_MOTION || !ipClockTailPivotEl) return;
+    ipClockTailPivotEl.style.transform = "rotate(22deg)";
+    setTimeout(() => {
+      if (ipClockTailPivotEl) ipClockTailPivotEl.style.transform = "rotate(-18deg)";
+    }, 150);
+  }
+  if (clockFidgetKeyEl) {
+    clockFidgetKeyEl.addEventListener("pointerdown", (ev) => {
+      ev.stopPropagation();
+      const rect = clockFidgetKeyEl.getBoundingClientRect();
+      const cx = rect.left + rect.width * 0.5;
+      const cy = rect.top + rect.height * 0.5;
+      const initRad = Math.atan2(ev.clientY - cy, ev.clientX - cx);
+      windDragState = {
+        pointerId: ev.pointerId,
+        cx,
+        cy,
+        x0: ev.clientX,
+        y0: ev.clientY,
+        lastRad: initRad,
+        lastX: ev.clientX,
+        accumDeg: 0,
+        lastTickAccum: 0,
+        lastMoveAt: performance.now(),
+        moved: false
+      };
+      if (typeof clockFidgetKeyEl.setPointerCapture === "function") {
+        try { clockFidgetKeyEl.setPointerCapture(ev.pointerId); } catch (_) {}
+      }
+    });
+
+    clockFidgetKeyEl.addEventListener("pointermove", (ev) => {
+      if (!windDragState || ev.pointerId !== windDragState.pointerId) return;
+      ev.stopPropagation();
+      const distFromStart = Math.hypot(ev.clientX - windDragState.x0, ev.clientY - windDragState.y0);
+      if (!windDragState.moved && distFromStart > 5) {
+        windDragState.moved = true;
+        clockFidgetKeyEl.classList.add("is-dragging");
+      }
+      if (!windDragState.moved) return;
+
+      const now = performance.now();
+      const dt = Math.max(8, now - windDragState.lastMoveAt);
+      windDragState.lastMoveAt = now;
+
+      const r = Math.hypot(ev.clientX - windDragState.cx, ev.clientY - windDragState.cy);
+      let stepDeg = 0;
+      if (r > 8) {
+        const rad = Math.atan2(ev.clientY - windDragState.cy, ev.clientX - windDragState.cx);
+        let dRad = rad - windDragState.lastRad;
+        if (dRad > Math.PI) dRad -= Math.PI * 2;
+        if (dRad < -Math.PI) dRad += Math.PI * 2;
+        windDragState.lastRad = rad;
+        stepDeg = (dRad * 180) / Math.PI;
+      } else {
+        stepDeg = (ev.clientX - windDragState.lastX) * 1.6;
+      }
+      windDragState.lastX = ev.clientX;
+      if (Math.abs(stepDeg) < 0.2) return;
+
+      applyClockKeyVisualAngle(clockKeyAngle + stepDeg);
+      windDragState.accumDeg += Math.abs(stepDeg);
+      clockWindTension = clamp(clockWindTension + Math.abs(stepDeg) / 540, 0, 1);
+
+      if (windDragState.accumDeg - windDragState.lastTickAccum >= 18) {
+        const speed = clamp(Math.abs(stepDeg) / dt, 0.1, 2.4);
+        windDragState.lastTickAccum = windDragState.accumDeg;
+        sfx.clockWindTick(clockWindTension, speed);
+      }
+    });
+
+    const finishClockWindGesture = (ev) => {
+      if (!windDragState || (ev && ev.pointerId !== undefined && ev.pointerId !== windDragState.pointerId)) return;
+      if (ev) ev.stopPropagation();
+      const wasMoved = windDragState.moved;
+      const turnedDeg = windDragState.accumDeg;
+      windDragState = null;
+      clockFidgetKeyEl.classList.remove("is-dragging");
+
+      if (!wasMoved) {
+        clockWindTension = (clockWindTension + 0.22) % 1;
+        applyClockKeyVisualAngle(clockKeyAngle + 72);
+        sfx.clockWindStepBurst(clockWindTension);
+        nudgeClockTailExcited();
+        return;
+      }
+      if (turnedDeg >= 24) {
+        applyClockKeyVisualAngle(clockKeyAngle - 12);
+        clockWindTension = Math.max(0, clockWindTension - 0.12);
+        sfx.clockWindRelease();
+        nudgeClockTailExcited();
+      }
+    };
+    clockFidgetKeyEl.addEventListener("pointerup", finishClockWindGesture);
+    clockFidgetKeyEl.addEventListener("pointercancel", finishClockWindGesture);
+    clockFidgetKeyEl.addEventListener("click", (ev) => ev.stopPropagation());
+  }
+
   // 背面③：呼噜滴答声机械拨杆
   btnClockTickToggleEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     const cw = getClockWidget();
     cw.tickWhiteNoiseOn = !cw.tickWhiteNoiseOn;
     persistState();
-    if (cw.tickWhiteNoiseOn) sfx.clockTick(true);
-    else sfx.tap();
+    sfx.clockLever(cw.tickWhiteNoiseOn);
+    if (cw.tickWhiteNoiseOn) {
+      setTimeout(() => sfx.clockTick(true, true), 110);
+    }
     renderBlackCatClockUI();
-    showSceneFeedback(cw.tickWhiteNoiseOn ? "呼噜滴答白噪音已开启" : "呼噜滴答已静音", "system");
+    showSceneFeedback(cw.tickWhiteNoiseOn ? "呼噜滴答常驻白噪音已开启" : "呼噜滴答常驻声已关闭", "system");
   });
 
   // 锁屏 / 切后台唤醒幂等时间戳补算（H5 visibilitychange/focus/pageshow + 微信 wx.onAppShow）
@@ -2496,6 +2603,7 @@
     emo.u = 0;
     emo.beat = 0;
     startAnim("emote", now);
+    sfx.emoteVoice(state.petId, chosen);
     const lines = rt.faceCfg.lines[chosen];
     showSceneFeedback(lines[Math.floor(Math.random() * lines.length)], "dialogue");
   }
@@ -2549,10 +2657,10 @@
       const strideLen = 192 * depthS;
       const walkRes = DeskNav.computeWalkPoseState(walkPhaseDist, strideLen, walkMove.smoothDir, env);
 
-      // 每踏出半步触地时触发一声轻柔的木桌绒爪脚步声
+      // 每踏出半步触地时触发角色专属脚步声（玉兔绒爪软木 vs 锦鲤小脚丫水润轻拍）
       if (walkRes.stepIndex > walkMove.lastStepIdx) {
         walkMove.lastStepIdx = walkRes.stepIndex;
-        if (env > 0.35) sfx.step(walkRes.stepIndex % 2 === 0);
+        if (env > 0.35) sfx.step(state.petId, walkRes.stepIndex % 2 === 0);
       }
 
       // 走路期间保留自然眨眼
@@ -2874,7 +2982,7 @@
   if (btnHungryThoughtEl) {
     btnHungryThoughtEl.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      sfx.tap();
+      sfx.hungryRumble(state.petId);
       setToolboxOpen(false);
       setCareUiMode("feed");
     });
@@ -2882,6 +2990,7 @@
 
   function setCareUiMode(nextMode) {
     if (careUiMode === "bath" && nextMode !== "bath") {
+      sfx.bathScrubStop();
       if (animMode === "scrub") startAnim("idle", performance.now());
       soapBubbleLayerEl.innerHTML = "";
     }
@@ -2916,7 +3025,7 @@
   }
 
   dockBtnFeedEl.addEventListener("click", () => {
-    sfx.tap();
+    sfx.drawer();
     setToolboxOpen(false);
     triggerRebound(dockBtnFeedEl);
     if (isPetSleepingNow()) {
@@ -2926,7 +3035,7 @@
     setCareUiMode("feed");
   });
   dockBtnBathEl.addEventListener("click", () => {
-    sfx.tap();
+    sfx.drawer();
     setToolboxOpen(false);
     triggerRebound(dockBtnBathEl);
     if (isPetSleepingNow()) {
@@ -2972,7 +3081,7 @@
     if (state.petId === "koi" && snack.id === "star_candy") unlockKeepsake("boon_koi_fortune_bead", "feed:star_candy");
     saveCareAll();
 
-    sfx.munch();
+    sfx.munch(snack.id, state.petId);
     startAnim("eat", performance.now());
     const rt = petRuntimes[state.petId];
     if (rt) {
@@ -2992,6 +3101,7 @@
 
   function launchFlyingSnack(snack, startX, startY) {
     if (feedingLock) return;
+    sfx.snackToss();
     const dst = getPetMouthClientPt();
     flyingSnackImgEl.src = snack.icon;
     flyingSnackEl.style.transition = "none";
@@ -3039,6 +3149,7 @@
 
       card.addEventListener("pointerdown", (ev) => {
         ev.preventDefault();
+        sfx.snackPickup();
         snackDrag = { snack: sn, x0: ev.clientX, y0: ev.clientY, x: ev.clientX, y: ev.clientY, moved: false, overPet: false };
       });
       snackGridEl.appendChild(card);
@@ -3125,7 +3236,7 @@
     Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, { bathed: true });
     unlockKeepsake(state.petId === "yutu" ? "k_r01_yellow_rubber_duck" : "k_k04_origami_paper_boat", "bath:complete");
     saveCareAll();
-    sfx.splash();
+    sfx.bathRinse(state.petId);
     startAnim("rinse", performance.now());
     grantCareStars(3);
     renderMoodTab();
@@ -3146,7 +3257,15 @@
         walkMove = null;
         startAnim("idle", performance.now());
       }
-      petTouch = { x0: ev.clientX, y0: ev.clientY, lastX: ev.clientX, lastY: ev.clientY, pt0: pt, moved: false };
+      petTouch = {
+        x0: ev.clientX,
+        y0: ev.clientY,
+        lastX: ev.clientX,
+        lastY: ev.clientY,
+        lastT: performance.now(),
+        pt0: pt,
+        moved: false
+      };
     }
   });
 
@@ -3159,6 +3278,9 @@
 
   window.addEventListener("pointermove", (ev) => {
     if (!petTouch || !isWebGLActive()) return;
+    const nowPerf = performance.now();
+    const dtMs = Math.max(8, nowPerf - (petTouch.lastT || nowPerf - 16));
+    petTouch.lastT = nowPerf;
     const dx = ev.clientX - petTouch.x0;
     const stepDist = Math.hypot(ev.clientX - petTouch.lastX, ev.clientY - petTouch.lastY);
     petTouch.lastX = ev.clientX;
@@ -3169,8 +3291,14 @@
         petTouch.moved = true;
         const pt = clientToPano(ev.clientX, ev.clientY);
         scrubLean = clamp((pt.x - petPos.x) / 160, -1, 1);
-        if (animMode !== "scrub") startAnim("scrub", performance.now());
-        bathProgress = Math.min(100, bathProgress + stepDist * 0.28);
+        if (animMode !== "scrub") startAnim("scrub", nowPerf);
+        const effort = SoundEngine && typeof SoundEngine.computeScrubEffort === "function"
+          ? SoundEngine.computeScrubEffort(stepDist, dtMs)
+          : 0.4;
+        const delta = SoundEngine && typeof SoundEngine.computeBathStepDelta === "function"
+          ? SoundEngine.computeBathStepDelta(state.petId, bathProgress, stepDist, dtMs)
+          : stepDist * 0.28;
+        bathProgress = Math.min(100, bathProgress + delta);
         bathPctTextEl.textContent = Math.round(bathProgress) + "%";
         bathFillBarEl.style.width = Math.round(bathProgress) + "%";
 
@@ -3178,8 +3306,8 @@
         if (now - lastBubbleSpawn > 65) {
           lastBubbleSpawn = now;
           spawnSoapBubble(pt.x, pt.y);
-          sfx.bubble();
         }
+        sfx.bathScrub(state.petId, effort, bathProgress);
         if (bathProgress >= 100) {
           petTouch = null;
           completeBath();
@@ -3191,7 +3319,8 @@
     if (Math.abs(dx) > 14) {
       petTouch.moved = true;
       petLean = clamp(dx / 55, -1, 1);
-      if (animMode !== "pet") startAnim("pet", performance.now());
+      if (animMode !== "pet") startAnim("pet", nowPerf);
+      sfx.petStroke(state.petId);
       const now = Date.now();
       if (now - lastPetStarAt > 8500) {
         lastPetStarAt = now;
@@ -3209,6 +3338,7 @@
     petTouch = null;
     petLean = 0;
     scrubLean = 0;
+    sfx.bathScrubStop();
     if (animMode === "pet" || animMode === "scrub") startAnim("idle", performance.now());
   }
   window.addEventListener("pointercancel", resetPetTouchState);
@@ -3219,6 +3349,7 @@
     petTouch = null;
     petLean = 0;
     scrubLean = 0;
+    sfx.bathScrubStop();
 
     if (t.moved) {
       if (animMode === "pet" || animMode === "scrub") startAnim("idle", performance.now());
@@ -3231,7 +3362,7 @@
     const rt = petRuntimes[state.petId];
     if (!rt) return;
     if (animMode === "doze") {
-      sfx.hop();
+      sfx.bounce(state.petId, 0.95);
       startAnim("minihop", performance.now());
       return;
     }
@@ -3240,7 +3371,7 @@
     const dirtyNow = isPetDirtyNow();
     if (hungryNow || dirtyNow) {
       const sceneKey = hungryNow && dirtyNow ? "hungry_and_dirty" : hungryNow ? "hungry" : "dirty";
-      sfx.tap();
+      sfx.bounce(state.petId, 0.8);
       startAnim("minihop", performance.now());
       showSceneFeedback(sayAsPet(sceneKey), "dialogue");
       return;
@@ -3248,11 +3379,10 @@
     const S = rt.cfg.baseScale * deskDepthScale(petPos.y);
     const neckPanoY = petPos.y - (rt.cfg.feetY - rt.cfg.neck.y) * S;
     if (t.pt0.y < neckPanoY + 35) {
-      sfx.tap();
       triggerFullEmote(t.pt0.x < petPos.x ? -1 : 1);
       notifyPetTutorialAction("speak");
     } else {
-      sfx.hop();
+      sfx.jump(state.petId);
       startAnim("jump", performance.now());
       notifyPetTutorialAction("jump");
     }
@@ -3273,7 +3403,7 @@
     const pathPts = DeskNav.findDeskPath(petPos, dst, poly);
     const sampler = DeskNav.buildPathSampler(pathPts);
     if (sampler.totalLen < 12) {
-      sfx.step(true);
+      sfx.minihop(state.petId);
       startAnim("minihop", now);
       return;
     }
@@ -3404,7 +3534,7 @@
     pendingWakeAction = null;
 
     // Stage 1 (0–260ms): 轻拍软弹微抖 + 醒啦气泡
-    sfx.tap();
+    sfx.sleepPat(state.petId);
     if (petSleepSpriteEl && wasNightBedSleep) {
       petSleepSpriteEl.classList.remove("is-waking-fade");
       petSleepSpriteEl.classList.add("is-waking-pat");
@@ -3446,7 +3576,7 @@
         void glCanvas.offsetWidth;
         glCanvas.classList.add("is-waking-arrive");
       }
-      sfx.hop();
+      sfx.minihop(state.petId);
       startAnim("minihop", performance.now());
     }, step3Delay);
 
@@ -3661,7 +3791,6 @@
   hitCatClockEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
-    sfx.tap();
     openClockModal();
   });
 
@@ -3731,7 +3860,7 @@
   hitDeskMirrorEl.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (mousePan && mousePan.moved) return;
-    sfx.tap();
+    sfx.mirrorSparkle();
     hitDeskMirrorEl.classList.remove("is-tapped");
     void hitDeskMirrorEl.offsetWidth;
     hitDeskMirrorEl.classList.add("is-tapped");
@@ -3854,6 +3983,7 @@
     sleepZzEl.hidden = true;
     await initPet(nextPet);
     if (state.savedSet[nextPet]) await ensureSetLoaded(petRuntimes[nextPet], state.savedSet[nextPet]);
+    sfx.petGreet(nextPet);
     startAnim("minihop", performance.now());
     syncPanoramaImage(false);
     layoutScenePropsAndHotspots();
@@ -3886,7 +4016,7 @@
       if (toolboxOpen === open) toolboxEl.className = "companion-toolbox companion-toolbox--" + (open ? "open" : "closed");
     }, open ? 290 : 165);
   }
-  btnToolboxEl.addEventListener("click", () => { sfx.tap(); setToolboxOpen(!toolboxOpen); });
+  btnToolboxEl.addEventListener("click", () => { sfx.chestToggle(!toolboxOpen); setToolboxOpen(!toolboxOpen); });
   toolboxDismissEl.addEventListener("click", () => setToolboxOpen(false));
 
   $("tb-btn-spaces")?.addEventListener("click", () => {
@@ -3930,7 +4060,7 @@
         cw.tickWhiteNoiseOn = !!next;
         renderBlackCatClockUI();
         if (cw.tickWhiteNoiseOn && state.sfxOn) {
-          sfx.clockTick(true);
+          sfx.clockTick(true, true);
         }
       },
       getOutfitName: (petId, setId) => getSetName(petId, setId),
@@ -4010,7 +4140,7 @@
     layoutScenePropsAndHotspots();
     applyFittingCameraTransform();
     renderWardrobeGrid();
-    sfx.hop();
+    sfx.minihop(state.petId);
     startAnim("minihop", performance.now());
   }
 
@@ -4029,7 +4159,7 @@
   $("btn-exit-fitting").addEventListener("click", () => { sfx.tap(); exitFittingRoom(); });
   $("sheet-grabber").addEventListener("click", () => { sfx.tap(); exitFittingRoom(); });
   $("btn-confirm-outfit").addEventListener("click", () => {
-    sfx.tap();
+    sfx.clothRustle(!state.savedSet[state.petId]);
     exitFittingRoom();
     const eqName = getSetName(state.petId, state.savedSet[state.petId]);
     showSceneFeedback(eqName ? sayAsPet("outfit_done", `已换好「${eqName}」`) : "已恢复原生毛绒造型", eqName ? "dialogue" : "system");
@@ -4037,7 +4167,6 @@
 
   document.querySelectorAll("[data-fit-pet]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      sfx.tap();
       await switchPet(btn.dataset.fitPet);
     });
   });
@@ -4071,7 +4200,7 @@
         `<span class="outfit-card__name">不穿外套</span>` +
         (!curSet ? `<span class="outfit-card__check">✓</span>` : "");
       bareCard.addEventListener("click", () => {
-        sfx.tap();
+        sfx.clothRustle(true);
         state.savedSet[state.petId] = null;
         persistState();
         startAnim("minihop", performance.now());
@@ -4090,17 +4219,18 @@
           `<span class="outfit-card__name">${item.name}</span>`;
 
         card.addEventListener("click", async () => {
-          sfx.tap();
           if (state.savedSet[state.petId] === item.id) {
+            sfx.clothRustle(true);
             state.savedSet[state.petId] = null;
           } else {
+            sfx.clothRustle(false);
             state.savedSet[state.petId] = item.id;
             Store.recordDailyEvent(crossStore, Store.getUtc8DateKey(), state.petId, {
               outfitId: item.id,
               countsAsEffective: false
             });
             await ensureSetLoaded(petRuntimes[state.petId], item.id);
-            sfx.hop();
+            sfx.minihop(state.petId);
             startAnim("minihop", performance.now());
           }
           persistState();
@@ -4149,7 +4279,7 @@
   }
 
   async function exportLockscreenWallpaperJpg() {
-    sfx.star();
+    sfx.cameraShutter();
     const W = 780, H = 1688;
     const pCfg = catalog.pets[state.petId];
     const setId = state.savedSet[state.petId];
@@ -4201,7 +4331,7 @@
 
   $("btn-export-wallpaper").addEventListener("click", exportLockscreenWallpaperJpg);
   $("btn-snap-lookbook").addEventListener("click", async () => {
-    sfx.tap();
+    sfx.cameraShutter();
     exitFittingRoom();
     const targetScene = state.stageBgId && state.stageBgId !== "living_room" ? state.stageBgId : "living_room";
     await openLetterOverlay(targetScene, false);
@@ -4532,6 +4662,7 @@
         slots[prevIdx] = slots[slotIdx];
         slots[slotIdx] = tmp;
         curioSelectedSlotIdx = -1;
+        sfx.woodSlot();
         persistState();
         renderCurioShelf();
         showSceneFeedback("已调换多宝格陈列位置", "system");
@@ -4568,7 +4699,6 @@
           `<img src="${sharedUrl(it.img)}" alt="${it.name}" />` +
           `<span>${it.name}${placedIdx >= 0 ? ` (#${placedIdx + 1})` : ""}</span>`;
         btn.addEventListener("click", () => {
-          sfx.tap();
           placeKeepsakeInSlot(it.id, slotIdx);
           curioPickerOverlayEl.hidden = true;
         });
@@ -4585,6 +4715,7 @@
       slots[oldIdx] = slots[targetIdx];
     }
     slots[targetIdx] = keepsakeId;
+    sfx.woodSlot();
     persistState();
     renderCurioShelf();
     showSceneFeedback("已摆进暖橡木多宝格", "system");
@@ -5197,7 +5328,7 @@
 
   function flipOpenDiaryFromCover() {
     if (!diaryCoverBookEl || !diaryCoverOverlayEl) return;
-    sfx.tap();
+    sfx.bookClasp();
     diaryCoverBookEl.classList.add("is-opening");
     setTimeout(() => {
       diaryCoverOverlayEl.hidden = true;
@@ -5244,7 +5375,8 @@
       persistState();
       syncRoomModules();
       if (!silent) {
-        sfx.star();
+        sfx.pencilWrite();
+        setTimeout(() => sfx.star(), 220);
         showSceneFeedback(`沙沙～《${res.generated.title}》已写进陪伴手帐`, "dialogue");
       }
       await renderDiaryView();
@@ -5336,7 +5468,7 @@
       `).join("");
       indexDrawer.querySelectorAll("[data-diary-idx]").forEach((btn) => {
         btn.addEventListener("click", async () => {
-          sfx.tap();
+          sfx.pageFlip();
           activeDiaryIndex = Number(btn.dataset.diaryIdx) || 0;
           indexDrawer.hidden = true;
           await renderDiaryView();
@@ -5350,7 +5482,7 @@
   $("btn-diary-prev")?.addEventListener("click", async () => {
     const diaries = crossStore.diaries || [];
     if (activeDiaryIndex < diaries.length - 1) {
-      sfx.tap();
+      sfx.pageFlip();
       activeDiaryIndex += 1;
       await renderDiaryView();
     }
@@ -5364,7 +5496,7 @@
     const diaries = crossStore.diaries || [];
     const entry = diaries[activeDiaryIndex];
     if (!entry) return;
-    sfx.tap();
+    sfx.cameraShutter();
     const artUrl = await composeCleanIllustrationUrl(entry.petId, entry.outfitId, entry.sceneId || "living_room");
     const a = document.createElement("a");
     a.href = artUrl;
@@ -5422,7 +5554,7 @@
       gridEl.appendChild(cell);
     });
   }
-  $("btn-album-snap-now")?.addEventListener("click", () => { sfx.tap(); snapLookbookPhoto(); });
+  $("btn-album-snap-now")?.addEventListener("click", () => { sfx.cameraShutter(); snapLookbookPhoto(); });
 
   /* ---------- P5 房间切换、边缘木门牌、小厨房 & 小院子（含户外原木信箱） ---------- */
   const houseGuideOverlayEl = $("house-guide-overlay");
@@ -5543,6 +5675,7 @@
       openHouseGuide("rooms");
       return;
     }
+    sfx.doorSlide();
     const apply = () => {
       crossStore.house.activeRoomId = def.id;
       if (def.id === "living_room") {
