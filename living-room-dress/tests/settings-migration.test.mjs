@@ -87,18 +87,20 @@ function createMockOverlay() {
   };
 }
 
-test("index.html mounts #tb-btn-settings, #settings-overlay, and loads settings-panel.js", () => {
+test("index.html mounts #tb-btn-settings, #settings-overlay, and loads settings-panel.js via module-loader.js", () => {
   const html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  const loaderJs = fs.readFileSync(path.join(ROOT, "living-room-dress/module-loader.js"), "utf8");
   assert.match(html, /id="tb-btn-settings"/);
   assert.match(html, /<span>设置<\/span>/);
   assert.doesNotMatch(html, /id="tb-btn-sfx"/);
   assert.doesNotMatch(html, /id="tb-sfx-label"/);
   assert.match(html, /id="settings-overlay"/);
-  assert.match(html, /src="\.\/living-room-dress\/settings-panel\.js"/);
+  assert.match(html, /src="\.\/living-room-dress\/module-loader\.js"/);
+  assert.match(loaderJs, /\.\/living-room-dress\/settings-panel\.js/);
 
-  const settingsScriptIdx = html.indexOf("./living-room-dress/settings-panel.js");
+  const loaderScriptIdx = html.indexOf("./living-room-dress/module-loader.js");
   const appScriptIdx = html.indexOf("./living-room-dress/app.js");
-  assert.ok(settingsScriptIdx > 0 && appScriptIdx > settingsScriptIdx, "settings-panel.js must load before app.js");
+  assert.ok(loaderScriptIdx > 0 && appScriptIdx > loaderScriptIdx, "module-loader.js must load before app.js");
 });
 
 test("cross-end-store compliance helpers: age range, feedback 20-cap & UTC+8 rollover, email, chat cleanup, and legacy persistence", () => {

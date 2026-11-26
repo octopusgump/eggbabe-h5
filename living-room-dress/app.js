@@ -55,10 +55,60 @@
   const ACC_COLS = 12, ACC_ROWS = 12;
   const PAGES_CDN = "https://octopusgump.github.io/eggbabe-h5";
   const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const DiaryEngine = window.EggBabeDiaryEngine;
-  const P5Data = window.EggBabeP5Data;
+  const Loader = window.EggBabeLoader || null;
+  let DiaryEngine = window.EggBabeDiaryEngine || null;
+  let P5Data = window.EggBabeP5Data || null;
   const Voice = window.EggBabeVoice;
   const DeskNav = window.EggBabeDeskNav;
+
+  if (Loader && typeof Loader.installGlobalImageGuard === "function" && typeof document !== "undefined") {
+    Loader.installGlobalImageGuard(document.body);
+  }
+
+  async function ensureDiaryEngine() {
+    if (DiaryEngine) return DiaryEngine;
+    if (Loader) {
+      await Loader.loadFeature("diary").catch(() => false);
+      DiaryEngine = window.EggBabeDiaryEngine || null;
+    }
+    return DiaryEngine;
+  }
+
+  async function ensureP5Data() {
+    if (P5Data) return P5Data;
+    if (Loader) {
+      await Loader.loadFeature("rooms").catch(() => false);
+      P5Data = window.EggBabeP5Data || null;
+    }
+    return P5Data;
+  }
+
+  async function ensureHoloFeature() {
+    if (window.EggBabeHoloConfig && window.EggBabeHoloCardShowcase) return true;
+    if (!Loader) return false;
+    try {
+      await Loader.loadFeature("holo");
+      return !!(window.EggBabeHoloConfig && window.EggBabeHoloCardShowcase);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function hasRealDayLog(entry) {
+    if (DiaryEngine && typeof DiaryEngine.hasRealInteraction === "function") {
+      return DiaryEngine.hasRealInteraction(entry);
+    }
+    if (!entry || typeof entry !== "object") return false;
+    return !!(entry.countsAsEffective || entry.fed || entry.bathed || entry.petted || entry.keepsakeId || entry.miniGameId || entry.outfitId);
+  }
+
+  function hydrateDeferredImg(imgEl) {
+    if (!imgEl) return;
+    const ds = imgEl.getAttribute && imgEl.getAttribute("data-src");
+    if (ds && !imgEl.getAttribute("src")) {
+      imgEl.src = ds;
+    }
+  }
 
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -3219,8 +3269,8 @@
       const hasDiaries = Array.isArray(crossStore.diaries) && crossStore.diaries.length > 0;
       const todayKey = Store.getUtc8DateKey();
       const todayLog = crossStore.dailyEventLog && crossStore.dailyEventLog[todayKey];
-      const hasTodayActivity = DiaryEngine && todayLog && (
-        DiaryEngine.hasRealInteraction(todayLog.yutu) || DiaryEngine.hasRealInteraction(todayLog.koi)
+      const hasTodayActivity = todayLog && (
+        hasRealDayLog(todayLog.yutu) || hasRealDayLog(todayLog.koi)
       );
       modBooksDiaryMarkEl.hidden = !(hasDiaries || hasTodayActivity);
     }
@@ -3272,6 +3322,40 @@
     }
   }
 
+  let wallPolaroidReady = false;
+  let wallPolaroidReqId = 0;
+
+  async function loadWallPolaroidArt(postcardMeta) {
+    const reqId = ++wallPolaroidReqId;
+    wallPolaroidReady = false;
+    wallPolaroidEl.classList.remove("is-ready");
+    layoutScenePropsAndHotspots();
+    if (!postcardMeta) return false;
+    try {
+      const artUrl = await composeCleanIllustrationUrl(
+        postcardMeta.petId,
+        postcardMeta.setId,
+        postcardMeta.sceneId
+      );
+      if (!artUrl || reqId !== wallPolaroidReqId) return false;
+      const ok = Loader && typeof Loader.loadImageReady === "function"
+        ? await Loader.loadImageReady(artUrl)
+        : true;
+      if (!ok || reqId !== wallPolaroidReqId) return false;
+      wallPolaroidImgEl.src = artUrl;
+      wallPolaroidReady = true;
+      layoutScenePropsAndHotspots();
+      requestAnimationFrame(() => wallPolaroidEl.classList.add("is-ready"));
+      return true;
+    } catch (_) {
+      if (reqId === wallPolaroidReqId) {
+        wallPolaroidReady = false;
+        wallPolaroidEl.hidden = true;
+      }
+      return false;
+    }
+  }
+
   function layoutScenePropsAndHotspots() {
     const inLivingRoom = !isCustomBgActive();
     const isCozyInteractive = inLivingRoom && (isFittingOpen || state.roomState === "free_stand" || state.roomState === "away");
@@ -3319,8 +3403,8 @@
       }
     }
 
-    // 墙面微缩拍立得落位书本上方干净白墙留白槽
-    wallPolaroidEl.hidden = !inLivingRoom || state.postcards.length === 0;
+    // 墙面微缩拍立得落位书本上方干净白墙留白槽（仅在图片完全解码就绪后显示）
+    wallPolaroidEl.hidden = !inLivingRoom || state.postcards.length === 0 || !wallPolaroidReady;
     if (!wallPolaroidEl.hidden) {
       panoToBoxStyle(wallPolaroidEl, cfg.slots.wallPolaroid[0], cfg.slots.wallPolaroid[1], cfg.slots.wallPolaroid[2], cfg.slots.wallPolaroid[3], "center");
     }
@@ -3329,7 +3413,10 @@
     const def = ROOM_STATES[state.roomState];
     const showFolded = !isFittingOpen && def && def.track === "baked" && !!state.savedSet[state.petId];
     foldedOutfitPropEl.hidden = !showFolded;
-    if (showFolded) panoToBoxStyle(foldedOutfitPropEl, 2430, 1110, 168, 168, "center");
+    if (showFolded) {
+      hydrateDeferredImg(foldedOutfitPropEl.querySelector("img"));
+      panoToBoxStyle(foldedOutfitPropEl, 2430, 1110, 168, 168, "center");
+    }
 
     if (!isFittingOpen && def && (def.track === "baked" || def.track === "away")) {
       const anc = def.anchors[state.petId];
@@ -3603,56 +3690,61 @@
     setToolboxOpen(false);
     await exportLockscreenWallpaperJpg();
   });
-  const settingsPanel = window.EggBabeSettingsPanel && settingsOverlayEl
-    ? window.EggBabeSettingsPanel.createSettingsPanel({
-        overlayEl: settingsOverlayEl,
-        storeApi: Store,
-        getStore: () => crossStore,
-        persist: () => persistState(),
-        getSfxOn: () => !!state.sfxOn,
-        setSfxOn: (next) => {
-          state.sfxOn = !!next;
-        },
-        getTickNoiseOn: () => !!getClockWidget().tickWhiteNoiseOn,
-        setTickNoiseOn: (next) => {
-          const cw = getClockWidget();
-          cw.tickWhiteNoiseOn = !!next;
-          renderBlackCatClockUI();
-          if (cw.tickWhiteNoiseOn && state.sfxOn) {
-            sfx.clockTick(true);
-          }
-        },
-        getOutfitName: (petId, setId) => getSetName(petId, setId),
-        onOpenProfile: () => openProfileModal(),
-        onOpenAlbum: (petId) => {
-          if (petId === "koi" || petId === "yutu") {
-            activeDetailStoryPet = petId;
-          }
-          openKeepsakeAlbum("keepsakes");
-        },
-        onOpenHoloCard: (petId) => {
-          if (window.EggBabeHoloCardShowcase) {
-            openEntityEggHoloCard(petId, { showCurioBtn: true });
-          } else {
-            openKeepsakeAlbum("keepsakes");
-          }
-        },
-        onPlayTap: () => sfx.tap(),
-        onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type),
-        Voice: Voice,
-        onPersonaChange: () => {
-          syncCareIndicators();
-          renderMoodTab();
+  let settingsPanelInstance = null;
+  async function ensureSettingsPanel() {
+    if (settingsPanelInstance) return settingsPanelInstance;
+    if (!settingsOverlayEl) return null;
+    if (!window.EggBabeSettingsPanel && Loader) {
+      await Loader.loadFeature("settings").catch(() => false);
+    }
+    if (!window.EggBabeSettingsPanel) return null;
+    settingsPanelInstance = window.EggBabeSettingsPanel.createSettingsPanel({
+      overlayEl: settingsOverlayEl,
+      storeApi: Store,
+      getStore: () => crossStore,
+      persist: () => persistState(),
+      getSfxOn: () => !!state.sfxOn,
+      setSfxOn: (next) => {
+        state.sfxOn = !!next;
+      },
+      getTickNoiseOn: () => !!getClockWidget().tickWhiteNoiseOn,
+      setTickNoiseOn: (next) => {
+        const cw = getClockWidget();
+        cw.tickWhiteNoiseOn = !!next;
+        renderBlackCatClockUI();
+        if (cw.tickWhiteNoiseOn && state.sfxOn) {
+          sfx.clockTick(true);
         }
-      })
-    : null;
+      },
+      getOutfitName: (petId, setId) => getSetName(petId, setId),
+      onOpenProfile: () => openProfileModal(),
+      onOpenAlbum: (petId) => {
+        if (petId === "koi" || petId === "yutu") {
+          activeDetailStoryPet = petId;
+        }
+        openKeepsakeAlbum("keepsakes");
+      },
+      onOpenHoloCard: (petId) => {
+        openEntityEggHoloCard(petId, { showCurioBtn: true });
+      },
+      onPlayTap: () => sfx.tap(),
+      onShowSceneFeedback: (msg, type) => showSceneFeedback(msg, type),
+      Voice: Voice,
+      onPersonaChange: () => {
+        syncCareIndicators();
+        renderMoodTab();
+      }
+    });
+    return settingsPanelInstance;
+  }
 
   const tbSettingsBtn = $("tb-btn-settings");
   if (tbSettingsBtn) {
-    tbSettingsBtn.addEventListener("click", () => {
+    tbSettingsBtn.addEventListener("click", async () => {
       sfx.tap();
       setToolboxOpen(false);
-      if (settingsPanel) settingsPanel.open("home");
+      const panel = await ensureSettingsPanel();
+      if (panel) panel.open("home");
     });
   }
 
@@ -4080,9 +4172,8 @@
     });
     tbAlbumDotEl.hidden = false;
 
-    const artUrl = await composeCleanIllustrationUrl(postcardMeta.petId, postcardMeta.setId, postcardMeta.sceneId);
-    wallPolaroidImgEl.src = artUrl;
     letterOverlayEl.hidden = true;
+    loadWallPolaroidArt(postcardMeta);
 
     if (state.roomState === "away") applyRoomState("free_stand", true);
     else {
@@ -4293,9 +4384,10 @@
     keepsakeClueOverlayEl.hidden = false;
   }
 
-  function openEntityEggHoloCard(petId, opts) {
+  async function openEntityEggHoloCard(petId, opts) {
     const pid = petId === "yutu" ? "yutu" : "koi";
     const options = opts || {};
+    await ensureHoloFeature();
     if (!window.EggBabeHoloCardShowcase) return;
     const setId = (crossStore.pets && crossStore.pets[pid] && crossStore.pets[pid].equippedSetId) || "";
     const petCare = careAll[pid] || { hunger: 70, hygiene: 75 };
@@ -4339,9 +4431,11 @@
     });
   }
 
-  function renderHolocardsAlbum() {
+  async function renderHolocardsAlbum() {
     const gridEl = $("holocards-album-grid");
-    if (!gridEl || !window.EggBabeHoloConfig) return;
+    if (!gridEl) return;
+    await ensureHoloFeature();
+    if (!window.EggBabeHoloConfig) return;
     const petIds = ["koi", "yutu"];
     gridEl.innerHTML = "";
     petIds.forEach((pid) => {
@@ -4534,9 +4628,11 @@
     placeKeepsakeInSlot(activeDetailKeepsake.id, targetIdx);
     renderDetailKeepsakeStory();
   });
-  $("btn-detail-holo-view")?.addEventListener("click", () => {
-    if (!activeDetailKeepsake || !window.EggBabeHoloCardShowcase) return;
+  $("btn-detail-holo-view")?.addEventListener("click", async () => {
+    if (!activeDetailKeepsake) return;
     sfx.tap();
+    await ensureHoloFeature();
+    if (!window.EggBabeHoloCardShowcase) return;
     const allKs = getAllCatalogKeepsakes();
     const idx = allKs.findIndex((k) => k.id === activeDetailKeepsake.id);
     const serial = idx >= 0
@@ -4870,8 +4966,8 @@
     const hasDiaries = Array.isArray(crossStore.diaries) && crossStore.diaries.length > 0;
     const todayKey = Store.getUtc8DateKey();
     const todayLog = crossStore.dailyEventLog && crossStore.dailyEventLog[todayKey];
-    const hasTodayAct = DiaryEngine && todayLog && (
-      DiaryEngine.hasRealInteraction(todayLog.yutu) || DiaryEngine.hasRealInteraction(todayLog.koi)
+    const hasTodayAct = todayLog && (
+      hasRealDayLog(todayLog.yutu) || hasRealDayLog(todayLog.koi)
     );
     if (diaryCoverHintEl) {
       diaryCoverHintEl.textContent = (hasDiaries || hasTodayAct)
@@ -4900,6 +4996,7 @@
   diaryCoverOverlayEl?.addEventListener("click", (ev) => { if (ev.target === diaryCoverOverlayEl) diaryCoverOverlayEl.hidden = true; });
 
   async function writeTodayDiary(silent) {
+    await ensureDiaryEngine();
     if (!DiaryEngine) return null;
     const todayKey = Store.getUtc8DateKey();
     const todayLog = crossStore.dailyEventLog && crossStore.dailyEventLog[todayKey];
@@ -4939,6 +5036,7 @@
   }
 
   async function renderDiaryView() {
+    await ensureDiaryEngine();
     if (!DiaryEngine) return;
     // 若晚间 >=21:00 且有当日互动则自动结算
     const autoRes = await DiaryEngine.checkAndSettleDiary(crossStore, catalog, {
@@ -5217,7 +5315,8 @@
   }
   worldScrollEl.addEventListener("scroll", updateEdgeRoomSigns);
 
-  function switchActiveRoom(roomId, skipTransition) {
+  async function switchActiveRoom(roomId, skipTransition) {
+    await ensureP5Data();
     if (!P5Data) return;
     const def = P5Data.getRoomById(roomId);
     if (!def) return;
@@ -5270,8 +5369,9 @@
 
   const yardMailboxOverlayEl = $("yard-mailbox-overlay");
   const yardMailboxListEl = $("yard-mailbox-list");
-  function openYardMailboxModal() {
+  async function openYardMailboxModal() {
     if (!yardMailboxOverlayEl || !yardMailboxListEl) return;
+    await ensureP5Data();
     ensureDailyYardMailboxDelivery();
     const items = (crossStore.house && crossStore.house.mailboxItems) || [];
     if (items.length === 0) {
@@ -5320,8 +5420,10 @@
   yardMailboxOverlayEl?.addEventListener("click", (ev) => { if (ev.target === yardMailboxOverlayEl) yardMailboxOverlayEl.hidden = true; });
 
   /* ---------- P5 家园软装改造与多房间导览弹窗 ---------- */
-  function openHouseGuide(tab) {
-    if (!houseGuideOverlayEl || !P5Data) return;
+  async function openHouseGuide(tab) {
+    if (!houseGuideOverlayEl) return;
+    await ensureP5Data();
+    if (!P5Data) return;
     activeHouseTab = tab || "rooms";
     renderHouseGuide();
     houseGuideOverlayEl.hidden = false;
@@ -5569,7 +5671,7 @@
     }
   }
 
-  function openNativeMinigame(gameId) {
+  async function openNativeMinigame(gameId) {
     if (gameId === "listen-qa") {
       const listenAct = ACTIVITIES.find((a) => a.id === "listen-qa");
       if (listenAct) {
@@ -5577,7 +5679,9 @@
         return;
       }
     }
-    if (!nativeMgOverlayEl || !nativeMgBodyEl || !P5Data) return;
+    if (!nativeMgOverlayEl || !nativeMgBodyEl) return;
+    await ensureP5Data();
+    if (!P5Data) return;
     closeNativeMinigame();
     const earned = getTodayMiniGameStarsEarned();
     if (nativeMgSubEl) nativeMgSubEl.textContent = `今日游艺获星 ${earned} / ${Store.DAILY_MINIGAME_STAR_CAP} ✦`;
@@ -5797,37 +5901,14 @@
     }
 
     updateViewportGeometry();
-    // 后台尝试拉取最新远程 catalog.json 热更新（失败静默使用内置快照）
-    fetch(sharedUrl("assets/shared/catalog.json")).then((r) => r.ok ? r.json() : null).then((remote) => {
-      if (remote && remote.pets && remote.backgrounds) catalog = remote;
-    }).catch(() => {});
 
+    // Tier 0：仅加载当前房间底图与当前宠物 WebGL 贴图，确保首屏最快可交互
     await initPet(state.petId);
     appEl.dataset.period = state.period;
     currentPanoUrl = resolveTargetPanoramaUrl();
     panoCurrEl.src = currentPanoUrl;
 
-    if (state.postcards.length > 0) {
-      composeCleanIllustrationUrl(state.postcards[0].petId, state.postcards[0].setId, state.postcards[0].sceneId).then((url) => {
-        wallPolaroidImgEl.src = url;
-        layoutScenePropsAndHotspots();
-      });
-    }
-
     checkAndSettleFocusSession();
-    // 静默检查昨日/历史活跃日补结日记与缺席零愧疚等门小涂鸦（严禁补发空白日）
-    if (DiaryEngine) {
-      const diaryBoot = await DiaryEngine.checkAndSettleDiary(crossStore, catalog, {
-        weather: state.period === "sunset" ? "sunset" : state.period === "night" ? "night" : "sunny"
-      });
-      if (diaryBoot && diaryBoot.welcomeBackNote) {
-        pendingWelcomeBackNote = diaryBoot.welcomeBackNote;
-      }
-      if (diaryBoot && diaryBoot.generated) {
-        persistState();
-      }
-    }
-
     buildDevTesterMenus();
     renderMoodTab();
     renderContextEntry();
@@ -5847,6 +5928,45 @@
     else if (openParam === "house") openHouseGuide("rooms");
 
     requestAnimationFrame(mainLoop);
+
+    // Tier 1：首屏稳定后空闲预热（不抢占首屏并发带宽与主线程）
+    const runTier1Warmup = () => {
+      // 1. 离屏合成并解码墙面「纪念拍立得」，确认 naturalWidth > 0 后才淡入墙面
+      if (state.postcards.length > 0) {
+        loadWallPolaroidArt(state.postcards[0]);
+      }
+
+      // 2. 后台静默拉取最新远程 catalog.json 热更新（失败静默使用内置快照）
+      fetch(sharedUrl("assets/shared/catalog.json")).then((r) => r.ok ? r.json() : null).then((remote) => {
+        if (remote && remote.pets && remote.backgrounds) catalog = remote;
+      }).catch(() => {});
+
+      // 3. 后台按需加载日记引擎并静默检查昨日/历史活跃日补结日记（严禁补发空白日）
+      ensureDiaryEngine().then(async (eng) => {
+        if (!eng) return;
+        const diaryBoot = await eng.checkAndSettleDiary(crossStore, catalog, {
+          weather: state.period === "sunset" ? "sunset" : state.period === "night" ? "night" : "sunny"
+        });
+        if (diaryBoot && diaryBoot.welcomeBackNote) {
+          pendingWelcomeBackNote = diaryBoot.welcomeBackNote;
+        }
+        if (diaryBoot && diaryBoot.generated) {
+          persistState();
+          syncRoomModules();
+        }
+      }).catch(() => {});
+
+      // 4. 若当前位于扩展房间或有自制小点心，后台静默预热 P5 模块
+      if (getActiveRoomId() !== "living_room") {
+        ensureP5Data().then(() => syncAltRoomProps()).catch(() => {});
+      }
+    };
+
+    if (Loader && typeof Loader.scheduleIdle === "function") {
+      Loader.scheduleIdle(runTier1Warmup, 1000);
+    } else {
+      setTimeout(runTier1Warmup, 250);
+    }
   }
 
   /* ---------- 活动列表（小游戏合集 + 每日 ≤45✦ 软上限闭环） ---------- */

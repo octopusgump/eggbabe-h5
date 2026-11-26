@@ -620,6 +620,16 @@ button:active {
   to { opacity: 0; }
 }
 
+/* 全站图片统一加载护栏：未完全解码前严禁露出裂图图标或 alt 占位文字 */
+img[data-eb-img="loading"],
+img[data-eb-img="error"] {
+  opacity: 0 !important;
+  color: transparent !important;
+}
+img[data-eb-img="ready"] {
+  transition: opacity 0.22s ease;
+}
+
 /* 墙面微缩拍立得（哑光暖相纸 + 昼/黄昏/开灯夜/关灯夜光影自适应，自然融入墙面） */
 .wall-polaroid {
   position: absolute;
@@ -628,9 +638,13 @@ button:active {
   background: linear-gradient(155deg, #F3EBDC 0%, #E7DCC8 100%);
   border-radius: 3px;
   box-shadow: 0 2px 6px rgba(48, 36, 22, 0.18), 0 1px 1px rgba(48, 36, 22, 0.12);
+  opacity: 0;
   transform: translate(-50%, -50%) rotate(-3.5deg);
   transition: filter 0.4s ease, opacity 0.35s ease, box-shadow 0.4s ease;
   filter: brightness(0.95) saturate(0.86) sepia(0.08);
+}
+.wall-polaroid.is-ready {
+  opacity: 1;
 }
 .wall-polaroid__pin {
   position: absolute;
