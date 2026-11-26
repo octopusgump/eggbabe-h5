@@ -154,32 +154,57 @@
     let backBodyHtml = "";
     if (isEntity && card.backMeta) {
       const m = card.backMeta;
-      const keepsakeLine = ordinary ? `已留存 ${m.unlockedCount} 件` : `${m.unlockedCount} / 41 件`;
+      const orbs = Array.isArray(m.orbs) ? m.orbs : [];
+      const moodAccent = m.moodAccent || "#E8C97A";
+      const orbAngles = [-90, -18, 54, 126, 198];
+      const orbsHtml = orbs.map((orb, idx) => {
+        const rad = ((orbAngles[idx] !== undefined ? orbAngles[idx] : idx * 72 - 90) * Math.PI) / 180;
+        const leftPct = (50 + Math.cos(rad) * 42).toFixed(1);
+        const topPct = (50 + Math.sin(rad) * 42).toFixed(1);
+        return `
+          <span
+            class="eb-tcg-orb${orb.lit ? " is-lit" : ""}"
+            style="left:${leftPct}%;top:${topPct}%;--orb-color:${escapeHtml(orb.color || "#E8C97A")};"
+            title="${escapeHtml(orb.label)}"
+          >
+            <i class="eb-tcg-orb__gem"></i>
+          </span>
+        `;
+      }).join("");
+
       backBodyHtml = `
-        <div>
+        <svg class="eb-tcg-filigree" viewBox="0 0 240 336" aria-hidden="true">
+          <rect x="10" y="10" width="220" height="316" rx="14" fill="none" stroke="currentColor" stroke-opacity="0.34" stroke-width="1.1"/>
+          <rect x="16" y="16" width="208" height="304" rx="10" fill="none" stroke="currentColor" stroke-opacity="0.18" stroke-width="0.7" stroke-dasharray="3 3"/>
+          <path d="M10 34 L34 10 M206 10 L230 34 M10 302 L34 326 M206 326 L230 302" fill="none" stroke="currentColor" stroke-opacity="0.42" stroke-width="1"/>
+          <circle cx="120" cy="148" r="82" fill="none" stroke="currentColor" stroke-opacity="0.14" stroke-width="0.8"/>
+          <circle cx="120" cy="148" r="68" fill="none" stroke="currentColor" stroke-opacity="0.22" stroke-width="0.9" stroke-dasharray="2.5 4"/>
+          <ellipse cx="120" cy="148" rx="80" ry="30" transform="rotate(-28 120 148)" fill="none" stroke="currentColor" stroke-opacity="0.18" stroke-width="0.75"/>
+          <ellipse cx="120" cy="148" rx="80" ry="30" transform="rotate(28 120 148)" fill="none" stroke="currentColor" stroke-opacity="0.18" stroke-width="0.75"/>
+          <path d="M120 68 L131 137 L198 148 L131 159 L120 228 L109 159 L42 148 L109 137 Z" fill="currentColor" fill-opacity="0.06" stroke="currentColor" stroke-opacity="0.24" stroke-width="0.8"/>
+        </svg>
+
+        <div class="eb-tcg-head">
           <div class="eb-holo-back__eyebrow">${escapeHtml(m.eyebrow)}</div>
           <h3 class="eb-holo-back__title">${escapeHtml(card.name)} · ${escapeHtml(card.prototypeLabel)}</h3>
-          <div class="eb-holo-back__divider"></div>
         </div>
-        <div class="eb-holo-back__meta">
-          <div class="eb-holo-back__cell">
-            <span class="eb-holo-back__label">蛋宝宝号</span>
-            <span class="eb-holo-back__val">${escapeHtml(m.publicId)}</span>
-          </div>
-          <div class="eb-holo-back__cell">
-            <span class="eb-holo-back__label">陪伴天数</span>
-            <span class="eb-holo-back__val">累计 ${m.totalDays} 天</span>
-          </div>
-          <div class="eb-holo-back__cell">
-            <span class="eb-holo-back__label">初遇日期</span>
-            <span class="eb-holo-back__val">${escapeHtml(m.firstMetAt)}</span>
-          </div>
-          <div class="eb-holo-back__cell">
-            <span class="eb-holo-back__label">多宝收藏</span>
-            <span class="eb-holo-back__val">${escapeHtml(keepsakeLine)}</span>
+
+        <div class="eb-tcg-emblem" style="--mood-accent:${escapeHtml(moodAccent)};">
+          <div class="eb-tcg-emblem__ring" aria-hidden="true"></div>
+          ${orbsHtml}
+          <div class="eb-tcg-core">
+            <span class="eb-tcg-core__icon" aria-hidden="true">${escapeHtml(m.moodIcon || "😊")}</span>
+            <span class="eb-tcg-core__kicker">今日心情</span>
+            <strong class="eb-tcg-core__mood">${escapeHtml(m.moodLabel || "愉快")}</strong>
           </div>
         </div>
-        <p class="eb-holo-back__story">${escapeHtml(m.moodQuote)}</p>
+
+        <div class="eb-tcg-status-row">
+          <span class="eb-tcg-pill">✦ 此刻 · ${escapeHtml(m.statusLabel || "桌边陪伴中")}</span>
+          <span class="eb-tcg-pill eb-tcg-pill--soft">${escapeHtml(m.personaLabel || "温柔陪伴")}</span>
+        </div>
+
+        <p class="eb-holo-back__story eb-holo-back__story--quote">${escapeHtml(m.moodQuote)}</p>
         <div class="eb-holo-back__foot">${escapeHtml(m.batchNote)}</div>
       `;
     } else {
@@ -204,11 +229,17 @@
       `;
     }
 
+    const ability = card.ability || { name: "陪伴共鸣", desc: "轻触翻转查看背后的心情与故事" };
+    const frontStory = card.story || card.trait || "";
+    const hasAbilityTrigger = !!(isEntity && ability.triggers && ability.triggers.length);
+
     host.innerHTML = `
       <div class="eb-holo-modal__top">
         <span class="eb-holo-modal__eyebrow">${escapeHtml(eyebrowText)}</span>
         <button id="eb-holo-close-btn" class="eb-holo-modal__close" type="button" aria-label="关闭全息卡">×</button>
       </div>
+
+      <div id="eb-holo-ability-toast" class="eb-holo-ability-toast" hidden aria-live="polite"></div>
 
       <div id="eb-holo-stage" class="eb-holo-stage">
         <div
@@ -232,7 +263,11 @@
                 <b class="eb-holo-card__name">${escapeHtml(card.name)}</b>
                 <span class="eb-holo-card__tag">${escapeHtml(card.tag)}</span>
               </div>
-              <p class="eb-holo-card__trait">${escapeHtml(card.trait || "")}</p>
+              <div class="eb-holo-card__ability">
+                <span class="eb-holo-card__ability-badge">✦ ${escapeHtml(ability.name)}</span>
+                <span class="eb-holo-card__ability-desc">${escapeHtml(ability.desc)}</span>
+              </div>
+              <p class="eb-holo-card__story">${escapeHtml(frontStory)}</p>
               <div class="eb-holo-card__foot">
                 <span class="eb-holo-card__serial">${escapeHtml(serialText)}</span>
                 <span class="eb-holo-card__rarity">${escapeHtml(card.rarityMark || "✦")} ${escapeHtml(card.rarityLabel || "")}</span>
@@ -249,11 +284,12 @@
         </div>
       </div>
 
-      <p class="eb-holo-modal__hint">滑动倾斜赏玩全息折射 · 轻触卡牌翻转背面档案</p>
+      <p class="eb-holo-modal__hint">滑动倾斜赏玩全息折射 · 轻触卡牌翻转背面状态</p>
 
       <div class="eb-holo-modal__actions">
+        ${hasAbilityTrigger ? `<button id="eb-holo-ability-btn" class="eb-holo-btn eb-holo-btn--primary" type="button">${escapeHtml(ability.ctaLabel || `✦ 发动 · ${ability.name}`)}</button>` : ""}
         <button id="eb-holo-flip-btn" class="eb-holo-btn" type="button">↻ 翻转背面</button>
-        ${activeBackAction ? `<button id="eb-holo-curio-btn" class="eb-holo-btn eb-holo-btn--primary" type="button">🪵 前往多宝收藏格</button>` : ""}
+        ${activeBackAction ? `<button id="eb-holo-curio-btn" class="eb-holo-btn${hasAbilityTrigger ? "" : " eb-holo-btn--primary"}" type="button">🪵 前往多宝收藏格</button>` : ""}
       </div>
     `;
 
@@ -261,6 +297,26 @@
     frontEl = host.querySelector("#eb-holo-front");
     const stageEl = host.querySelector("#eb-holo-stage");
     const flipBtn = host.querySelector("#eb-holo-flip-btn");
+    const abilityBtn = host.querySelector("#eb-holo-ability-btn");
+    const abilityToast = host.querySelector("#eb-holo-ability-toast");
+
+    let abilityIdx = 0;
+    let toastTimer = null;
+    if (abilityBtn && hasAbilityTrigger && abilityToast) {
+      abilityBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        if (typeof options.onTap === "function") options.onTap();
+        const line = ability.triggers[abilityIdx % ability.triggers.length];
+        abilityIdx += 1;
+        abilityToast.textContent = `${ability.name}：${line}`;
+        abilityToast.hidden = false;
+        currentRy += flipped ? -24 : 24;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          if (abilityToast) abilityToast.hidden = true;
+        }, 3200);
+      });
+    }
 
     const toggleFlip = () => {
       flipped = !flipped;

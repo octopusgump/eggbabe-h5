@@ -14,10 +14,13 @@ test("P3 & P5 DOM structure, 4-tab capsule-safe topbar, bookshelf miniatures, an
   const html = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
   assert.ok(html.includes('id="mod-books-curio-minis"'), "bookshelf middle-shelf curio miniatures must exist");
   assert.ok(html.includes("eb-nav-bar--four-tabs"), "unified 4-tab capsule-safe topbar must exist");
-  for (const tab of ["album", "postcards", "diary", "keepsakes"]) {
+  for (const tab of ["album", "postcards", "holocards", "keepsakes"]) {
     assert.ok(html.includes(`data-album-tab="${tab}"`), `missing unified tab: ${tab}`);
   }
   for (const id of [
+    "tb-btn-diary",
+    "holocards-album-view",
+    "diary-modal-view",
     "bookshelf-hub-overlay",
     "diary-cover-overlay",
     "diary-book-view",

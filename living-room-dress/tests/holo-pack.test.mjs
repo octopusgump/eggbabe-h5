@@ -119,8 +119,13 @@ test("buildEntityEggCardData produces complete 3D holographic identity cards for
     assert.equal(card.kind, "entity-egg");
     assert.equal(card.petId, petId);
     assert.ok(card.image.endsWith(".png"), `expected PNG outfit image, got ${card.image}`);
+    assert.ok(card.ability && card.ability.name && card.ability.desc && Array.isArray(card.ability.triggers), "entity egg card must define interactive ability");
+    assert.ok(card.story && card.story.length >= 12, "entity egg card must include a story");
     assert.equal(card.backMeta.totalDays, 14);
     assert.equal(card.backMeta.publicId, store.user.publicId);
+    assert.equal(Array.isArray(card.backMeta.orbs), true);
+    assert.equal(card.backMeta.orbs.length, 5);
+    assert.ok(card.backMeta.moodIcon && card.backMeta.moodLabel && card.backMeta.statusLabel && card.backMeta.personaLabel);
   }
 });
 
@@ -134,6 +139,10 @@ test("index.html, app.js, and settings-panel.js wire Option C dual integration p
   assert.match(html, /holo-card-showcase\.js/);
   assert.match(html, /id="btn-curio-open-pack"/);
   assert.match(html, /id="btn-detail-holo-view"/);
+  assert.match(html, /data-album-tab="holocards"/);
+  assert.match(html, /id="holocards-album-view"/);
+  assert.match(html, /id="tb-btn-diary"/);
+  assert.match(html, /id="diary-modal-view"/);
 
   assert.match(appJs, /id:\s*"holo-pack"/);
   assert.match(appJs, /eggbabe:holo-pack-complete/);
@@ -141,6 +150,8 @@ test("index.html, app.js, and settings-panel.js wire Option C dual integration p
   assert.match(appJs, /onOpenHoloCard:/);
   assert.match(appJs, /btn-detail-holo-view/);
   assert.match(appJs, /btn-curio-open-pack/);
+  assert.match(appJs, /renderHolocardsAlbum/);
+  assert.match(appJs, /openDiaryModal/);
 
   assert.match(settingsJs, /onOpenHoloCard/);
 });
