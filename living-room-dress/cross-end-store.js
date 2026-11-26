@@ -646,7 +646,8 @@
         ageRangeUpdatedAt: null,
         feedbackReceipts: [],
         feedbackCounter: { dateKey: "", sequence: 0 },
-        inviteCodes: []
+        inviteCodes: [],
+        petIntroTutorialDone: false
       },
       user: {
         id: "usr_eb_01",
@@ -996,6 +997,7 @@
         store.settings.feedbackCounter = { dateKey: "", sequence: 0 };
       }
       if (!Array.isArray(store.settings.inviteCodes)) store.settings.inviteCodes = [];
+      if (typeof store.settings.petIntroTutorialDone !== "boolean") store.settings.petIntroTutorialDone = false;
     }
     if (store.companion && typeof store.companion === "object") {
       if (!store.companion.dailyMiniGameStars || typeof store.companion.dailyMiniGameStars !== "object") {

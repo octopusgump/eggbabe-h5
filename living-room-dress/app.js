@@ -515,6 +515,15 @@
   const feedbackFrontTextEl = $("feedback-front-text");
   const feedbackBackEl = $("feedback-back");
   const feedbackBackTextEl = $("feedback-back-text");
+  const petTutorialCardEl = $("pet-tutorial-card");
+  const petTutorialDotsEl = $("pet-tutorial-dots");
+  const petTutorialStepBadgeEl = $("pet-tutorial-step-badge");
+  const petTutorialTitleEl = $("pet-tutorial-title");
+  const petTutorialDescEl = $("pet-tutorial-desc");
+  const btnTutorialSkipEl = $("btn-tutorial-skip");
+  const btnTutorialNextEl = $("btn-tutorial-next");
+  const petTutorialBeaconEl = $("pet-tutorial-beacon");
+  const petTutorialBeaconLabelEl = $("pet-tutorial-beacon-label");
 
   const moodTabEl = $("pet-mood-tab");
   const roomStarWidgetEl = $("room-star-widget");
@@ -706,6 +715,201 @@
       feedbackStackEl.classList.remove("scene-feedback-stack--visible");
       feedbackBackEl.hidden = true;
     }, durationMs || (v === "system" ? 1900 : 2600));
+  }
+
+  /* ---------- 7.5 首次进入一次性互动小教程（说话 → 跳跃 → 桌面散步，仅展示一次） ---------- */
+  const PET_TUTORIAL_STORAGE_KEY = "eggbabe_pet_intro_tutorial_v1";
+  const PET_TUTORIAL_STEPS = [
+    {
+      id: "speak",
+      beacon: () => "点点脑袋 💬",
+      title: (petName) => `点点小脑袋，听${petName}说说话`,
+      desc: () => "轻点头部会触发不同表情与小声嘀咕，也能随时切换玉兔/锦鲤"
+    },
+    {
+      id: "jump",
+      beacon: (petId) => petId === "yutu" ? "戳戳肚子 ✨" : "点点小脚丫 ✨",
+      title: (petName) => `点点下半身，看${petName}欢快跳跃`,
+      desc: () => "轻点下半身会原地蹦跳；左右来回滑动还能摸头呼噜哦"
+    },
+    {
+      id: "walk",
+      beacon: () => "点点木桌 🐾",
+      title: (petName) => `点点木桌角落，带${petName}散散步`,
+      desc: () => "木桌所有角落都能小碎步逛到，会自动绕开小床和镜子"
+    }
+  ];
+
+  const petTutorial = {
+    active: false,
+    stepIdx: 0,
+    stepLocked: false,
+    advanceTimer: 0,
+    deskTarget: { x: 1840, y: 1360 }
+  };
+
+  function hasCompletedPetTutorial() {
+    if (crossStore && crossStore.settings && crossStore.settings.petIntroTutorialDone) {
+      return true;
+    }
+    try {
+      return window.localStorage && window.localStorage.getItem(PET_TUTORIAL_STORAGE_KEY) === "1";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function markPetTutorialDone() {
+    if (crossStore && crossStore.settings) {
+      crossStore.settings.petIntroTutorialDone = true;
+    }
+    try {
+      if (window.localStorage) window.localStorage.setItem(PET_TUTORIAL_STORAGE_KEY, "1");
+    } catch (e) {}
+    persistState();
+  }
+
+  function pickTutorialDeskSpot() {
+    // 选一个离当前站位适中、在桌面上显眼且不挡镜子/小床的木桌角落
+    const cand = petPos.x > 1640 ? { x: 1120, y: 1410 } : { x: 1890, y: 1380 };
+    if (DeskNav && typeof DeskNav.clampPointToPolygon === "function") {
+      const snapped = DeskNav.clampPointToPolygon(cand.x, cand.y, getActiveWalkPoly());
+      return { x: snapped.x, y: snapped.y };
+    }
+    return cand;
+  }
+
+  function syncPetTutorialBeacon(rt, pose) {
+    if (!petTutorial.active || !petTutorialBeaconEl) return;
+    const step = PET_TUTORIAL_STEPS[petTutorial.stepIdx];
+    if (!step) return;
+
+    if (step.id === "walk") {
+      panoToBoxStyle(petTutorialBeaconEl, petTutorial.deskTarget.x, petTutorial.deskTarget.y);
+      petTutorialBeaconEl.hidden = false;
+      return;
+    }
+
+    const activeRt = rt || petRuntimes[state.petId];
+    if (!activeRt) return;
+    const cfg = activeRt.cfg;
+    const usePose = pose || lastPose;
+    const pt = step.id === "speak"
+      ? petCanvasPtToBoxPx(activeRt, cfg.head.x, cfg.head.y - cfg.head.ry * 0.42, usePose)
+      : petCanvasPtToBoxPx(activeRt, cfg.cx, cfg.id === "yutu" ? cfg.bodyY + 55 : cfg.feetY - 52, usePose);
+    petTutorialBeaconEl.style.left = pt[0].toFixed(1) + "px";
+    petTutorialBeaconEl.style.top = pt[1].toFixed(1) + "px";
+    petTutorialBeaconEl.hidden = false;
+  }
+
+  function renderPetTutorialStep() {
+    if (!petTutorial.active || !petTutorialCardEl) return;
+    const step = PET_TUTORIAL_STEPS[petTutorial.stepIdx];
+    if (!step) return;
+    const petName = state.petId === "yutu" ? "玉兔" : "锦鲤";
+
+    if (step.id === "walk") {
+      petTutorial.deskTarget = pickTutorialDeskSpot();
+    }
+    if (petTutorialStepBadgeEl) {
+      petTutorialStepBadgeEl.textContent = `初次见面 · ${petTutorial.stepIdx + 1}/${PET_TUTORIAL_STEPS.length}`;
+    }
+    if (petTutorialTitleEl) petTutorialTitleEl.textContent = step.title(petName);
+    if (petTutorialDescEl) petTutorialDescEl.textContent = step.desc(petName);
+    if (petTutorialBeaconLabelEl) petTutorialBeaconLabelEl.textContent = step.beacon(state.petId);
+    if (btnTutorialNextEl) {
+      btnTutorialNextEl.textContent = petTutorial.stepIdx >= PET_TUTORIAL_STEPS.length - 1 ? "我知道啦" : "下一步";
+    }
+    if (petTutorialDotsEl) {
+      petTutorialDotsEl.querySelectorAll(".pet-tutorial-card__dot").forEach((dot, idx) => {
+        dot.classList.toggle("is-active", idx === petTutorial.stepIdx);
+        dot.classList.toggle("is-done", idx < petTutorial.stepIdx);
+      });
+    }
+    petTutorialCardEl.classList.remove("is-step-done");
+    if (petTutorialBeaconEl) petTutorialBeaconEl.classList.remove("is-step-done");
+    petTutorialCardEl.hidden = false;
+    syncPetTutorialBeacon();
+  }
+
+  function dismissPetTutorial(shouldPersist, showCompleteToast) {
+    clearTimeout(petTutorial.advanceTimer);
+    petTutorial.advanceTimer = 0;
+    const wasActive = petTutorial.active;
+    petTutorial.active = false;
+    petTutorial.stepLocked = false;
+    if (petTutorialCardEl) {
+      petTutorialCardEl.hidden = true;
+      petTutorialCardEl.classList.remove("is-step-done");
+    }
+    if (petTutorialBeaconEl) {
+      petTutorialBeaconEl.hidden = true;
+      petTutorialBeaconEl.classList.remove("is-step-done");
+    }
+    if (shouldPersist) markPetTutorialDone();
+    if (wasActive && showCompleteToast) {
+      const petName = state.petId === "yutu" ? "玉兔" : "锦鲤";
+      showSceneFeedback(`太棒啦，已经学会和${petName}互动啦 ✨`, "system", null, 2400);
+    }
+  }
+
+  function advancePetTutorialStep(interactiveFinish) {
+    if (!petTutorial.active) return;
+    if (petTutorial.stepIdx >= PET_TUTORIAL_STEPS.length - 1) {
+      dismissPetTutorial(true, !!interactiveFinish);
+      return;
+    }
+    petTutorial.stepIdx += 1;
+    petTutorial.stepLocked = false;
+    renderPetTutorialStep();
+  }
+
+  function notifyPetTutorialAction(actionKind) {
+    if (!petTutorial.active || petTutorial.stepLocked) return;
+    const step = PET_TUTORIAL_STEPS[petTutorial.stepIdx];
+    if (!step || step.id !== actionKind) return;
+
+    petTutorial.stepLocked = true;
+    if (petTutorialCardEl) petTutorialCardEl.classList.add("is-step-done");
+    if (petTutorialBeaconEl) petTutorialBeaconEl.classList.add("is-step-done");
+    if (petTutorialBeaconLabelEl) petTutorialBeaconLabelEl.textContent = "真棒 ✓";
+    if (btnTutorialNextEl) btnTutorialNextEl.textContent = "真棒 ✓";
+    sfx.star();
+
+    const waitMs = actionKind === "walk" ? 900 : 1150;
+    clearTimeout(petTutorial.advanceTimer);
+    petTutorial.advanceTimer = setTimeout(() => {
+      advancePetTutorialStep(true);
+    }, waitMs);
+  }
+
+  function maybeStartPetIntroTutorial(forcePreview) {
+    if (!petTutorialCardEl || !petTutorialBeaconEl) return;
+    if (!forcePreview && hasCompletedPetTutorial()) return;
+    if (isFittingOpen || careUiMode !== "none" || state.roomState !== "free_stand" || isPetSleepingNow()) return;
+
+    petTutorial.active = true;
+    petTutorial.stepIdx = 0;
+    petTutorial.stepLocked = false;
+    sleepAt = performance.now() + 60000;
+    renderPetTutorialStep();
+  }
+
+  if (btnTutorialSkipEl) {
+    btnTutorialSkipEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      sfx.tap();
+      dismissPetTutorial(true, false);
+    });
+  }
+  if (btnTutorialNextEl) {
+    btnTutorialNextEl.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      sfx.tap();
+      clearTimeout(petTutorial.advanceTimer);
+      petTutorial.stepLocked = false;
+      advancePetTutorialStep(false);
+    });
   }
 
   /* ---------- 8. 星星滚字与床头《奶肚黑猫警长发条钟》（P4） ---------- */
@@ -2446,7 +2650,7 @@
       return makePose({ sx: 1.01, sy: 0.985 + 0.008 * b, breath: 0.022 * b, headRot: 6 + 1.2 * b, headTy: isKoi ? 6 : 8, rot: 1, earL: -5 + b, earR: (isKoi ? 8 : 54) + 2.5 * b, wDoze: 1, shS: 1.03 });
     }
 
-    if (!isFittingOpen && careUiMode === "none" && now >= sleepAt) {
+    if (!isFittingOpen && careUiMode === "none" && !petTutorial.active && now >= sleepAt) {
       startAnim("doze", now);
       return lastPose;
     }
@@ -2610,6 +2814,9 @@
       const hideShadow = isNightSleepingNow() || state.roomState !== "free_stand";
       shSoftEl.style.opacity = hideShadow ? "0" : String(0.92 * p.shO);
       shConEl.style.opacity = hideShadow ? "0" : String(0.95 * p.shO);
+      if (petTutorial.active) {
+        syncPetTutorialBeacon(rt, p);
+      }
     }
   }
 
@@ -2680,6 +2887,9 @@
     }
     careUiMode = careUiMode === nextMode ? "none" : nextMode;
     appEl.classList.toggle("is-bathing", careUiMode === "bath");
+    if (careUiMode !== "none" && petTutorial.active) {
+      dismissPetTutorial(true, false);
+    }
     if (careUiMode !== "none" && walkMove) {
       walkMove = null;
       startAnim("idle", performance.now());
@@ -3040,9 +3250,11 @@
     if (t.pt0.y < neckPanoY + 35) {
       sfx.tap();
       triggerFullEmote(t.pt0.x < petPos.x ? -1 : 1);
+      notifyPetTutorialAction("speak");
     } else {
       sfx.hop();
       startAnim("jump", performance.now());
+      notifyPetTutorialAction("jump");
     }
   });
 
@@ -3109,6 +3321,7 @@
     setTimeout(() => rip.remove(), 600);
 
     startDeskWalkTo(dst, performance.now());
+    notifyPetTutorialAction("walk");
   });
 
   function getLivingRoomModules() {
@@ -3615,6 +3828,9 @@
     sleepZzEl.hidden = true;
 
     walkMove = null;
+    if (nextKey !== "free_stand" && petTutorial.active) {
+      dismissPetTutorial(true, false);
+    }
     if (nextKey === "free_stand") {
       petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
     }
@@ -3644,6 +3860,7 @@
     renderMoodTab();
     renderContextEntry();
     updateDevTesterLabels();
+    if (petTutorial.active) renderPetTutorialStep();
     if (careUiMode === "feed") renderSnackTray();
     document.querySelectorAll("[data-fit-pet]").forEach((b) => b.classList.toggle("is-active", b.dataset.fitPet === nextPet));
     if (isFittingOpen) {
@@ -3776,6 +3993,7 @@
 
   async function enterFittingRoom() {
     if (isFittingOpen) return;
+    if (petTutorial.active) dismissPetTutorial(true, false);
     if (state.roomState !== "free_stand") applyRoomState("free_stand", false);
     isFittingOpen = true;
     petPos = { x: CORK_HOME.x, y: CORK_HOME.y };
@@ -5785,6 +6003,13 @@
     } else {
       setTimeout(runTier1Warmup, 250);
     }
+
+    const forceTutorial = qs.get("tutorial") === "1";
+    if (!openParam && (forceTutorial || !hasCompletedPetTutorial())) {
+      setTimeout(() => {
+        maybeStartPetIntroTutorial(forceTutorial);
+      }, 520);
+    }
   }
 
   /* ---------- 活动列表（小游戏合集 + 每日 ≤45✦ 软上限闭环） ---------- */
@@ -5903,6 +6128,7 @@
 
   function openActivityModal() {
     if (!activityModalEl || !activityListEl) return;
+    if (petTutorial.active) dismissPetTutorial(true, false);
     const isOrdinary = crossStore.profileMode === "wx-mp-ordinary";
     const titleEl = $("activity-modal-title");
     const capBarEl = $("activity-star-cap-bar");
