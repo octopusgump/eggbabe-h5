@@ -14,17 +14,17 @@
   const COZY_SCENE_CONFIG = {
     id: "cozy_living_room_v1",
     panoramas: {
-      day: "./living-room-dress/panoramas/cozy_room_day.png",
-      night: "./living-room-dress/panoramas/cozy_room_night.png",
-      nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.png"
+      day: "./living-room-dress/panoramas/cozy_room_day.jpg",
+      night: "./living-room-dress/panoramas/cozy_room_night.jpg",
+      nightLit: "./living-room-dress/panoramas/cozy_room_night_lit.jpg"
     },
     sleepSprites: {
       yutu: "./living-room-dress/modules/yutu_bed_sleep.png",
       koi: "./living-room-dress/modules/koi_bed_sleep.png"
     },
     sleepBoxes: {
-      yutu: [92, 443, 1161, 1012],
-      koi: [75, 485, 1173, 1066]
+      yutu: [70, 440, 1190, 1040],
+      koi: [70, 440, 1190, 1040]
     },
     sillProps: {
       sunny: "./living-room-dress/props/sill_sunny_plant.png",
