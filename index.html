@@ -66,6 +66,28 @@
       </div>
     </div>
 
+    <!-- 首次进入一次性互动小教程（说话 → 跳跃 → 桌面散步，仅展示一次） -->
+    <aside id="pet-tutorial-card" class="pet-tutorial-card" role="status" aria-live="polite" hidden>
+      <div class="pet-tutorial-card__head">
+        <div class="pet-tutorial-card__progress">
+          <span id="pet-tutorial-dots" class="pet-tutorial-card__dots" aria-hidden="true">
+            <i class="pet-tutorial-card__dot is-active"></i>
+            <i class="pet-tutorial-card__dot"></i>
+            <i class="pet-tutorial-card__dot"></i>
+          </span>
+          <span id="pet-tutorial-step-badge" class="pet-tutorial-card__badge">初次见面 · 1/3</span>
+        </div>
+        <button id="btn-tutorial-skip" class="pet-tutorial-card__skip" type="button">跳过</button>
+      </div>
+      <div class="pet-tutorial-card__body">
+        <div class="pet-tutorial-card__copy">
+          <p id="pet-tutorial-title" class="pet-tutorial-card__title">点点小脑袋，听它说说话</p>
+          <p id="pet-tutorial-desc" class="pet-tutorial-card__desc">轻点头部会触发不同表情与小声嘀咕</p>
+        </div>
+        <button id="btn-tutorial-next" class="pet-tutorial-card__next" type="button">下一步</button>
+      </div>
+    </aside>
+
     <!-- 左上状态栈：精简常驻版陪伴星星牌（点击打开个人信息与伙伴档案弹窗；已下线悬浮 #room-clock） -->
     <div id="life-status-stack" class="life-status-stack">
       <div class="pet-mood-anchor">
@@ -187,6 +209,12 @@
                 <span class="room-lamp-glow__cone"></span>
               </div>
               <div id="pet-fx-host" class="pet-fx-host" aria-hidden="true"></div>
+              <div id="pet-tutorial-beacon" class="pet-tutorial-beacon" hidden aria-hidden="true">
+                <span class="pet-tutorial-beacon__ring pet-tutorial-beacon__ring--outer"></span>
+                <span class="pet-tutorial-beacon__ring pet-tutorial-beacon__ring--inner"></span>
+                <span class="pet-tutorial-beacon__dot"></span>
+                <span id="pet-tutorial-beacon-label" class="pet-tutorial-beacon__pill">点点脑袋 💬</span>
+              </div>
               <div id="sleep-zz" class="sleep-zz" hidden>
                 <span class="sleep-zz__char sleep-zz__char--1">z</span>
                 <span class="sleep-zz__char sleep-zz__char--2">z</span>

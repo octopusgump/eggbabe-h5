@@ -6401,3 +6401,241 @@ img[data-eb-img="ready"] {
 .settings-overlay[hidden] {
   display: none !important;
 }
+
+/* ==========================================================================
+   首次进入一次性互动小教程（说话 → 跳跃 → 桌面散步）
+   ========================================================================== */
+.pet-tutorial-beacon {
+  position: absolute;
+  z-index: 9;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  transform: translate3d(-50%, -50%, 0);
+  transition: left 0.34s cubic-bezier(0.22, 1, 0.36, 1), top 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+}
+.pet-tutorial-beacon[hidden] {
+  display: none;
+}
+.pet-tutorial-beacon__ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.pet-tutorial-beacon__ring--outer {
+  width: 66px;
+  height: 66px;
+  border: 2.5px solid rgba(255, 246, 214, 0.94);
+  box-shadow: 0 0 18px rgba(244, 198, 96, 0.55), inset 0 0 10px rgba(255, 245, 210, 0.32);
+  animation: petTutorialPulse 1.45s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+.pet-tutorial-beacon__ring--inner {
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgba(157, 182, 91, 0.85);
+  background: rgba(255, 251, 240, 0.16);
+  animation: petTutorialBreath 1.45s ease-in-out infinite;
+}
+.pet-tutorial-beacon__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: #FFFBF0;
+  border: 2.5px solid #9DB65B;
+  box-shadow: 0 2px 8px rgba(34, 24, 14, 0.28);
+}
+.pet-tutorial-beacon__pill {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(252, 248, 239, 0.96);
+  border: 1.5px solid rgba(164, 134, 98, 0.36);
+  color: #002900;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(34, 24, 14, 0.22);
+  animation: petTutorialFloat 1.5s ease-in-out infinite;
+}
+.pet-tutorial-beacon.is-step-done .pet-tutorial-beacon__ring--outer {
+  border-color: rgba(157, 182, 91, 0.95);
+  box-shadow: 0 0 20px rgba(157, 182, 91, 0.65);
+}
+.pet-tutorial-beacon.is-step-done .pet-tutorial-beacon__pill {
+  background: #F5F8ED;
+  border-color: rgba(157, 182, 91, 0.65);
+  color: #2E4B18;
+}
+
+@keyframes petTutorialPulse {
+  0% { transform: translate(-50%, -50%) scale(0.72); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(1.52); opacity: 0; }
+}
+@keyframes petTutorialBreath {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.9; }
+  50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+}
+@keyframes petTutorialFloat {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -4px); }
+}
+
+.pet-tutorial-card {
+  position: fixed;
+  z-index: 42;
+  left: 50%;
+  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 8px);
+  transform: translate3d(-50%, 0, 0);
+  width: min(392px, calc(100vw - 156px));
+  padding: 13px 16px 14px;
+  border-radius: 18px;
+  background: rgba(252, 248, 239, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(164, 134, 98, 0.30);
+  box-shadow: 0 10px 28px rgba(38, 26, 14, 0.18), 0 2px 6px rgba(0, 41, 0, 0.06);
+  color: #1A1A1A;
+  transition: opacity 0.24s ease, transform 0.24s ease, border-color 0.22s ease;
+}
+.pet-tutorial-card[hidden] {
+  display: none;
+}
+.pet-tutorial-card.is-step-done {
+  border-color: rgba(157, 182, 91, 0.72);
+  background: rgba(247, 251, 240, 0.97);
+}
+.pet-tutorial-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.pet-tutorial-card__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pet-tutorial-card__dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pet-tutorial-card__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(138, 114, 86, 0.28);
+  transition: width 0.22s ease, background-color 0.22s ease;
+}
+.pet-tutorial-card__dot.is-active {
+  width: 18px;
+  background: #9DB65B;
+}
+.pet-tutorial-card__dot.is-done {
+  background: #54632C;
+}
+.pet-tutorial-card__badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #54632C;
+  background: #F5F8ED;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(157, 182, 91, 0.35);
+}
+.pet-tutorial-card__skip {
+  border: 0;
+  background: transparent;
+  color: #8C8C88;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+.pet-tutorial-card__skip:hover {
+  color: #002900;
+  background: rgba(0, 41, 0, 0.05);
+}
+.pet-tutorial-card__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pet-tutorial-card__copy {
+  min-width: 0;
+  flex: 1;
+}
+.pet-tutorial-card__title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #002900;
+  line-height: 1.35;
+}
+.pet-tutorial-card__desc {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #5C5C5C;
+  line-height: 1.45;
+}
+.pet-tutorial-card__next {
+  flex: none;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(0, 41, 0, 0.22);
+  background: #002900;
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.16s ease, opacity 0.16s ease, background-color 0.16s ease;
+}
+.pet-tutorial-card__next:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+.pet-tutorial-card.is-step-done .pet-tutorial-card__next {
+  background: #9DB65B;
+  border-color: #9DB65B;
+  color: #002900;
+}
+
+@media (max-width: 600px) {
+  .pet-tutorial-card {
+    width: calc(100vw - 28px);
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 76px);
+    padding: 12px 14px 13px;
+  }
+  .pet-tutorial-card__title {
+    font-size: 13.5px;
+  }
+  .pet-tutorial-card__desc {
+    font-size: 11.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-tutorial-beacon__ring--outer,
+  .pet-tutorial-beacon__ring--inner,
+  .pet-tutorial-beacon__pill {
+    animation: none;
+  }
+}
